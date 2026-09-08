@@ -1,0 +1,74 @@
+/* Gold price trend card. Neutral surface with a tone coloured left edge, so it
+   reads as an observation rather than an alert. */
+.trend-suggestion {
+  --trend-tone: #64748b;
+  --trend-wash: #f1f5f9;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  margin: 14px 0;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--trend-tone);
+  border-radius: 12px;
+  background: var(--trend-wash);
+}
+
+.trend-suggestion.up { --trend-tone: #237b35; --trend-wash: #f1f9f2; }
+.trend-suggestion.down { --trend-tone: #b3641f; --trend-wash: #fdf6ee; }
+.trend-suggestion.stable { --trend-tone: #476083; --trend-wash: #f2f6fb; }
+
+.trend-suggestion-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--trend-tone);
+  font-size: 1.05rem;
+}
+
+.trend-suggestion-body { min-width: 0; }
+
+.trend-suggestion-body small {
+  display: block;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  color: var(--trend-tone);
+}
+
+.trend-suggestion-message {
+  margin: 4px 0 0;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+.trend-suggestion-figures {
+  margin: 5px 0 0;
+  font-size: .7rem;
+  color: #475569;
+}
+
+.trend-suggestion-figures b { margin-left: 6px; color: var(--trend-tone); }
+
+.trend-suggestion-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 7px 0 0;
+  font-size: .65rem;
+  font-style: italic;
+  color: #64748b;
+}
+
+.trend-suggestion.compact { padding: 10px 12px; margin: 10px 0; }
+.trend-suggestion.compact .trend-suggestion-figures { display: none; }
+
+@media (max-width: 560px) {
+  .trend-suggestion-figures span { display: block; }
+}

@@ -1,0 +1,65 @@
+/* ============================================================
+   Staff dashboard - hero, stat tiles, gold sparkline, due pills.
+   Palette follows the app: ink #061028 with a gold #d4a72c accent.
+   ============================================================ */
+.staff-page .dash-page { --dash-ink: #061028; --dash-gold: #d4a72c; --dash-gold-bright: #f5c842; --dash-line: #e2e8f0; --dash-muted: #64748b; }
+
+/* Hero band */
+.staff-page .dash-hero {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 22px 26px; margin-bottom: 18px; border-radius: 18px; color: #e8eef8;
+  background: radial-gradient(120% 160% at 100% 0%, #16305e 0%, var(--dash-ink) 60%);
+  box-shadow: 0 18px 40px rgba(6, 16, 40, .22);
+}
+.staff-page .dash-hero-copy small { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .16em; color: var(--dash-gold); }
+.staff-page .dash-hero-copy h2 { margin: 8px 0 4px; font-size: 1.6rem; color: #fff; }
+.staff-page .dash-hero-copy p { margin: 0; font-size: .82rem; color: rgba(232, 238, 248, .72); }
+.staff-page .dash-hero-actions ion-button {
+  --background: linear-gradient(135deg, #d4a72c, #f5c842);
+  --color: #061028;
+  --box-shadow: 0 10px 22px rgba(6, 16, 40, .3);
+  --border-radius: 12px;
+  font-weight: 700;
+}
+
+/* Stat tiles */
+.staff-page .dash-stats .staff-stat {
+  border: 1px solid var(--dash-line); border-radius: 15px; background: #fff;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.staff-page .dash-stats .staff-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(6, 16, 40, .09); border-color: #cbd5e1; }
+.staff-page .dash-stats .staff-stat strong { font-variant-numeric: tabular-nums; }
+.staff-page .dash-stats .staff-stat.danger { border-color: #f0c3bb; background: #fff7f5; }
+.staff-page .dash-stats .staff-stat.danger ion-icon { color: #b34e42; }
+.staff-page .dash-stats .staff-stat.danger strong { color: #b34e42; }
+
+/* Gold price widget */
+.staff-page .dash-gold { border: 1px solid var(--dash-line); border-radius: 16px; background: linear-gradient(135deg, #fffdf6, #fff8e6); }
+.staff-page .dash-gold .widget-label { font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--dash-muted); }
+.staff-page .dash-gold .gold-price-line strong { font-variant-numeric: tabular-nums; color: var(--dash-ink); }
+.staff-page .dash-gold .price-trend.up { color: #237b35; }
+.staff-page .dash-gold .price-trend.down { color: #b34e42; }
+.staff-page .dash-gold .sparkline { display: flex; align-items: flex-end; gap: 5px; height: 54px; margin-top: 12px; }
+.staff-page .dash-gold .sparkline span {
+  flex: 1; min-width: 6px; border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, var(--dash-gold-bright), var(--dash-gold));
+  transition: height .3s ease;
+}
+.staff-page .dash-gold .sparkline span:last-child { background: linear-gradient(180deg, #f5c842, #a8801a); }
+
+/* Days remaining pill on the Due soon table */
+.staff-page .due-pill {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 66px;
+  padding: 5px 8px; border-radius: 999px;
+  font-size: .64rem; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.staff-page .due-pill.ok { background: #e8f5e9; color: #237b35; }
+.staff-page .due-pill.soon { background: #eef4fd; color: #33578c; }
+.staff-page .due-pill.urgent { background: #fff8df; color: #957000; }
+.staff-page .due-pill.overdue { background: #fff0ee; color: #b34e42; }
+
+@media (max-width: 900px) {
+  .staff-page .dash-hero { padding: 18px; }
+  .staff-page .dash-hero-actions { width: 100%; }
+  .staff-page .dash-hero-actions ion-button { width: 100%; }
+}

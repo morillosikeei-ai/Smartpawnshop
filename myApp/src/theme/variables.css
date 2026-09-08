@@ -1,0 +1,22 @@
+html,
+body,
+ion-app,
+ion-page,
+ion-content,
+button,
+input,
+select,
+textarea {
+	font-family: Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+:root {
+	--ion-font-family: Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+ion-icon {
+	font-family: inherit;
+}
+
+/* For information on how to create your own theme, please refer to:
+http://ionicframework.com/docs/theming/ */

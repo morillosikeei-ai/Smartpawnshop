@@ -1,0 +1,155 @@
+/* ============================================================
+   Admin portal polish - sidebar navigation, top bar, and the
+   shared content surfaces (panels, tables, stats, tabs).
+   Loaded after AdminPortal.css so these rules win.
+   Palette: ink #061028, gold #d4a72c.
+   ============================================================ */
+.admin-page { --ap-ink: #061028; --ap-gold: #d4a72c; --ap-gold-bright: #f5c842; --ap-line: #e6ebf3; --ap-muted: #64748b; }
+
+/* ---------- Sidebar ---------- */
+.admin-page .admin-sidebar {
+  background: linear-gradient(185deg, #0a1730 0%, #061028 55%, #040c1f 100%);
+  border-right: 1px solid rgba(212, 167, 44, .16);
+}
+
+.admin-page .admin-brand { position: relative; padding-bottom: 26px; }
+.admin-page .admin-brand::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 10px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 167, 44, .5), transparent);
+}
+.admin-page .admin-brand span { color: rgba(232, 238, 248, .7); }
+
+.admin-page .admin-label { color: rgba(212, 167, 44, .82) !important; letter-spacing: .13em; }
+
+/* Nav buttons: gold rail on the active row, quiet lift on hover. */
+.admin-page .admin-nav button {
+  position: relative;
+  border-radius: 10px;
+  padding: 12px 13px;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+.admin-page .admin-nav button ion-icon { transition: color .18s ease; }
+.admin-page .admin-nav button:hover { background: rgba(255, 255, 255, .07); color: #fff; transform: translateX(2px); }
+.admin-page .admin-nav button:hover ion-icon { color: var(--ap-gold); }
+
+.admin-page .admin-nav button.active {
+  background: linear-gradient(90deg, rgba(212, 167, 44, .2), rgba(212, 167, 44, .04));
+  color: #fff;
+}
+.admin-page .admin-nav button.active ion-icon { color: var(--ap-gold-bright); }
+.admin-page .admin-nav button.active::before {
+  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px;
+  border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--ap-gold-bright), var(--ap-gold));
+}
+
+.admin-page .admin-account {
+  border: 1px solid rgba(212, 167, 44, .22);
+  background: rgba(255, 255, 255, .05);
+  border-radius: 12px;
+}
+.admin-page .admin-account ion-icon { color: var(--ap-gold); }
+
+/* ---------- Top bar ---------- */
+.admin-page .admin-topbar {
+  border-bottom: 1px solid var(--ap-line);
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(18px);
+}
+
+.admin-page .admin-notification {
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 1px solid #e0e6f0; background: #fff;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.admin-page .admin-notification:hover { border-color: var(--ap-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .13); transform: translateY(-1px); }
+.admin-page .notification-dot { background: var(--ap-gold); }
+
+.admin-page .admin-profile-button {
+  padding: 6px 12px 6px 8px; border-radius: 999px;
+  border: 1px solid #e0e6f0; background: #fff;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.admin-page .admin-profile-button:hover { border-color: var(--ap-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .12); }
+.admin-page .admin-profile-button ion-icon:first-child { color: var(--ap-gold); font-size: 1.25rem; }
+.admin-page .admin-profile-button[aria-expanded='true'] .profile-chevron { transform: rotate(180deg); }
+.admin-page .profile-chevron { transition: transform .18s ease; }
+
+.admin-page .admin-dropdown { border-radius: 13px; border-color: #e0e6f0; box-shadow: 0 18px 42px rgba(6, 16, 40, .16); }
+.admin-page .admin-notification-item { transition: background .15s ease; }
+.admin-page .admin-notification-item:hover { background: #f8fafc; }
+
+.admin-page .admin-menu-toggle { border-radius: 10px; border: 1px solid #e0e6f0; background: #fff; transition: border-color .18s ease; }
+.admin-page .admin-menu-toggle:hover { border-color: var(--ap-gold); }
+
+/* ---------- Content surfaces ---------- */
+.admin-page .admin-panel,
+.admin-page .mini-panel {
+  border: 1px solid var(--ap-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(8, 20, 48, .06);
+}
+
+.admin-page .admin-panel-head { align-items: flex-start; }
+.admin-page .admin-panel-head small { font-size: .6rem; font-weight: 800; letter-spacing: .13em; color: var(--ap-muted); }
+.admin-page .admin-panel-head h3 { margin: 5px 0 0; color: var(--ap-ink); }
+.admin-page .admin-panel-head button {
+  border-radius: 999px; padding: 5px 12px;
+  font-size: .7rem; color: #33578c;
+  transition: background .15s ease;
+}
+.admin-page .admin-panel-head button:hover { background: #eef4fd; }
+
+/* Stat tiles */
+.admin-page .admin-stat {
+  border: 1px solid var(--ap-line); border-radius: 15px; background: #fff;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.admin-page .admin-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(6, 16, 40, .09); border-color: #cbd5e1; }
+.admin-page .admin-stat strong { font-variant-numeric: tabular-nums; }
+
+/* Tables */
+.admin-page .admin-table-head,
+.admin-page .dashboard-risk-table thead th {
+  background: #f8fafc;
+  font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ap-muted);
+}
+.admin-page .dashboard-risk-table tbody tr { transition: background .15s ease; }
+.admin-page .dashboard-risk-table tbody tr:hover { background: #fcfdff; }
+.admin-page .dashboard-risk-table td { font-variant-numeric: tabular-nums; }
+.admin-page .activity-row { transition: background .15s ease; }
+.admin-page .activity-row:hover { background: #fcfdff; }
+
+/* Tabs */
+.admin-page .monitor-tabs button,
+.admin-page .admin-tabs button { transition: color .15s ease, border-color .15s ease, background .15s ease; }
+.admin-page .monitor-tabs button:hover,
+.admin-page .admin-tabs button:hover { color: var(--ap-ink); }
+
+/* Buttons */
+.admin-page .primary-button {
+  border-radius: 11px;
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+.admin-page .primary-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(6, 16, 40, .16); }
+.admin-page .secondary-button { border-radius: 11px; transition: border-color .16s ease, background .16s ease; }
+
+/* Settings inputs */
+.admin-page .settings-grid input,
+.admin-page .settings-grid select {
+  border-radius: 10px; border: 1px solid #e0e6f0;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.admin-page .settings-grid input:focus,
+.admin-page .settings-grid select:focus {
+  outline: none; border-color: var(--ap-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page .admin-nav button,
+  .admin-page .admin-stat,
+  .admin-page .admin-notification,
+  .admin-page .admin-profile-button,
+  .admin-page .primary-button { transition: none !important; }
+}

@@ -1,0 +1,47 @@
+/* ============================================================
+   Valid ID photo - picked preview in the Add Customer modal, and
+   the auto-filled state in the New Transaction customer section.
+   ============================================================ */
+.staff-page .id-photo-preview {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 9px; padding: 8px;
+  border: 1px solid #bfe3c8; border-radius: 10px; background: #f4fbf6;
+}
+.staff-page .id-photo-preview img {
+  width: 54px; height: 40px; flex: none;
+  object-fit: cover; border-radius: 7px; border: 1px solid #d5e8da;
+  background: #fff;
+}
+.staff-page .id-photo-preview small {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .68rem; font-weight: 700; color: #237b35;
+}
+
+.staff-page .id-photo-filled {
+  display: flex; align-items: center; gap: 11px;
+  padding: 8px;
+  border: 1px solid #bfe3c8; border-radius: 10px; background: #f4fbf6;
+}
+.staff-page .id-photo-filled img {
+  width: 62px; height: 46px; flex: none;
+  object-fit: cover; border-radius: 8px; border: 1px solid #d5e8da;
+  background: #fff;
+}
+.staff-page .id-photo-filled > div { display: grid; gap: 5px; }
+.staff-page .id-photo-filled strong {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .72rem; font-weight: 800; color: #237b35;
+}
+.staff-page .id-photo-filled button {
+  justify-self: start;
+  border: 1px solid #cfe0d4; border-radius: 8px; background: #fff;
+  padding: 4px 11px;
+  font: inherit; font-size: .68rem; font-weight: 700; color: #33578c;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+.staff-page .id-photo-filled button:hover { border-color: #d4a72c; background: #fffdf6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-page .id-photo-filled button { transition: none !important; }
+}

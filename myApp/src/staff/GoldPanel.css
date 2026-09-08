@@ -1,0 +1,72 @@
+/* ============================================================
+   Staff dashboard - gold price panel: present price, bar chart,
+   and the recorded history below it.
+   ============================================================ */
+.staff-page .gold-panel { --gp-ink: #061028; --gp-gold: #d4a72c; --gp-gold-bright: #f5c842; --gp-line: #e2e8f0; --gp-muted: #64748b; margin-bottom: 18px; }
+
+/* Range picker in the panel head */
+.staff-page .gold-range { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--gp-line); border-radius: 999px; background: #f8fafc; }
+.staff-page .gold-range button { border: none; background: transparent; border-radius: 999px; padding: 5px 12px; font-size: .68rem; font-weight: 800; color: var(--gp-muted); cursor: pointer; transition: background .15s ease, color .15s ease; }
+.staff-page .gold-range button:hover { color: var(--gp-ink); }
+.staff-page .gold-range button.active { background: var(--gp-ink); color: var(--gp-gold); }
+
+/* Present price + chart sit side by side */
+.staff-page .gold-body { display: grid; grid-template-columns: minmax(210px, 260px) 1fr; gap: 20px; align-items: stretch; margin-top: 14px; }
+
+.staff-page .gold-now { padding: 18px; border-radius: 15px; background: linear-gradient(135deg, #fffdf6, #fff6dd); border: 1px solid rgba(212, 167, 44, .35); }
+.staff-page .gold-now > small { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .14em; color: var(--gp-muted); }
+.staff-page .gold-now > strong { display: block; margin: 5px 0 6px; font-size: 1.85rem; font-weight: 800; line-height: 1.05; color: var(--gp-ink); font-variant-numeric: tabular-nums; }
+.staff-page .gold-now > strong i { font-size: .78rem; font-style: normal; font-weight: 600; color: var(--gp-muted); }
+
+.staff-page .gold-delta { display: inline-block; font-size: .7rem; font-weight: 700; }
+.staff-page .gold-delta.up { color: #237b35; }
+.staff-page .gold-delta.down { color: #b34e42; }
+
+.staff-page .gold-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(212, 167, 44, .3); }
+.staff-page .gold-meta span { display: block; font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gp-muted); }
+.staff-page .gold-meta strong { display: block; margin-top: 2px; font-size: .82rem; color: var(--gp-ink); font-variant-numeric: tabular-nums; }
+.staff-page .gold-source { text-transform: uppercase; letter-spacing: .06em; font-size: .72rem !important; }
+
+/* Bar chart */
+.staff-page .gold-chart-wrap { position: relative; display: flex; gap: 10px; padding: 16px 16px 10px; border: 1px solid var(--gp-line); border-radius: 15px; background: #fff; }
+.staff-page .gold-chart-scale { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 20px; font-size: .58rem; font-weight: 700; color: var(--gp-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.staff-page .gold-chart { flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 132px; overflow-x: auto; }
+.staff-page .gold-bar { flex: 1; min-width: 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 132px; cursor: default; }
+.staff-page .gold-bar i {
+  display: block; width: 100%; max-width: 26px; border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, var(--gp-gold-bright), var(--gp-gold));
+  transition: height .3s ease, filter .15s ease;
+}
+.staff-page .gold-bar:hover i { filter: brightness(1.08); }
+.staff-page .gold-bar:last-child i { background: linear-gradient(180deg, var(--gp-gold), #a8801a); }
+.staff-page .gold-bar small { margin-top: 5px; font-size: .56rem; font-weight: 700; color: var(--gp-muted); }
+
+/* History table */
+.staff-page .gold-history { margin-top: 16px; border: 1px solid var(--gp-line); border-radius: 14px; overflow: hidden; }
+.staff-page .gold-history-head,
+.staff-page .gold-history-row { display: grid; grid-template-columns: 1.1fr 1fr .9fr 1fr .8fr; gap: 10px; align-items: center; padding: 10px 15px; }
+.staff-page .gold-history-head { background: #f8fafc; border-bottom: 1px solid var(--gp-line); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gp-muted); }
+.staff-page .gold-history-scroll { max-height: 232px; overflow-y: auto; }
+.staff-page .gold-history-row { border-bottom: 1px solid #f1f5f9; font-size: .76rem; color: var(--gp-ink); }
+.staff-page .gold-history-row:last-child { border-bottom: none; }
+.staff-page .gold-history-row:nth-child(odd) { background: #fcfdff; }
+.staff-page .gold-history-row strong { font-variant-numeric: tabular-nums; }
+
+.staff-page .gold-delta-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; padding: 3px 8px; border-radius: 999px; font-size: .62rem; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+.staff-page .gold-delta-pill.up { background: #e8f5e9; color: #237b35; }
+.staff-page .gold-delta-pill.down { background: #fff0ee; color: #b34e42; }
+.staff-page .gold-delta-pill.flat { background: #f1f5f9; color: #94a3b8; }
+
+.staff-page .gold-source-pill { display: inline-flex; align-items: center; justify-content: center; padding: 3px 9px; border-radius: 999px; font-size: .58rem; font-style: normal; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.staff-page .gold-source-pill.api { background: #eef4fd; color: #33578c; }
+.staff-page .gold-source-pill.manual { background: #fff8df; color: #957000; }
+
+@media (max-width: 900px) {
+  .staff-page .gold-body { grid-template-columns: 1fr; }
+  .staff-page .gold-history-head,
+  .staff-page .gold-history-row { grid-template-columns: 1fr 1fr .9fr; }
+  .staff-page .gold-history-head span:nth-child(4),
+  .staff-page .gold-history-head span:nth-child(5),
+  .staff-page .gold-history-row > span:nth-child(4),
+  .staff-page .gold-history-row > .gold-source-pill { display: none; }
+}

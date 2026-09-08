@@ -1,0 +1,197 @@
+/* ============================================================
+   New Transaction - hero, stepper, value display, action bar.
+   Palette follows the app: ink #061028 with a gold #d4a72c accent.
+   ============================================================ */
+.staff-page .tx-page { --tx-ink: #061028; --tx-gold: #d4a72c; --tx-gold-bright: #f5c842; --tx-line: #e2e8f0; --tx-muted: #64748b; padding-bottom: 96px; }
+
+/* Hero band */
+.staff-page .tx-hero {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 20px 24px; margin-bottom: 18px; border-radius: 18px; color: #e8eef8;
+  background: radial-gradient(120% 160% at 100% 0%, #16305e 0%, var(--tx-ink) 60%);
+  box-shadow: 0 18px 40px rgba(6, 16, 40, .22);
+}
+.staff-page .tx-hero-copy h2 { margin: 8px 0 4px; font-size: 1.5rem; color: #fff; }
+.staff-page .tx-hero-copy p { margin: 0; font-size: .8rem; color: rgba(232, 238, 248, .72); }
+.staff-page .tx-hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .16em; color: var(--tx-gold); }
+.staff-page .tx-hero-price { text-align: right; padding-left: 18px; border-left: 1px solid rgba(212, 167, 44, .3); }
+.staff-page .tx-hero-price small { display: block; font-size: .58rem; font-weight: 800; letter-spacing: .14em; color: rgba(232, 238, 248, .6); }
+.staff-page .tx-hero-price strong { display: block; margin: 4px 0; font-size: 1.5rem; color: var(--tx-gold-bright); }
+.staff-page .tx-hero-price strong i { font-size: .8rem; font-style: normal; font-weight: 600; color: rgba(232, 238, 248, .6); }
+.staff-page .tx-hero-price span { display: inline-flex; align-items: center; gap: 5px; font-size: .64rem; color: rgba(232, 238, 248, .62); }
+
+/* Step rail */
+.staff-page .tx-steps { display: flex; gap: 10px; list-style: none; margin: 0 0 18px; padding: 0; }
+.staff-page .tx-steps li { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--tx-line); border-radius: 14px; background: #fff; transition: border-color .18s ease, box-shadow .18s ease; }
+.staff-page .tx-steps li.active { border-color: var(--tx-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .14); }
+.staff-page .tx-steps li.done { border-color: #bfe3c8; background: #f4fbf6; }
+.staff-page .tx-step-node { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #eef2f7; color: var(--tx-muted); font-size: .78rem; font-weight: 800; }
+.staff-page .tx-steps li.active .tx-step-node { background: linear-gradient(135deg, var(--tx-gold), var(--tx-gold-bright)); color: var(--tx-ink); }
+.staff-page .tx-steps li.done .tx-step-node { background: #237b35; color: #fff; }
+.staff-page .tx-step-text strong { display: block; font-size: .78rem; color: var(--tx-ink); }
+.staff-page .tx-step-text small { display: block; font-size: .64rem; color: var(--tx-muted); }
+
+/* Numbered badge on each section heading */
+.staff-page .tx-step-badge { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 9px; border-radius: 7px; background: var(--tx-ink); color: var(--tx-gold); font-size: .68rem; font-weight: 800; }
+.staff-page .tx-compact-form .form-section h3 { display: flex; align-items: center; }
+.staff-page .mini-flat-button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Alerts */
+.staff-page .tx-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 15px; margin-bottom: 16px; border-radius: 12px; font-size: .78rem; }
+.staff-page .tx-alert ion-icon { flex: none; font-size: 1.1rem; margin-top: 1px; }
+.staff-page .tx-alert ul { margin: 5px 0 0; padding-left: 17px; }
+.staff-page .tx-alert li { margin-top: 2px; }
+.staff-page .tx-alert.error { background: #fff2f0; border: 1px solid #f5c8c1; color: #b3392a; }
+.staff-page .tx-alert.success { background: #f1f9f3; border: 1px solid #bfe3c8; color: #1d6b2d; }
+
+/* Customer search + selected chip */
+.staff-page .tx-search { position: relative; }
+.staff-page .tx-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); z-index: 2; color: var(--tx-muted); font-size: 1rem; pointer-events: none; }
+.staff-page .tx-search ion-input { --padding-start: 38px; }
+.staff-page .tx-selected-chip { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 14px; border: 1px solid #bfe3c8; border-radius: 12px; background: #f4fbf6; }
+.staff-page .tx-selected-chip ion-icon { font-size: 1.25rem; color: #237b35; }
+.staff-page .tx-selected-chip strong { display: block; font-size: .82rem; color: var(--tx-ink); }
+.staff-page .tx-selected-chip small { display: block; font-size: .68rem; color: var(--tx-muted); }
+
+/* Item group picker */
+.staff-page .tx-group-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.staff-page .tx-group-picker button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px; border: 1px solid var(--tx-line); border-radius: 14px; background: #fff; cursor: pointer; text-align: left; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.staff-page .tx-group-picker button:hover { transform: translateY(-1px); border-color: #cbd5e1; }
+.staff-page .tx-group-picker button.active { border-color: var(--tx-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .16); background: #fffdf6; }
+.staff-page .tx-group-picker ion-icon { font-size: 1.3rem; color: var(--tx-muted); }
+.staff-page .tx-group-picker button.active ion-icon { color: #a8801a; }
+.staff-page .tx-group-picker strong { font-size: .8rem; color: var(--tx-ink); }
+.staff-page .tx-group-picker small { font-size: .64rem; color: var(--tx-muted); }
+
+/* Value hero */
+.staff-page .tx-value-hero { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; padding: 20px 22px; margin-bottom: 16px; border-radius: 16px; border: 1px dashed #cbd5e1; background: #f8fafc; transition: border-color .2s ease, background .2s ease; }
+.staff-page .tx-value-hero.filled { border-style: solid; border-color: rgba(212, 167, 44, .45); background: linear-gradient(135deg, #fffdf6, #fff8e6); }
+.staff-page .tx-value-main small { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .14em; color: var(--tx-muted); }
+.staff-page .tx-value-main > strong { display: block; margin: 4px 0 6px; font-size: 2.1rem; font-weight: 800; line-height: 1.1; color: var(--tx-ink); font-variant-numeric: tabular-nums; }
+.staff-page .tx-value-formula { font-size: .7rem; color: var(--tx-muted); }
+.staff-page .tx-value-formula i { font-style: normal; color: #a8801a; font-weight: 800; margin: 0 3px; }
+.staff-page .tx-value-split { display: flex; gap: 26px; }
+.staff-page .tx-value-split span { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .12em; color: var(--tx-muted); }
+.staff-page .tx-value-split strong { display: block; margin-top: 3px; font-size: 1.05rem; color: var(--tx-ink); font-variant-numeric: tabular-nums; }
+.staff-page .tx-value-loan { color: #a8801a !important; }
+.staff-page .tx-ltv-bar { width: 96px; height: 5px; margin-top: 7px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.staff-page .tx-ltv-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--tx-gold), var(--tx-gold-bright)); }
+
+/* Loan summary chips */
+.staff-page .tx-loan-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.staff-page .tx-loan-chip { padding: 12px 14px; border: 1px solid var(--tx-line); border-radius: 13px; background: #fff; }
+.staff-page .tx-loan-chip.gold { border-color: rgba(212, 167, 44, .4); background: #fffdf6; }
+.staff-page .tx-loan-chip ion-icon { font-size: 1.05rem; color: var(--tx-muted); }
+.staff-page .tx-loan-chip.gold ion-icon { color: #a8801a; }
+.staff-page .tx-loan-chip span { display: block; margin-top: 5px; font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--tx-muted); }
+.staff-page .tx-loan-chip strong { display: block; margin-top: 3px; font-size: .92rem; color: var(--tx-ink); font-variant-numeric: tabular-nums; }
+
+/* Sticky action bar */
+.staff-page .tx-actionbar {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 18px; padding: 14px 20px; border-radius: 16px;
+  background: rgba(255, 255, 255, .95); backdrop-filter: blur(10px);
+  border: 1px solid var(--tx-line); box-shadow: 0 -6px 26px rgba(6, 16, 40, .1);
+}
+.staff-page .tx-actionbar-figures { display: flex; gap: 24px; }
+.staff-page .tx-actionbar-figures span { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--tx-muted); }
+.staff-page .tx-actionbar-figures strong { display: block; margin-top: 2px; font-size: .95rem; color: var(--tx-ink); font-variant-numeric: tabular-nums; }
+.staff-page .tx-actionbar-figures .highlight strong { color: #a8801a; font-size: 1.12rem; }
+.staff-page .tx-actionbar-buttons { display: flex; gap: 10px; margin-left: auto; }
+.staff-page .tx-actionbar .primary-button { display: inline-flex; align-items: center; gap: 7px; }
+
+@media (max-width: 900px) {
+  .staff-page .tx-steps { flex-direction: column; }
+  .staff-page .tx-group-picker { grid-template-columns: 1fr; }
+  .staff-page .tx-loan-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .staff-page .tx-hero-price { padding-left: 0; border-left: none; text-align: left; }
+  .staff-page .tx-actionbar-figures { gap: 16px; }
+  .staff-page .tx-actionbar-buttons { width: 100%; }
+  .staff-page .tx-actionbar-buttons button { flex: 1; }
+}
+
+/* ============================================================
+   Multi-step wizard: Customer -> Item & Value -> Loan -> Review.
+   Only one step renders at a time, so the page stays short and the
+   spacing is tighter than the old single scrolling form.
+   ============================================================ */
+.staff-page .tx-wizard { padding-bottom: 24px; }
+
+/* Compact hero: the subtitle is dropped once the step rail explains itself. */
+.staff-page .tx-hero.compact { padding: 14px 20px; margin-bottom: 12px; }
+.staff-page .tx-hero.compact .tx-hero-copy h2 { margin: 4px 0 0; font-size: 1.25rem; }
+.staff-page .tx-hero.compact .tx-hero-price strong { font-size: 1.25rem; }
+
+/* Step rail: four tighter cells that track the active step. */
+.staff-page .tx-steps.compact { gap: 8px; margin-bottom: 12px; }
+.staff-page .tx-steps.compact li { padding: 8px 11px; border-radius: 11px; gap: 8px; }
+.staff-page .tx-steps.compact .tx-step-node { width: 23px; height: 23px; font-size: .7rem; }
+.staff-page .tx-steps.compact .tx-step-text strong { font-size: .73rem; }
+.staff-page .tx-steps.compact .tx-step-text small { font-size: .6rem; }
+
+/* One step of the form. Sections lose the stacked padding they needed when
+   every section was on screen at once. */
+.staff-page .tx-step-panel { padding: 18px 20px; margin-bottom: 12px; }
+.staff-page .tx-step-panel .form-section { margin: 0; padding: 0; border: none; }
+.staff-page .tx-step-panel .form-section h3 { margin: 0 0 14px; font-size: .95rem; }
+.staff-page .tx-step-panel .form-grid { gap: 10px; }
+.staff-page .tx-step-panel .tx-field { --min-height: 42px; }
+.staff-page .tx-step-panel .tx-group-picker { margin-bottom: 12px; gap: 8px; }
+.staff-page .tx-step-panel .tx-group-picker button { padding: 10px 12px; }
+.staff-page .tx-step-panel .tx-value-hero { padding: 14px 18px; margin: 12px 0; }
+.staff-page .tx-step-panel .tx-value-main > strong { margin: 2px 0 4px; font-size: 1.7rem; }
+.staff-page .tx-step-panel .tx-loan-chips { margin-bottom: 12px; }
+.staff-page .tx-step-panel .tx-summary-grid { gap: 10px; }
+.staff-page .tx-step-hint { margin: 12px 0 0; font-size: .72rem; color: var(--tx-muted); }
+
+/* The action bar carries Back / Next and stays put at the foot of the step. */
+.staff-page .tx-wizard .tx-actionbar { margin-top: 0; padding: 12px 18px; }
+.staff-page .tx-wizard .tx-actionbar .primary-button:disabled { opacity: .45; cursor: not-allowed; }
+.staff-page .tx-wizard .tx-actionbar .secondary-button,
+.staff-page .tx-wizard .tx-actionbar .primary-button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------------------------------------------------------- success screen */
+.staff-page .tx-success {
+  max-width: 640px; margin: 24px auto; padding: 32px 28px; text-align: center;
+  border-radius: 20px; border: 1px solid var(--tx-line); background: #fff;
+  box-shadow: 0 18px 44px rgba(6, 16, 40, .12);
+}
+.staff-page .tx-success-mark { display: inline-grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #f1f9f3; border: 1px solid #bfe3c8; }
+.staff-page .tx-success-mark ion-icon { font-size: 2.1rem; color: #237b35; }
+.staff-page .tx-success h2 { margin: 14px 0 4px; font-size: 1.35rem; color: var(--tx-ink); }
+.staff-page .tx-success > p { margin: 0; font-size: .8rem; color: var(--tx-muted); }
+
+.staff-page .tx-success-ticket {
+  margin: 20px auto 0; padding: 14px 18px; max-width: 360px; border-radius: 14px;
+  color: #e8eef8; background: radial-gradient(120% 160% at 100% 0%, #16305e 0%, var(--tx-ink) 60%);
+}
+.staff-page .tx-success-ticket small { display: block; font-size: .58rem; font-weight: 800; letter-spacing: .16em; color: rgba(232, 238, 248, .6); }
+.staff-page .tx-success-ticket strong { display: block; margin-top: 5px; font-size: 1.5rem; font-weight: 800; color: var(--tx-gold-bright); font-variant-numeric: tabular-nums; }
+
+.staff-page .tx-success-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; text-align: left; }
+.staff-page .tx-success-figures div { padding: 10px 13px; border: 1px solid var(--tx-line); border-radius: 12px; }
+.staff-page .tx-success-figures .highlight { border-color: rgba(212, 167, 44, .4); background: #fffdf6; }
+.staff-page .tx-success-figures span { display: block; font-size: .6rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--tx-muted); }
+.staff-page .tx-success-figures strong { display: block; margin-top: 3px; font-size: .88rem; color: var(--tx-ink); font-variant-numeric: tabular-nums; }
+.staff-page .tx-success-figures .highlight strong { color: #a8801a; }
+
+.staff-page .tx-success-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 22px; }
+.staff-page .tx-success-actions button { display: inline-flex; align-items: center; gap: 7px; }
+
+@media (max-width: 900px) {
+  .staff-page .tx-steps.compact { flex-direction: row; flex-wrap: wrap; }
+  .staff-page .tx-steps.compact li { flex: 1 1 45%; }
+  .staff-page .tx-success-figures { grid-template-columns: 1fr; }
+  .staff-page .tx-success-actions button { flex: 1 1 100%; justify-content: center; }
+}
+
+/* -- item photo quality check ------------------------------------------- */
+.staff-page .tx-photo-field { display: grid; gap: 8px; }
+.staff-page .tx-photo-row { display: grid; gap: 6px; padding: 9px 11px; border: 1px solid #dbe4f0; border-radius: 10px; background: #fff; }
+.staff-page .tx-photo-row.warn { border-color: #f0c36d; background: #fffaf0; }
+.staff-page .tx-photo-name strong { display: block; font-size: .74rem; color: #0f1c33; word-break: break-all; }
+.staff-page .tx-photo-name small { font-size: .68rem; color: var(--tx-muted, #64748b); }
+.staff-page .tx-photo-warning p { margin: 4px 0 8px; font-size: .72rem; font-weight: 600; color: #8a5a06; }
+.staff-page .tx-photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.staff-page .tx-photo-keep { border: none; border-radius: 7px; padding: 8px 12px; background: transparent; color: #47597a; font: inherit; font-size: .7rem; font-weight: 700; text-decoration: underline; cursor: pointer; }

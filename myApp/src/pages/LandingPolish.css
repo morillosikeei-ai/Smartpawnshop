@@ -1,0 +1,155 @@
+/* ============================================================
+   Landing page polish - header nav, hero, service and sale cards,
+   contact block, footer.
+   Loaded after Landing.css so these rules win.
+   Palette: ink #061028, gold #d4a72c, cream #e8eef8.
+   ============================================================ */
+.landing-content { --lp-ink: #061028; --lp-gold: #d4a72c; --lp-gold-bright: #f5c842; --lp-line: #dbe4f0; --lp-muted: #64748b; }
+
+/* ---------- Header ---------- */
+.landing-header { border-bottom: 1px solid rgba(212, 167, 44, .18); }
+
+.landing-header .nav-links .nav-link {
+  position: relative;
+  padding-bottom: 4px;
+  transition: color .18s ease;
+}
+.landing-header .nav-links .nav-link::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  border-radius: 2px; background: var(--lp-gold);
+  transform: scaleX(0); transform-origin: left; transition: transform .22s ease;
+}
+.landing-header .nav-links .nav-link:hover { color: #fff; }
+.landing-header .nav-links .nav-link:hover::after,
+.landing-header .nav-links .nav-link.active::after { transform: scaleX(1); }
+
+.landing-header .nav-btn {
+  --border-radius: 10px;
+  transition: transform .16s ease;
+}
+.landing-header .nav-btn:hover { transform: translateY(-1px); }
+.landing-header .nav-btn.primary-btn {
+  --background: linear-gradient(135deg, #d4a72c, #f5c842);
+  --box-shadow: 0 10px 22px rgba(6, 16, 40, .3);
+}
+
+/* ---------- Hero ---------- */
+.hero-section .hero-kicker span {
+  border: 1px solid rgba(212, 167, 44, .4);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: .62rem; font-weight: 800; letter-spacing: .12em;
+  color: #a8801a; background: rgba(212, 167, 44, .08);
+}
+.hero-section .hero-title { line-height: 1.12; }
+.hero-section .hero-btn { --border-radius: 12px; transition: transform .16s ease, box-shadow .16s ease; }
+.hero-section .hero-btn:hover { transform: translateY(-2px); }
+.hero-section .hero-btn.primary-btn {
+  --background: linear-gradient(135deg, #d4a72c, #f5c842);
+  --box-shadow: 0 12px 26px rgba(6, 16, 40, .24);
+}
+
+/* ---------- Section headings ---------- */
+.landing-section .section-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: .62rem; font-weight: 800; letter-spacing: .16em;
+  color: #a8801a;
+}
+.landing-section .section-eyebrow::before {
+  content: ''; width: 22px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--lp-gold), transparent);
+}
+
+/* ---------- Service cards ---------- */
+.service-card {
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  background: #fff;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.service-card:hover { transform: translateY(-4px); box-shadow: 0 18px 38px rgba(6, 16, 40, .1); border-color: rgba(212, 167, 44, .45); }
+.service-card ion-icon {
+  display: grid; place-items: center;
+  width: 46px; height: 46px; padding: 11px;
+  margin-bottom: 16px !important;
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(212, 167, 44, .18), rgba(245, 200, 66, .1));
+  color: #a8801a;
+  font-size: 1.35rem !important;
+}
+.service-card h3 { color: var(--lp-ink); }
+
+/* ---------- Items for sale ---------- */
+.sale-grid .product-card {
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.sale-grid .product-card:hover { transform: translateY(-4px); box-shadow: 0 18px 38px rgba(6, 16, 40, .12); border-color: rgba(212, 167, 44, .45); }
+.sale-grid .product-price { font-variant-numeric: tabular-nums; }
+.sale-grid .product-badge {
+  border-radius: 999px; padding: 4px 10px;
+  font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  background: rgba(212, 167, 44, .16); color: #8a6a12;
+}
+
+/* ---------- Contact ---------- */
+.contact-details span {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(212, 167, 44, .18);
+}
+.contact-details span:last-child { border-bottom: none; }
+.contact-map {
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(6, 16, 40, .07);
+}
+.contact-map .map-pin {
+  display: grid; place-items: center;
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lp-gold), var(--lp-gold-bright));
+  color: var(--lp-ink);
+  font-size: 1.4rem;
+}
+.contact-map a { transition: gap .16s ease; }
+
+/* ---------- Footer ---------- */
+.landing-footer { border-top: 1px solid rgba(212, 167, 44, .22); }
+.landing-footer .footer-links a {
+  position: relative;
+  transition: color .18s ease;
+}
+.landing-footer .footer-links a:hover { color: var(--lp-gold-bright); }
+
+/* ---------- Auth modals ---------- */
+.auth-modal .modal-container {
+  border-radius: 20px;
+  border: 1px solid rgba(212, 167, 44, .22);
+  box-shadow: 0 30px 70px rgba(6, 16, 40, .35);
+}
+.auth-modal .auth-btn.primary-btn {
+  --background: linear-gradient(135deg, #d4a72c, #f5c842);
+  --color: #061028;
+  --border-radius: 12px;
+  font-weight: 700;
+}
+.auth-modal .auth-error {
+  margin-top: 12px; padding: 10px 13px;
+  border: 1px solid #f5c8c1; border-radius: 11px;
+  background: #fff2f0; color: #b3392a;
+  font-size: .78rem;
+}
+.auth-modal .auth-input-item { transition: border-color .16s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .service-card,
+  .sale-grid .product-card,
+  .hero-section .hero-btn,
+  .landing-header .nav-btn,
+  .landing-header .nav-links .nav-link::after { transition: none !important; }
+}
