@@ -1,25 +1,69 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IonIcon } from '@ionic/react';
-import { chatbubbleEllipsesOutline, closeOutline, sendOutline } from 'ionicons/icons';
-import { answerFor } from './faqData';
+import { arrowForwardOutline, chatbubbleEllipsesOutline, closeOutline, sendOutline } from 'ionicons/icons';
+import { actionFor, answerFor, FaqEntry } from './faqData';
 import './FaqChatbot.css';
 
 /** How long the typing indicator shows before the answer appears, in ms. */
 const TYPING_DELAY_MS = 500;
 
+/** Where the signed in customer's name is kept after login. */
+const CUSTOMER_KEY = 'smartpawn_customer';
+
 type ChatMessage = {
   id: number;
   from: 'bot' | 'customer';
   text: string;
+  /** When the message was sent or received, for the timestamp under the bubble. */
+  at: number;
+  /** A place in the app the answer points at, shown as a button under the text. */
+  action?: FaqEntry['action'];
 };
 
-const GREETING: ChatMessage = {
-  id: 0,
-  from: 'bot',
-  text: 'Kumusta! Ako si Pag-Asa Assistant. Pangutana lang about redemption, interest rates, requirements, or your item status. Ask me anything about pawning.',
+type FaqChatbotProps = {
+  /** The signed in customer's name, used in the greeting. */
+  customerName?: string | null;
+  /**
+   * Opens the My Items tab. Left out on the public landing page, where there is
+   * no such tab, and the quick action button then stays hidden.
+   */
+  onGoToItems?: () => void;
+  /**
+   * Opens the chat from outside the bubble. Each new number opens it once, so
+   * a button elsewhere on the page can bump it to bring the chat up.
+   */
+  openSignal?: number;
 };
 
-const QUICK_QUESTIONS = ['How to redeem?', 'Interest rate?', 'Unsay requirements?', 'Contact info'];
+const GENERIC_GREETING =
+  'Kumusta! Ako si Pag-Asa Assistant. Pangutana lang about redemption, interest (renta), requirements, or your item status. Ask me anything about pawning.';
+
+const greetingFor = (name: string) =>
+  name
+    ? `Kumusta, ${name}! Ako si Pag-Asa Assistant. Pangutana lang about redemption, interest (renta), requirements, or your item status. Ask me anything about pawning.`
+    : GENERIC_GREETING;
+
+const QUICK_QUESTIONS = ['How to redeem?', 'Interest (Renta)?', 'Unsay requirements?', 'Contact info'];
+
+/**
+ * The name kept in the browser after login, used when the widget is rendered
+ * without a name from its parent. Returns an empty string when nobody is
+ * signed in, which leaves the greeting generic.
+ */
+const storedCustomerName = (): string => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CUSTOMER_KEY) || 'null');
+    return stored && typeof stored.name === 'string' ? stored.name.trim() : '';
+  } catch {
+    // A private window, cleared site data, or storage the browser blocks.
+    // Losing the name only means the greeting stays generic.
+    return '';
+  }
+};
+
+/** The local clock time of a message, as the browser formats it, e.g. "1:49 PM". */
+const clockTime = (at: number) =>
+  new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 /**
  * Floating FAQ chat bubble.
@@ -27,15 +71,35 @@ const QUICK_QUESTIONS = ['How to redeem?', 'Interest rate?', 'Unsay requirements
  * Rule based and fully offline: answers come from a local keyword table, so
  * the widget works the same signed in or signed out and never calls the API.
  */
-const FaqChatbot: React.FC = () => {
+const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, openSignal }) => {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    { id: 0, from: 'bot', text: greetingFor(customerName?.trim() || storedCustomerName()), at: Date.now() },
+  ]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
   // Held so the delayed reply can be cancelled if the widget unmounts first.
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The name arrives with the account data, which lands after the first render,
+  // so the greeting is rewritten once it is known. Only the untouched greeting
+  // is replaced, so a conversation already under way is left alone.
+  useEffect(() => {
+    const name = customerName?.trim();
+    if (!name) return;
+
+    setMessages((current) =>
+      current.length === 1 && current[0].id === 0
+        ? [{ ...current[0], text: greetingFor(name) }]
+        : current
+    );
+  }, [customerName]);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
@@ -50,13 +114,16 @@ const FaqChatbot: React.FC = () => {
     const text = raw.trim();
     if (!text || typing) return;
 
-    setMessages((current) => [...current, { id: nextId.current++, from: 'customer', text }]);
+    setMessages((current) => [...current, { id: nextId.current++, from: 'customer', text, at: Date.now() }]);
     setDraft('');
     setTyping(true);
 
     // Purely cosmetic pause. No request is made; the answer is already known.
     replyTimer.current = setTimeout(() => {
-      setMessages((current) => [...current, { id: nextId.current++, from: 'bot', text: answerFor(text) }]);
+      setMessages((current) => [
+        ...current,
+        { id: nextId.current++, from: 'bot', text: answerFor(text), at: Date.now(), action: actionFor(text) || undefined },
+      ]);
       setTyping(false);
     }, TYPING_DELAY_MS);
   };
@@ -81,12 +148,32 @@ const FaqChatbot: React.FC = () => {
           <div className="faq-messages" ref={listRef}>
             {messages.map((message) => (
               <div key={message.id} className={`faq-message ${message.from}`}>
-                <p>{message.text}</p>
+                <div className="faq-bubble-wrap">
+                  <p>{message.text}</p>
+                  {message.action === 'items' && onGoToItems && (
+                    <button
+                      type="button"
+                      className="faq-action"
+                      onClick={() => {
+                        setOpen(false);
+                        onGoToItems();
+                      }}
+                    >
+                      Go to My Items
+                      <IonIcon icon={arrowForwardOutline} aria-hidden="true" />
+                    </button>
+                  )}
+                  <time className="faq-time" dateTime={new Date(message.at).toISOString()}>
+                    {clockTime(message.at)}
+                  </time>
+                </div>
               </div>
             ))}
             {typing && (
               <div className="faq-message bot faq-typing" aria-live="polite">
-                <p><i /><i /><i /></p>
+                <div className="faq-bubble-wrap">
+                  <p><i /><i /><i /></p>
+                </div>
               </div>
             )}
           </div>

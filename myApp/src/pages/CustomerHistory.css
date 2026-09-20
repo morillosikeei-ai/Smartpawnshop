@@ -1,0 +1,76 @@
+/* ============================================================
+   Customer > History: filter pills, search, and one simple list
+   per month. Colors come from tokens so dark mode is one block.
+   ============================================================ */
+.portal-page .ch-page {
+	--ch-card: #ffffff;
+	--ch-line: #e3e8ef;
+	--ch-text: #061028;
+	--ch-muted: #64748b;
+	--ch-hover: #f8fafc;
+	--ch-pill: #f1f5f9;
+}
+
+.portal-page .ch-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.portal-page .ch-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.portal-page .ch-filters button {
+	padding: 7px 14px; border: 1px solid var(--ch-line); border-radius: 999px;
+	background: var(--ch-card); color: var(--ch-muted); font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+}
+.portal-page .ch-filters button.active { border-color: var(--ch-text); background: var(--ch-text); color: var(--ch-card); }
+.portal-page .ch-search {
+	display: flex; align-items: center; gap: 8px; flex: 0 1 280px; height: 38px; padding: 0 12px;
+	border: 1px solid var(--ch-line); border-radius: 999px; background: var(--ch-card); color: var(--ch-muted);
+}
+.portal-page .ch-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ch-text); font: inherit; font-size: var(--fs-13); outline: none; }
+.portal-page .ch-search:focus-within { border-color: #d4a72c; }
+
+.portal-page .ch-month + .ch-month { margin-top: 22px; }
+.portal-page .ch-month h3 { margin: 0 0 8px; color: var(--ch-muted); font-size: var(--fs-11); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.portal-page .ch-list { overflow: hidden; border: 1px solid var(--ch-line); border-radius: 12px; background: var(--ch-card); }
+
+.portal-page .ch-row {
+	display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+	width: 100%; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--ch-line);
+	background: transparent; color: var(--ch-text); font: inherit; text-align: left; cursor: pointer;
+}
+.portal-page .ch-row:last-child { border-bottom: 0; }
+.portal-page .ch-row:hover { background: var(--ch-hover); }
+.portal-page .ch-row:focus-visible { outline: 2px solid #d4a72c; outline-offset: -2px; }
+
+.portal-page .ch-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ch-pill); color: var(--ch-muted); font-size: 1rem; }
+.portal-page .ch-row.paid .ch-icon { background: #e8f5e9; color: #237b35; }
+.portal-page .ch-row.expired .ch-icon { background: #fff0ee; color: #b34e42; }
+/* Renewal: gold, the same as the pawn amount reads everywhere else. A rejected
+   one takes the expired red, because nothing was extended. */
+.portal-page .ch-row.renewed .ch-icon,
+.portal-page .ch-row.renewal_sent .ch-icon { background: #fff9e6; color: #8a6100; }
+.portal-page .ch-row.renewal_rejected .ch-icon { background: #fff0ee; color: #b34e42; }
+
+.portal-page .ch-text { display: grid; gap: 2px; min-width: 0; }
+.portal-page .ch-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); }
+.portal-page .ch-text small { color: var(--ch-muted); font-size: var(--fs-11); }
+.portal-page .ch-amount { font-size: var(--fs-13); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.portal-page .ch-row.paid .ch-amount { color: #237b35; }
+.portal-page .ch-row.renewed .ch-amount { color: #8a6100; }
+
+@media (max-width: 560px) {
+	.portal-page .ch-search { flex-basis: 100%; }
+	.portal-page .ch-row { padding: 12px; }
+}
+
+html[data-theme="dark"] .portal-page .ch-page {
+	--ch-card: #111b2e;
+	--ch-line: #243049;
+	--ch-text: #e6ecf5;
+	--ch-muted: #94a3b8;
+	--ch-hover: #16223a;
+	--ch-pill: #1a2539;
+}
+html[data-theme="dark"] .portal-page .ch-row.paid .ch-icon { background: #16301f; color: #7bc0a2; }
+html[data-theme="dark"] .portal-page .ch-row.paid .ch-amount { color: #7bc0a2; }
+html[data-theme="dark"] .portal-page .ch-row.expired .ch-icon { background: #3a1c1a; color: #f0928a; }
+html[data-theme="dark"] .portal-page .ch-row.renewed .ch-icon,
+html[data-theme="dark"] .portal-page .ch-row.renewal_sent .ch-icon { background: #2e2716; color: #d8c68a; }
+html[data-theme="dark"] .portal-page .ch-row.renewal_rejected .ch-icon { background: #3a1c1a; color: #f0928a; }
+html[data-theme="dark"] .portal-page .ch-row.renewed .ch-amount { color: #d8c68a; }

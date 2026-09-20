@@ -1,0 +1,218 @@
+/*
+ * The application's one dialog design.
+ *
+ * Every success, error, warning, confirmation, information, and loading
+ * dialog in the portal is this card. The tokens match the admin and customer
+ * portals so a dialog never looks like it came from somewhere else.
+ */
+
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  /* Above Ionic's own overlays, which sit in the 20000s. */
+  z-index: 30000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 16, 40, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: app-modal-fade-in 170ms ease-out;
+}
+
+.app-modal-backdrop.is-leaving { animation: app-modal-fade-out 150ms ease-in forwards; }
+
+.app-modal {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 28px 26px 22px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(6, 16, 40, 0.28);
+  text-align: center;
+  animation: app-modal-pop-in 190ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.app-modal.is-leaving { animation: app-modal-pop-out 150ms ease-in forwards; }
+
+/* --- Icon ----------------------------------------------------------------- */
+
+.app-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 1.7rem;
+}
+
+.app-modal.is-success .app-modal-icon { background: #eafaf0; color: #1a8d59; }
+.app-modal.is-error .app-modal-icon { background: #fdeceb; color: #c0392b; }
+.app-modal.is-warning .app-modal-icon { background: #fff5d8; color: #a9720a; }
+.app-modal.is-confirm .app-modal-icon { background: #fdf5e2; color: #a9760c; }
+.app-modal.is-info .app-modal-icon { background: #edf3ff; color: #1d4ed8; }
+.app-modal.is-loading .app-modal-icon { background: #edf3ff; }
+
+/* --- Copy ----------------------------------------------------------------- */
+
+.app-modal-title {
+  margin: 0;
+  color: #061028;
+  font-weight: 700; font-size: var(--fs-16); line-height: normal;
+  letter-spacing: -0.01em;
+}
+
+.app-modal-message {
+  margin: 0;
+  color: #000;
+  font-size: var(--fs-13);
+  line-height: 1.55;
+}
+
+.app-modal-message p { margin: 0 0 8px; }
+.app-modal-message p:last-child { margin-bottom: 0; }
+.app-modal-message strong { color: #061028; font-weight: 700; }
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.app-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.app-modal-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.app-modal-button:disabled { cursor: progress; opacity: 0.72; }
+
+.app-modal-button.is-secondary {
+  border-color: #d7e2ee;
+  background: #ffffff;
+  color: #061028;
+}
+
+.app-modal-button.is-secondary:hover:not(:disabled) { border-color: #b9cadf; background: #f5f8fc; }
+
+.app-modal-button.is-primary {
+  background: #061028;
+  color: #ffffff;
+  /* The portal's gold accent, carried onto the dialog's primary action. */
+  box-shadow: inset 0 -2px 0 rgba(212, 167, 44, 0.9);
+}
+
+.app-modal-button.is-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 -2px 0 rgba(212, 167, 44, 0.9), 0 10px 22px rgba(6, 16, 40, 0.22);
+}
+
+.app-modal-button.is-primary.is-danger {
+  background: #c0392b;
+  box-shadow: inset 0 -2px 0 rgba(120, 25, 17, 0.85);
+}
+
+.app-modal-button.is-primary.is-danger:hover:not(:disabled) {
+  box-shadow: inset 0 -2px 0 rgba(120, 25, 17, 0.85), 0 10px 22px rgba(192, 57, 43, 0.28);
+}
+
+.app-modal-button:focus-visible {
+  outline: none;
+  border-color: #d4a72c;
+  box-shadow: 0 0 0 3px rgba(212, 167, 44, 0.32);
+}
+
+/* A success dialog leads with its primary action, so the pair is reversed. */
+.app-modal.is-success .app-modal-actions { flex-direction: row-reverse; }
+
+/* --- Spinners ------------------------------------------------------------- */
+
+.app-modal-spinner,
+.app-modal-button-spinner {
+  display: block;
+  border-radius: 50%;
+  border-style: solid;
+  animation: app-modal-spin 720ms linear infinite;
+}
+
+.app-modal-spinner {
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+  border-color: #c9dbff;
+  border-top-color: #1d4ed8;
+}
+
+.app-modal-button-spinner {
+  width: 13px;
+  height: 13px;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+}
+
+/* --- Animations ----------------------------------------------------------- */
+
+@keyframes app-modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes app-modal-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes app-modal-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes app-modal-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+@keyframes app-modal-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 480px) {
+  .app-modal { padding: 24px 20px 18px; border-radius: 14px; }
+  .app-modal-actions { flex-direction: column-reverse; }
+  .app-modal.is-success .app-modal-actions { flex-direction: column; }
+  .app-modal-button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-modal-backdrop,
+  .app-modal,
+  .app-modal-backdrop.is-leaving,
+  .app-modal.is-leaving { animation: none; }
+
+  .app-modal-button { transition: none; }
+  .app-modal-button.is-primary:hover:not(:disabled) { transform: none; }
+}

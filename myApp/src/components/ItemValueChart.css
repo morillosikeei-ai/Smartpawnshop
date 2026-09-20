@@ -1,0 +1,120 @@
+/* Item value history: a headline change, then a smooth area chart in the
+   same style as the gold price and revenue charts. */
+
+.item-value-chart-card {
+  margin-bottom: 14px;
+  padding: 14px 14px 8px;
+  border: 1px solid #dfe7f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.item-value-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.item-value-summary small {
+  display: block;
+  color: #52627b;
+  font-size: var(--fs-10);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.item-value-summary strong {
+  display: block;
+  margin-top: 2px;
+  color: #061028;
+  font-size: var(--fs-20);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.item-value-delta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+
+.item-value-delta i { font-style: normal; font-weight: 600; opacity: 0.75; }
+.item-value-delta.is-up { color: #0f8d56; background: rgba(15, 141, 86, 0.1); }
+.item-value-delta.is-down { color: #c0392b; background: rgba(192, 57, 43, 0.1); }
+.item-value-delta.is-flat { color: #52627b; background: rgba(104, 115, 134, 0.1); }
+
+.item-value-chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin-top: 10px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.item-value-chart-svg { display: block; overflow: visible; }
+
+.item-value-grid { stroke: #e8eef5; stroke-width: 1; }
+
+.item-value-axis {
+  fill: #52627b;
+  font-size: var(--fs-10);
+  font-weight: 600;
+}
+
+.item-value-loan {
+  stroke: #d4a72c;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.item-value-loan-label {
+  fill: #957000;
+  font-size: var(--fs-10);
+  font-weight: 800;
+}
+
+.item-value-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.item-value-cursor {
+  stroke: #1d4ed8;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.3;
+}
+
+.item-value-dot { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; }
+.item-value-dot.is-active { fill: #1d4ed8; }
+.item-value-dot-halo { fill: #d4a72c; opacity: 0.18; }
+.item-value-dot.is-latest { fill: #d4a72c; stroke: #ffffff; }
+
+.item-value-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.item-value-tooltip small { color: rgba(255, 255, 255, 0.7); font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.04em; }
+.item-value-tooltip strong { font-size: var(--fs-13); font-weight: 700; }

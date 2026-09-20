@@ -1,0 +1,63 @@
+/* The QR access page reuses the SetPassword card, so only the parts that are
+   specific to a scanned ticket live here. */
+
+.qr-access-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 auto 14px;
+    padding: 5px 12px;
+    border: 1px solid rgba(212, 167, 44, .45);
+    border-radius: 999px;
+    background: rgba(212, 167, 44, .12);
+    color: #e7c65f;
+    font-size: var(--fs-11);
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.qr-access-badge ion-icon {
+    font-size: .85rem;
+}
+
+.qr-access-checking {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.qr-access-note,
+.qr-access-alt {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 14px 0 0;
+    color: rgba(226, 232, 240, .72);
+    font-size: var(--fs-12);
+    line-height: 1.55;
+}
+
+.qr-access-note ion-icon,
+.qr-access-alt ion-icon {
+    flex: none;
+    margin-top: 2px;
+    color: #e7c65f;
+    font-size: .9rem;
+}
+
+.qr-access-alt {
+    justify-content: center;
+    margin-top: 18px;
+    text-align: center;
+}
+
+.qr-access-alt a {
+    color: #93b4f7;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.qr-access-alt a:hover {
+    text-decoration: underline;
+}

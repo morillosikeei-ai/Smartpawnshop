@@ -74,4 +74,15 @@ class User extends Authenticatable
     {
         return $this->hasMany(Item::class, 'staff_id', 'users_id');
     }
+
+    /**
+     * In app notifications this account receives, newest first.
+     *
+     * Named apart from the Notifiable trait's own notifications() relation,
+     * which belongs to Laravel's mail and database channels and is unused here.
+     */
+    public function portalNotifications()
+    {
+        return $this->hasMany(Notification::class, 'user_id', 'users_id')->latest('notifications_id');
+    }
 }

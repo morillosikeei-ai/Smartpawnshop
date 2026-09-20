@@ -1,0 +1,70 @@
+/*
+ * Notification dropdown on phones, for every portal (staff, admin, customer).
+ *
+ * On desktop each dropdown hangs from the bell's right edge. On a phone the
+ * bell sits left of the profile button, so a dropdown almost as wide as the
+ * screen, anchored there, ran off the left edge and could not be read. Here it
+ * is pinned to the viewport instead: full width inside a 12px gutter, just
+ * below the top bar, and never taller than the screen. Desktop is untouched.
+ */
+
+@media (max-width: 600px) {
+  .staff-page .staff-notification-dropdown,
+  .admin-page .notification-dropdown,
+  .portal-page .portal-notification-dropdown {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 84px) !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 84px) !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+    transform-origin: top center;
+    box-shadow: 0 20px 48px rgba(6, 16, 40, .24) !important;
+  }
+
+  /* Admin and customer scroll the whole dropdown; staff scrolls its list, so
+     its header and "View all" button stay put. */
+  .staff-page .staff-notification-dropdown { display: flex; flex-direction: column; overflow: hidden; }
+  .staff-page .staff-notification-list { flex: 1 1 auto; min-height: 0; max-height: none !important; }
+
+  /* Tighter rows so more than two notifications fit on a phone. */
+  .staff-page .staff-notification-dropdown .staff-dropdown-head,
+  .admin-page .notification-dropdown .admin-dropdown-head,
+  .portal-page .portal-notification-dropdown .portal-dropdown-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 12px 14px !important;
+    background: #ffffff;
+  }
+
+  .staff-page .staff-notification-item,
+  .admin-page .notification-dropdown .notification-item,
+  .portal-page .portal-notification-dropdown .portal-notification-item {
+    padding: 11px 14px !important;
+  }
+
+  .staff-page .staff-notification-item { gap: 10px !important; }
+  .staff-page .staff-notification-icon { width: 30px !important; height: 30px !important; flex: 0 0 30px !important; }
+
+  .staff-page .staff-notification-item strong,
+  .admin-page .notification-dropdown .notification-item strong,
+  .portal-page .portal-notification-dropdown .portal-notification-item strong {
+    font-size: var(--fs-13) !important;
+    line-height: 1.3 !important;
+  }
+
+  .staff-page .staff-notification-item small,
+  .admin-page .notification-dropdown .notification-item small,
+  .portal-page .portal-notification-dropdown .portal-notification-item small {
+    font-size: var(--fs-12) !important;
+    line-height: 1.4 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .staff-page .staff-notification-all { padding: 11px 14px !important; }
+}

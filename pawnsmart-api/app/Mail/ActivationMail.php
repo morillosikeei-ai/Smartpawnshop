@@ -2,13 +2,15 @@
 
 namespace App\Mail;
 
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 class ActivationMail extends Mailable
 {
@@ -17,6 +19,9 @@ class ActivationMail extends Mailable
     public $token;
     public $customerName;
 
+    /** The app's address as the device that created the account reaches it. */
+    public string $frontendUrl;
+
     /**
      * Create a new message instance.
      */
@@ -24,6 +29,7 @@ class ActivationMail extends Mailable
     {
         $this->token = $token;
         $this->customerName = $customerName;
+        $this->frontendUrl = FrontendUrl::forMail();
     }
 
     /**
@@ -32,8 +38,16 @@ class ActivationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Activate Your Smart Pawn Account',
+            subject: 'Welcome to Smart Pawn: activate your account',
         );
+    }
+
+    /**
+     * A unique entity ID stops Gmail folding a resent link into an old thread.
+     */
+    public function headers(): Headers
+    {
+        return new Headers(text: ['X-Entity-Ref-ID' => (string) Str::uuid()]);
     }
 
     /**
@@ -42,10 +56,13 @@ class ActivationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.activation',
+            view: 'emails.activation',
+            text: 'emails.activation-text',
             with: [
                 'token' => $this->token,
                 'customerName' => $this->customerName,
+                'activationUrl' => $this->frontendUrl.'/activate?token='.$this->token,
+                'appUrl' => $this->frontendUrl,
             ],
         );
     }

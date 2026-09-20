@@ -1,0 +1,287 @@
+/* Gold price tracking panel.
+   Uses the portal's existing surfaces (.mini-panel, .section-heading, .chip)
+   and palette, so the section reads as part of the same admin portal. */
+
+.gold-tracking {
+	display: grid;
+	grid-template-columns: 1.6fr 1fr;
+	grid-template-areas:
+		'trend forecast'
+		'timing alerts';
+	align-items: start;
+	gap: 16px;
+}
+
+.gold-trend-panel { grid-area: trend; }
+.gold-forecast-panel { grid-area: forecast; }
+.gold-suggestion-panel { grid-area: timing; }
+.gold-alerts-panel { grid-area: alerts; }
+
+/* ---------- Trend panel ---------- */
+
+.gold-trend-head {
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.gold-range-filter {
+	display: inline-flex;
+	gap: 2px;
+	padding: 3px;
+	border: 1px solid #e0e6f0;
+	border-radius: 999px;
+	background: var(--admin-soft);
+}
+
+.gold-range-filter button {
+	border: 0;
+	border-radius: 999px;
+	padding: 6px 12px;
+	background: transparent;
+	color: var(--admin-muted);
+	font: inherit;
+	font-size: var(--fs-11);
+	font-weight: 700;
+	cursor: pointer;
+	transition: background .15s ease, color .15s ease;
+}
+
+.gold-range-filter button:hover { color: var(--admin-ink); }
+
+.gold-range-filter button.active {
+	background: #fff;
+	color: var(--admin-blue);
+	box-shadow: 0 1px 3px rgba(8, 20, 48, .12);
+}
+
+.gold-price-headline {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 14px 0 12px;
+}
+
+.gold-price-headline strong {
+	display: block;
+	color: var(--admin-ink);
+	font-size: var(--fs-28);
+	line-height: 1.2;
+}
+
+.gold-price-headline small {
+	display: block;
+	margin-top: 3px;
+	color: var(--admin-muted);
+	font-size: var(--fs-11);
+}
+
+.gold-price-headline .chip.danger { background: #fdeeec; color: #b34e42; }
+.gold-price-headline .chip.neutral { background: var(--admin-soft); color: var(--admin-muted); }
+
+.gold-figure-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.gold-figure {
+	display: grid;
+	gap: 4px;
+	border: 1px solid #e7edf5;
+	border-radius: 12px;
+	padding: 10px 12px;
+	background: var(--admin-soft);
+}
+
+.gold-figure span {
+	color: var(--admin-muted);
+	font-size: var(--fs-10);
+	font-weight: 800;
+	letter-spacing: .09em;
+	text-transform: uppercase;
+}
+
+.gold-figure strong { color: var(--admin-ink); font-size: var(--fs-15); }
+
+.gold-figure.is-current {
+	border-color: rgba(212, 167, 44, .45);
+	background: #fffaf0;
+}
+
+/* ---------- Forecast panel ---------- */
+
+.gold-forecast-mark {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: #eef3ff;
+	color: var(--admin-blue);
+	font-size: var(--fs-16);
+}
+
+.gold-forecast-value {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 14px 0 6px;
+}
+
+.gold-forecast-value strong { color: var(--admin-ink); font-size: var(--fs-24); }
+
+.gold-forecast-value em {
+	border-radius: 999px;
+	padding: 3px 9px;
+	font-size: var(--fs-11);
+	font-style: normal;
+	font-weight: 800;
+}
+
+.gold-forecast-value em.up { background: #eafaf0; color: #1a8d59; }
+.gold-forecast-value em.down { background: #fdeeec; color: #b34e42; }
+.gold-forecast-value em.flat { background: var(--admin-soft); color: var(--admin-muted); }
+
+.gold-forecast-basis {
+	margin: 0 0 14px;
+	color: var(--admin-muted);
+	font-size: var(--fs-12);
+	line-height: 1.5;
+}
+
+.gold-forecast-confidence > div:first-child {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	color: var(--admin-muted);
+	font-size: var(--fs-11);
+}
+
+.gold-forecast-confidence b { color: var(--admin-ink); font-size: var(--fs-11); }
+
+.gold-confidence-track {
+	height: 6px;
+	margin-top: 5px;
+	border-radius: 999px;
+	background: #e7edf5;
+	overflow: hidden;
+}
+
+.gold-confidence-track i {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: var(--admin-blue);
+}
+
+.gold-confidence-track i.high { background: #1a8d59; }
+.gold-confidence-track i.moderate { background: var(--admin-gold); }
+.gold-confidence-track i.low { background: #b34e42; }
+
+.gold-forecast-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 12px 0 0;
+	color: var(--admin-muted);
+	font-size: var(--fs-10);
+	font-style: italic;
+	line-height: 1.5;
+}
+
+.gold-forecast-note ion-icon { flex: none; margin-top: 1px; font-size: .85rem; }
+
+.gold-empty-note {
+	margin: 14px 0 0;
+	color: var(--admin-muted);
+	font-size: var(--fs-12);
+}
+
+/* The timing card carries its own surface, so it needs no second frame. */
+.gold-suggestion-panel .trend-suggestion { margin-bottom: 0; }
+
+/* ---------- Price alerts ---------- */
+
+.gold-alert-list {
+	display: grid;
+	gap: 10px;
+	margin: 14px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.gold-alert-list li {
+	--alert-tone: var(--admin-muted);
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	border: 1px solid #e7edf5;
+	border-left: 3px solid var(--alert-tone);
+	border-radius: 10px;
+	padding: 10px 12px;
+	background: #fff;
+}
+
+.gold-alert-list li.ok { --alert-tone: #1a8d59; }
+.gold-alert-list li.info { --alert-tone: var(--admin-blue); }
+.gold-alert-list li.warn { --alert-tone: var(--admin-gold); }
+.gold-alert-list li.danger { --alert-tone: #b34e42; }
+
+.gold-alert-dot {
+	flex: none;
+	width: 9px;
+	height: 9px;
+	margin-top: 5px;
+	border-radius: 50%;
+	background: var(--alert-tone);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--alert-tone) 18%, transparent);
+}
+
+.gold-alert-list strong {
+	display: block;
+	color: var(--admin-ink);
+	font-size: var(--fs-12);
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+.gold-alert-list small {
+	display: block;
+	margin-top: 3px;
+	color: var(--admin-muted);
+	font-size: var(--fs-11);
+	line-height: 1.45;
+}
+
+.gold-alert-notes { margin-top: 16px; }
+
+.gold-alert-notes > small {
+	color: var(--admin-muted);
+	font-size: var(--fs-10);
+	font-weight: 800;
+	letter-spacing: .13em;
+}
+
+.gold-alert-notes .gold-alert-list { margin-top: 8px; }
+.gold-alert-notes .gold-alert-list li { background: var(--admin-soft); }
+
+@media (max-width: 1100px) {
+	.gold-tracking {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			'trend'
+			'forecast'
+			'timing'
+			'alerts';
+	}
+}
+
+@media (max-width: 620px) {
+	.gold-figure-grid { grid-template-columns: repeat(2, 1fr); }
+	.gold-price-headline { align-items: flex-start; flex-direction: column; }
+	.gold-range-filter { width: 100%; justify-content: space-between; }
+}

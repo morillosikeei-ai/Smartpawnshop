@@ -9,8 +9,6 @@ import {
     IonButton,
     IonIcon,
     IonInput,
-    IonItem,
-    IonLabel,
     IonCard,
     IonCardContent,
     IonSpinner,
@@ -243,94 +241,110 @@ const SetPassword: React.FC = () => {
 
                             {!success && !tokenMissing && (
                                 <>
-                                    <IonItem lines="none" className="auth-input-item">
-                                        <IonLabel position="stacked">NEW PASSWORD</IonLabel>
-                                        <IonInput
-                                            ref={passwordRef}
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={password}
-                                            onIonInput={e => handleChange(setPassword)(e.detail.value || '')}
-                                            onKeyDown={handleKeyDown}
-                                            onKeyUp={trackCapsLock}
-                                            onIonBlur={() => setCapsLock(false)}
-                                            placeholder="At least 8 characters"
-                                            className="auth-input"
-                                            autocomplete="new-password"
-                                            enterkeyhint="next"
-                                        />
-                                        <IonButton
-                                            fill="clear"
-                                            slot="end"
-                                            className="password-toggle"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                        >
-                                            <IonIcon icon={showPassword ? eyeOffOutline : eyeOutline} />
-                                        </IonButton>
-                                    </IonItem>
-
-                                    {password && (
-                                        <div className="strength-meter">
-                                            <div className="strength-track">
-                                                {[1, 2, 3, 4].map(step => (
-                                                    <span
-                                                        key={step}
-                                                        className={
-                                                            step <= strength.score
-                                                                ? `strength-bar filled strength-${strength.key}`
-                                                                : 'strength-bar'
-                                                        }
-                                                    />
-                                                ))}
+                                    {/* Both fields share one structure, so their boxes, padding,
+                                        and eye buttons are identical. The eye button sits inside the
+                                        box, centered on it; the input reserves room on the right so
+                                        typed text never runs under it. */}
+                                    <div className="password-form">
+                                        <div className="password-field">
+                                            <label className="password-label" htmlFor="set-password-new">
+                                                New Password
+                                            </label>
+                                            <div className="password-input-wrap">
+                                                <IonInput
+                                                    ref={passwordRef}
+                                                    id="set-password-new"
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    value={password}
+                                                    onIonInput={e => handleChange(setPassword)(e.detail.value || '')}
+                                                    onKeyDown={handleKeyDown}
+                                                    onKeyUp={trackCapsLock}
+                                                    onIonBlur={() => setCapsLock(false)}
+                                                    placeholder="At least 8 characters"
+                                                    className="password-input"
+                                                    aria-label="New password"
+                                                    autocomplete="new-password"
+                                                    enterkeyhint="next"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="password-toggle"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                                >
+                                                    <IonIcon icon={showPassword ? eyeOffOutline : eyeOutline} />
+                                                </button>
                                             </div>
-                                            <span className={`strength-label strength-${strength.key}`}>
-                                                {strength.label}
-                                            </span>
+
+                                            {password && (
+                                                <div className="strength-meter">
+                                                    <div className="strength-track">
+                                                        {[1, 2, 3, 4].map(step => (
+                                                            <span
+                                                                key={step}
+                                                                className={
+                                                                    step <= strength.score
+                                                                        ? `strength-bar filled strength-${strength.key}`
+                                                                        : 'strength-bar'
+                                                                }
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <span className={`strength-label strength-${strength.key}`}>
+                                                        {strength.label}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {capsLock && (
+                                                <p className="caps-warning">
+                                                    <IonIcon icon={warningOutline} />
+                                                    Caps Lock is on
+                                                </p>
+                                            )}
                                         </div>
-                                    )}
 
-                                    {capsLock && (
-                                        <p className="caps-warning">
-                                            <IonIcon icon={warningOutline} />
-                                            Caps Lock is on
-                                        </p>
-                                    )}
+                                        <div className="password-field">
+                                            <label className="password-label" htmlFor="set-password-confirm">
+                                                Confirm Password
+                                            </label>
+                                            <div className="password-input-wrap">
+                                                <IonInput
+                                                    id="set-password-confirm"
+                                                    type={showConfirmPassword ? 'text' : 'password'}
+                                                    value={confirmPassword}
+                                                    onIonInput={e => handleChange(setConfirmPassword)(e.detail.value || '')}
+                                                    onKeyDown={handleKeyDown}
+                                                    onKeyUp={trackCapsLock}
+                                                    onIonBlur={() => setCapsLock(false)}
+                                                    placeholder="Re-enter your password"
+                                                    className="password-input"
+                                                    aria-label="Confirm password"
+                                                    autocomplete="new-password"
+                                                    enterkeyhint="done"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="password-toggle"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                                >
+                                                    <IonIcon icon={showConfirmPassword ? eyeOffOutline : eyeOutline} />
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                    <IonItem lines="none" className="auth-input-item">
-                                        <IonLabel position="stacked">CONFIRM PASSWORD</IonLabel>
-                                        <IonInput
-                                            type={showConfirmPassword ? 'text' : 'password'}
-                                            value={confirmPassword}
-                                            onIonInput={e => handleChange(setConfirmPassword)(e.detail.value || '')}
-                                            onKeyDown={handleKeyDown}
-                                            onKeyUp={trackCapsLock}
-                                            onIonBlur={() => setCapsLock(false)}
-                                            placeholder="Re-enter your password"
-                                            className="auth-input"
-                                            autocomplete="new-password"
-                                            enterkeyhint="done"
-                                        />
-                                        <IonButton
-                                            fill="clear"
-                                            slot="end"
-                                            className="password-toggle"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                                        >
-                                            <IonIcon icon={showConfirmPassword ? eyeOffOutline : eyeOutline} />
-                                        </IonButton>
-                                    </IonItem>
-
-                                    <ul className="password-requirements">
-                                        <li className={longEnough ? 'met' : 'unmet'}>
-                                            <IonIcon icon={longEnough ? checkmarkOutline : ellipseOutline} />
-                                            At least 8 characters
-                                        </li>
-                                        <li className={matches ? 'met' : 'unmet'}>
-                                            <IonIcon icon={matches ? checkmarkOutline : ellipseOutline} />
-                                            Passwords match
-                                        </li>
-                                    </ul>
+                                        <ul className="password-requirements">
+                                            <li className={longEnough ? 'met' : 'unmet'}>
+                                                <IonIcon icon={longEnough ? checkmarkOutline : ellipseOutline} />
+                                                At least 8 characters
+                                            </li>
+                                            <li className={matches ? 'met' : 'unmet'}>
+                                                <IonIcon icon={matches ? checkmarkOutline : ellipseOutline} />
+                                                Passwords match
+                                            </li>
+                                        </ul>
+                                    </div>
 
                                     <IonButton
                                         expand="block"

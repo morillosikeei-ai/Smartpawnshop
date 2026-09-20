@@ -1,0 +1,99 @@
+/* Loading placeholders. Shapes match the content they stand in for. */
+
+.skeleton {
+  display: block;
+  background: #eef2f7;
+  /* The sweep is a moving highlight over the base grey, not a colour change,
+     so a skeleton reads the same whether or not the animation runs. */
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.75) 50%, rgba(255, 255, 255, 0) 100%);
+  background-repeat: no-repeat;
+  background-size: 180px 100%;
+  background-position: -180px 0;
+  animation: skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  to { background-position: calc(100% + 180px) 0; }
+}
+
+/* Vertical run of lines, used wherever a block of text is being replaced. */
+.skeleton-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.skeleton-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--ap-line, #e6ecf3);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.skeleton-chart { display: grid; gap: 14px; }
+
+.skeleton-chart-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.skeleton-list-item + .skeleton-list-item { border-top: 1px solid #f1f5f9; }
+
+.skeleton-row td { padding: 12px 10px; }
+
+/* A sweep crossing the screen every 1.3s is exactly the kind of motion that
+   triggers discomfort, so it stops entirely when the reader asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background-image: none; }
+}
+
+/* Spinner, for controls that keep their label while they work. */
+.spinner {
+  display: inline-block;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spinner-turn 0.65s linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes spinner-turn {
+  to { transform: rotate(360deg); }
+}
+
+.inline-loader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+/* A ring turning twice a second is still motion, so it slows to a crawl
+   rather than stopping: a frozen spinner would read as a hung request. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 3s; }
+}
+
+/* Inside a control the spinner sits before the label, so it needs its own gap. */
+button .spinner,
+ion-button .spinner,
+.primary-button .spinner,
+.secondary-button .spinner,
+.admin-primary-button .spinner,
+.admin-secondary-button .spinner { margin-right: 7px; }

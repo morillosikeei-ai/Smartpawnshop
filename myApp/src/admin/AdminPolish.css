@@ -4,7 +4,7 @@
    Loaded after AdminPortal.css so these rules win.
    Palette: ink #061028, gold #d4a72c.
    ============================================================ */
-.admin-page { --ap-ink: #061028; --ap-gold: #d4a72c; --ap-gold-bright: #f5c842; --ap-line: #e6ebf3; --ap-muted: #64748b; }
+.admin-page { --ap-ink: #061028; --ap-gold: #d4a72c; --ap-gold-bright: #f5c842; --ap-line: #e6ebf3; --ap-muted: #000; }
 
 /* ---------- Sidebar ---------- */
 .admin-page .admin-sidebar {
@@ -62,7 +62,7 @@
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 .admin-page .admin-notification:hover { border-color: var(--ap-gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, .13); transform: translateY(-1px); }
-.admin-page .notification-dot { background: var(--ap-gold); }
+.admin-page .notification-count { box-shadow: 0 2px 6px rgba(207, 79, 66, .35); }
 
 .admin-page .admin-profile-button {
   padding: 6px 12px 6px 8px; border-radius: 999px;
@@ -91,11 +91,11 @@
 }
 
 .admin-page .admin-panel-head { align-items: flex-start; }
-.admin-page .admin-panel-head small { font-size: .6rem; font-weight: 800; letter-spacing: .13em; color: var(--ap-muted); }
+.admin-page .admin-panel-head small { font-size: var(--fs-10); font-weight: 800; letter-spacing: .13em; color: var(--ap-muted); }
 .admin-page .admin-panel-head h3 { margin: 5px 0 0; color: var(--ap-ink); }
 .admin-page .admin-panel-head button {
   border-radius: 999px; padding: 5px 12px;
-  font-size: .7rem; color: #33578c;
+  font-size: var(--fs-11); color: #33578c;
   transition: background .15s ease;
 }
 .admin-page .admin-panel-head button:hover { background: #eef4fd; }
@@ -112,7 +112,7 @@
 .admin-page .admin-table-head,
 .admin-page .dashboard-risk-table thead th {
   background: #f8fafc;
-  font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  font-size: var(--fs-10); font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
   color: var(--ap-muted);
 }
 .admin-page .dashboard-risk-table tbody tr { transition: background .15s ease; }
@@ -152,4 +152,378 @@
   .admin-page .admin-notification,
   .admin-page .admin-profile-button,
   .admin-page .primary-button { transition: none !important; }
+}
+
+/* ============================================================
+   Dashboard lower row - Risk alerts + Recent activity.
+   Visual refinement only: the markup, data, and behaviour are
+   unchanged, so every rule here is scoped to the two panels.
+   Palette: ink #0f172a, action #1d4ed8, gold #d4a72c,
+   surface tint #f8fafc.
+   ============================================================ */
+.admin-page .dashboard-risk-panel,
+.admin-page .dashboard-audit-panel {
+  --lower-ink: #0f172a;
+  --lower-action: #1d4ed8;
+  --lower-gold: #d4a72c;
+  --lower-surface: #f8fafc;
+  --lower-line: #e8edf5;
+  --lower-muted: #000;
+
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px 20px;
+  border: 1px solid var(--lower-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .05);
+}
+
+/* The two cards read as one section, so they end level with each other. */
+.admin-page .dashboard-lower-grid { align-items: stretch; gap: 18px; }
+
+/* ---------- Shared head: label, title, action link ---------- */
+.admin-page .dashboard-risk-panel .admin-panel-head,
+.admin-page .dashboard-audit-panel .admin-panel-head {
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.admin-page .dashboard-risk-panel .admin-panel-head small,
+.admin-page .dashboard-audit-panel .admin-panel-head small {
+  font-size: var(--fs-9);
+  font-weight: 800;
+  letter-spacing: .14em;
+  color: #94a3b8;
+}
+.admin-page .dashboard-risk-panel .admin-panel-head h3,
+.admin-page .dashboard-audit-panel .admin-panel-head h3 {
+  margin: 6px 0 0;
+  font-size: var(--fs-16);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--lower-ink);
+}
+
+/* A gold hairline under the title ties the pair to the shop's accent. */
+.admin-page .dashboard-risk-panel .admin-panel-head > div,
+.admin-page .dashboard-audit-panel .admin-panel-head > div {
+  position: relative;
+  padding-bottom: 10px;
+}
+.admin-page .dashboard-risk-panel .admin-panel-head > div::after,
+.admin-page .dashboard-audit-panel .admin-panel-head > div::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 26px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--lower-gold);
+}
+
+/* "View all" reads as a deliberate dashboard action, not a stray button. */
+.admin-page .dashboard-risk-panel .admin-panel-head button,
+.admin-page .dashboard-audit-panel .admin-panel-head button {
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  color: var(--lower-action);
+  background: rgba(29, 78, 216, .07);
+  transition: background .16s ease, border-color .16s ease;
+}
+.admin-page .dashboard-risk-panel .admin-panel-head button:hover,
+.admin-page .dashboard-audit-panel .admin-panel-head button:hover {
+  background: rgba(29, 78, 216, .12);
+  border-color: rgba(29, 78, 216, .22);
+}
+.admin-page .dashboard-risk-panel .admin-panel-head button:focus-visible,
+.admin-page .dashboard-audit-panel .admin-panel-head button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, .2);
+}
+
+/* ---------- Risk alerts: legend ---------- */
+.admin-page .dashboard-risk-panel .risk-legend {
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 0;
+}
+.admin-page .dashboard-risk-panel .risk-legend span {
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid var(--lower-line);
+  border-radius: 999px;
+  background: var(--lower-surface);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  color: #526077;
+}
+.admin-page .dashboard-risk-panel .risk-dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, .12);
+}
+.admin-page .dashboard-risk-panel .risk-dot.medium { box-shadow: 0 0 0 3px rgba(217, 163, 0, .14); }
+
+/* ---------- Risk alerts: table ---------- */
+/* The 620px floor was what forced the scrollbar. The columns size themselves
+   instead, and the wrap keeps overflow-x for anything genuinely too narrow,
+   so the scrolling behaviour is still there when it is actually needed. */
+.admin-page .dashboard-risk-panel .dashboard-risk-table-wrap {
+  flex: 1;
+  margin: 0 -4px;
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table-wrap::-webkit-scrollbar { height: 6px; }
+.admin-page .dashboard-risk-panel .dashboard-risk-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.admin-page .dashboard-risk-panel .dashboard-risk-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #dbe2ec;
+}
+
+.admin-page .dashboard-risk-panel .dashboard-risk-table {
+  min-width: 0;
+  table-layout: auto;
+  font-size: var(--fs-12);
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table thead th {
+  padding: 9px 10px;
+  border-top: 0;
+  border-bottom: 1px solid var(--lower-line);
+  background: transparent;
+  font-size: var(--fs-9);
+  font-weight: 800;
+  letter-spacing: .11em;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table thead th:first-child { padding-left: 0; }
+.admin-page .dashboard-risk-panel .dashboard-risk-table thead th:last-child { padding-right: 0; text-align: right; }
+
+.admin-page .dashboard-risk-panel .dashboard-risk-table td {
+  padding: 13px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #52607a;
+  vertical-align: middle;
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table td:first-child { padding-left: 0; min-width: 0; }
+.admin-page .dashboard-risk-panel .dashboard-risk-table td:last-child { padding-right: 0; text-align: right; }
+.admin-page .dashboard-risk-panel .dashboard-risk-table td:first-child strong {
+  font-size: var(--fs-12);
+  font-weight: 650;
+  color: var(--lower-ink);
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table td:first-child small {
+  margin-top: 2px;
+  font-size: var(--fs-10);
+  color: #94a3b8;
+}
+.admin-page .dashboard-risk-panel .dashboard-risk-table tbody tr:hover { background: var(--lower-surface); }
+.admin-page .dashboard-risk-panel .dashboard-risk-table tbody tr:last-child td { border-bottom: 0; }
+
+/* Risk level as a status badge: a dot for the level, the word beside it. */
+.admin-page .dashboard-risk-panel .risk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--fs-10);
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+.admin-page .dashboard-risk-panel .risk-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  flex: none;
+}
+.admin-page .dashboard-risk-panel .risk-pill.high {
+  border-color: rgba(192, 57, 43, .2);
+  background: #fdecea;
+  color: #b3372a;
+}
+.admin-page .dashboard-risk-panel .risk-pill.medium {
+  border-color: rgba(180, 122, 0, .2);
+  background: #fdf4dd;
+  color: #8a6100;
+}
+
+/* ---------- Risk alerts: empty state ---------- */
+/* Centred in the space the table would have filled, so a quiet card looks
+   settled rather than unfinished. */
+.admin-page .dashboard-risk-panel .risk-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 132px;
+  margin: 10px 0 0;
+  padding: 22px 26px;
+  border: 1px dashed #dde5ef;
+  border-radius: 14px;
+  background: var(--lower-surface);
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--lower-muted);
+}
+
+/* ---------- Recent activity ---------- */
+.admin-page .dashboard-audit-panel .dashboard-audit-list {
+  flex: 1;
+  align-content: start;
+}
+.admin-page .dashboard-audit-panel .dashboard-audit-item {
+  align-items: center;
+  gap: 13px;
+  padding: 13px 0;
+  border-top: 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.admin-page .dashboard-audit-panel .dashboard-audit-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.admin-page .dashboard-audit-panel .dashboard-audit-item:first-child { padding-top: 2px; }
+
+/* One consistent icon chip per row, instead of a bare floating glyph. */
+.admin-page .dashboard-audit-panel .dashboard-audit-item ion-icon {
+  width: 34px;
+  height: 34px;
+  margin-top: 0;
+  padding: 8px;
+  border: 1px solid rgba(29, 78, 216, .12);
+  border-radius: 11px;
+  background: rgba(29, 78, 216, .06);
+  color: var(--lower-action);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+.admin-page .dashboard-audit-panel .dashboard-audit-item div { gap: 3px; }
+.admin-page .dashboard-audit-panel .dashboard-audit-item strong {
+  font-size: var(--fs-12);
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--lower-ink);
+}
+.admin-page .dashboard-audit-panel .dashboard-audit-item span {
+  font-size: var(--fs-11);
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  .admin-page .dashboard-risk-panel,
+  .admin-page .dashboard-audit-panel { padding: 20px 20px 18px; }
+}
+
+@media (max-width: 760px) {
+  .admin-page .dashboard-lower-grid { gap: 14px; }
+  .admin-page .dashboard-risk-panel,
+  .admin-page .dashboard-audit-panel { padding: 18px 16px 16px; }
+  .admin-page .dashboard-risk-panel .admin-panel-head,
+  .admin-page .dashboard-audit-panel .admin-panel-head { gap: 12px; }
+  .admin-page .dashboard-risk-panel .dashboard-risk-table { font-size: var(--fs-12); }
+  .admin-page .dashboard-risk-panel .dashboard-risk-table td { padding: 11px 8px; }
+  .admin-page .dashboard-risk-panel .risk-empty { min-height: 108px; padding: 18px; }
+  .admin-page .dashboard-audit-panel .dashboard-audit-item ion-icon { width: 30px; height: 30px; padding: 7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page .dashboard-risk-panel .admin-panel-head button,
+  .admin-page .dashboard-audit-panel .admin-panel-head button,
+  .admin-page .dashboard-risk-panel .dashboard-risk-table tbody tr { transition: none !important; }
+}
+
+/* ---------- Notifications dropdown ----------
+   The top bar blurs its backdrop, so it is its own stacking context: a z-index
+   on the dropdown alone cannot lift it over the dashboard cards. The bar
+   itself has to sit above the content. 15 clears the content and stays under
+   the mobile sidebar (19/20), so the drawer still covers the bar on a phone. */
+.admin-page .admin-topbar {
+  position: relative;
+  z-index: 15;
+  overflow: visible;
+}
+.admin-page .admin-main,
+.admin-page .admin-header-actions,
+.admin-page .admin-action-wrap { overflow: visible; }
+.admin-page .admin-content { position: relative; z-index: 0; }
+
+.admin-page .notification-dropdown {
+  z-index: 50;
+  width: 380px;
+  min-width: 0;
+  max-width: calc(100vw - 24px);
+  max-height: min(60vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.admin-page .notification-dropdown::-webkit-scrollbar { width: 8px; }
+.admin-page .notification-dropdown::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 8px; background: #cbd5e1; }
+
+/* The head stays put while the list under it scrolls. */
+.admin-page .notification-dropdown .admin-dropdown-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+/* The rows are <button>s, which do not inherit the page font on their own.
+   Without this they fall back to the browser's default UI font. */
+.admin-page .notification-dropdown,
+.admin-page .notification-dropdown button,
+.admin-page .notification-dropdown strong,
+.admin-page .notification-dropdown small,
+.admin-page .notification-dropdown p {
+  font-style: normal;
+  font-stretch: normal;
+  letter-spacing: 0;
+}
+
+.admin-page .notification-dropdown .notification-item {
+  gap: 5px;
+  padding: 14px 16px 15px;
+  border-bottom: 1px solid #f1f4f9;
+  transition: background .15s ease;
+}
+.admin-page .notification-dropdown .notification-item:last-child { border-bottom: 0; }
+.admin-page .notification-dropdown .notification-item:hover { background: #f6f9ff; }
+.admin-page .notification-dropdown .notification-item strong {
+  font-size: var(--fs-13);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.admin-page .notification-dropdown .notification-item.unread strong { font-weight: 700; }
+.admin-page .notification-dropdown .notification-item small {
+  display: block;
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.admin-page .notification-dropdown .notification-empty {
+  padding: 24px 16px;
+  font-size: var(--fs-12);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .admin-page .notification-dropdown { width: calc(100vw - 24px); max-height: 62vh; }
 }

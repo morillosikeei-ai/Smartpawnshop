@@ -1,0 +1,103 @@
+/* Public gold estimate section on the landing page. Uses the landing tokens. */
+.estimate-section { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 60px; align-items: start; padding-top: 105px; padding-bottom: 105px; border-top: 1px solid var(--landing-line); background: #dfe7f5; max-width: none; padding-left: max(22px, calc((100% - 1240px) / 2)); padding-right: max(22px, calc((100% - 1240px) / 2)); }
+.estimate-copy h2 { max-width: 520px; margin: 14px 0 15px; color: var(--landing-ink); font-size: clamp(var(--fs-28), 3.2vw, 3rem); line-height: 1.08; }
+.estimate-copy p { max-width: 480px; margin: 0; color: var(--landing-muted); font-size: var(--fs-15); line-height: 1.8; }
+
+.estimate-card { padding: 26px; border: 1px solid var(--landing-line); background: #f4f7fb; }
+.estimate-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: end; }
+.estimate-field { display: grid; gap: 6px; min-width: 0; }
+.estimate-field span { color: var(--landing-ink); font-size: var(--fs-11); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.estimate-field select,
+.estimate-field input { width: 100%; height: 46px; padding: 0 12px; border: 1px solid var(--landing-line); border-radius: 7px; background: #fff; color: var(--landing-ink); font: inherit; font-size: var(--fs-14); }
+.estimate-field select:focus,
+.estimate-field input:focus { outline: 2px solid var(--landing-blue); outline-offset: 1px; }
+.estimate-submit { grid-column: 1 / -1; margin: 4px 0 0; }
+
+/* Gold / Silver segmented toggle, same height as the selects beside it. */
+.estimate-material { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; height: 46px; padding: 4px; border: 1px solid var(--landing-line); border-radius: 7px; background: #fff; }
+.estimate-material button { border: 0; border-radius: 5px; background: transparent; color: var(--landing-muted); font: inherit; font-size: var(--fs-14); font-weight: 700; cursor: pointer; }
+.estimate-material button.active { background: var(--landing-ink); color: #fff; }
+.estimate-material button:focus-visible { outline: 2px solid var(--landing-blue); outline-offset: 1px; }
+
+.estimate-error { margin: 14px 0 0; color: #b42318; font-size: var(--fs-12); }
+
+.estimate-result { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--landing-line); }
+.estimate-value { margin: 0; color: var(--landing-ink); font-size: var(--fs-16); }
+.estimate-value strong { display: block; margin-top: 4px; color: var(--landing-gold); font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1.1; }
+.estimate-meta { display: grid; gap: 8px; margin: 16px 0 0; }
+.estimate-meta div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-12); }
+.estimate-meta dt { color: var(--landing-muted); }
+.estimate-meta dd { margin: 0; color: var(--landing-ink); font-weight: 700; text-align: right; }
+.estimate-meta small { color: var(--landing-muted); font-weight: 500; }
+.estimate-disclaimer { margin: 18px 0 0; padding: 12px 14px; border-left: 3px solid var(--landing-gold); background: #fff; color: var(--landing-muted); font-size: var(--fs-12); line-height: 1.6; }
+.estimate-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.estimate-cta ion-button { margin: 0; }
+.estimate-ask { --color: var(--landing-ink); --border-color: var(--landing-ink); }
+
+@media (max-width: 900px) { .estimate-section { grid-template-columns: 1fr; gap: 30px; } }
+@media (max-width: 620px) {
+  .estimate-section { padding-top: 72px; padding-bottom: 72px; }
+  .estimate-card { padding: 18px; }
+  .estimate-form { grid-template-columns: 1fr; }
+  .estimate-meta dd { text-align: left; }
+  .estimate-cta ion-button { flex: 1 1 100%; }
+}
+
+/* Glass card. Soft navy and gold light behind the card gives the frosted
+   blur something to show through; the card, fields, and toggle are
+   see-through white with a bright edge. */
+.estimate-section {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 78% 22%, rgba(212, 167, 44, .38), transparent 30%),
+    radial-gradient(circle at 58% 82%, rgba(29, 78, 216, .32), transparent 34%),
+    radial-gradient(circle at 12% 70%, rgba(29, 78, 216, .14), transparent 30%),
+    #dfe7f5;
+}
+
+.estimate-card {
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .32));
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 20px 50px rgba(6, 16, 40, .14), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.estimate-field select,
+.estimate-field input,
+.estimate-material {
+  border-color: rgba(255, 255, 255, .75);
+  background: rgba(255, 255, 255, .6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.estimate-result { border-top-color: rgba(6, 16, 40, .12); }
+.estimate-disclaimer { border-radius: 0 10px 10px 0; background: rgba(255, 255, 255, .55); }
+
+/* Dark theme: smoky navy glass. Beats the flat overrides in portal-dark.css. */
+html[data-theme="dark"] .landing-content .estimate-section {
+  background:
+    radial-gradient(circle at 78% 22%, rgba(212, 167, 44, .22), transparent 30%),
+    radial-gradient(circle at 58% 82%, rgba(29, 78, 216, .3), transparent 34%),
+    #121b2c !important;
+}
+
+html[data-theme="dark"] .landing-content .estimate-card {
+  border-color: rgba(255, 255, 255, .12);
+  background: linear-gradient(145deg, rgba(26, 37, 57, .72), rgba(19, 28, 46, .5)) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+html[data-theme="dark"] .landing-content .estimate-field select,
+html[data-theme="dark"] .landing-content .estimate-field input,
+html[data-theme="dark"] .landing-content .estimate-material {
+  border-color: rgba(255, 255, 255, .1);
+  background: rgba(19, 28, 46, .6) !important;
+}
+
+html[data-theme="dark"] .landing-content .estimate-disclaimer {
+  background: rgba(19, 28, 46, .6) !important;
+}

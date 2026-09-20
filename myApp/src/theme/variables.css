@@ -1,20 +1,64 @@
+/* ============================================================
+   App typography: one font and one size scale.
+
+   Inter is the font the Admin portal and the New Transaction
+   screens were built with. It is bundled (@fontsource-variable/inter,
+   imported in App.tsx), so every device renders Inter instead of
+   falling back to Segoe UI or the system font.
+
+   The family is set here once. Component stylesheets set sizes
+   and weights only and inherit the family.
+
+   Every font-size in the app uses one of the --fs-* steps below.
+   Steps are named by their pixel size at the default 16px root:
+     9-16   helper text, badges, labels, table cells, body
+     18-24  card and modal titles
+     28-40  page titles and stat figures
+   Larger display sizes (the landing hero) stay fluid clamp() values.
+   ============================================================ */
+
+:root {
+	--app-font-family: 'Inter Variable', Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+	--ion-font-family: var(--app-font-family);
+
+	--fs-9: .5625rem;
+	--fs-10: .625rem;
+	--fs-11: .6875rem;
+	--fs-12: .75rem;
+	--fs-13: .8125rem;
+	--fs-14: .875rem;
+	--fs-15: .9375rem;
+	--fs-16: 1rem;
+	--fs-18: 1.125rem;
+	--fs-20: 1.25rem;
+	--fs-22: 1.375rem;
+	--fs-24: 1.5rem;
+	--fs-28: 1.75rem;
+	--fs-32: 2rem;
+	--fs-36: 2.25rem;
+	--fs-40: 2.5rem;
+}
+
 html,
-body,
-ion-app,
-ion-page,
-ion-content,
+body {
+	font-family: var(--app-font-family);
+}
+
+/* Form controls do not inherit the page font by default. */
 button,
 input,
 select,
-textarea {
-	font-family: Inter, "Segoe UI", system-ui, sans-serif;
-}
-
-:root {
-	--ion-font-family: Inter, "Segoe UI", system-ui, sans-serif;
+textarea,
+optgroup {
+	font-family: inherit;
 }
 
 ion-icon {
+	font-family: inherit;
+}
+
+/* Leaflet's stylesheet sets Helvetica/Arial on the branch map. */
+.leaflet-container {
 	font-family: inherit;
 }
 

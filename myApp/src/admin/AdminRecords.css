@@ -1,0 +1,83 @@
+/* ============================================================
+   Admin > Records - one read-only list per tab.
+   Reuses the Reports table pieces (rpt-toolbar, rpt-item, rpt-status,
+   rpt-pagination). The grid columns come from each tab through
+   --rec-cols, so one set of rules serves every list.
+   ============================================================ */
+.admin-page .rec-wrap { display: grid; }
+
+.admin-page .rec-toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.admin-page .rec-export {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px;
+  border: 1px solid #e0e6f0; border-radius: 9px; background: #fff;
+  color: #33578c; font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+.admin-page .rec-export:hover:not(:disabled) { border-color: #d4a72c; background: #fffdf6; }
+.admin-page .rec-export:disabled { opacity: .45; cursor: default; }
+
+.admin-page .rec-select { display: inline-flex; align-items: center; gap: 8px; color: #000; font-size: var(--fs-10); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.admin-page .rec-select .type-select { width: 180px; }
+.admin-page .rec-select input,
+.admin-page .rec-select select {
+  height: 36px; padding: 0 10px; border: 1px solid #e6ebf3; border-radius: 9px; background: #fff;
+  color: #061028; font: inherit; font-size: var(--fs-12); font-weight: 600; letter-spacing: 0; text-transform: none;
+}
+.admin-page .rec-filter { margin: 0; }
+
+/* Table */
+.admin-page .rec-table { border: 1px solid #e6ebf3; border-radius: 14px; overflow: hidden; }
+.admin-page .rec-head,
+.admin-page .rec-row {
+  display: grid; grid-template-columns: var(--rec-cols);
+  gap: 12px; align-items: center; padding: 11px 16px;
+}
+.admin-page .rec-head {
+  background: #f8fafc; border-bottom: 1px solid #e6ebf3;
+  font-size: var(--fs-9); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #000;
+}
+.admin-page .rec-row { border-bottom: 1px solid #f1f5f9; color: #061028; font-size: var(--fs-12); transition: background .15s ease; }
+.admin-page .rec-row:last-child { border-bottom: none; }
+.admin-page .rec-row:hover { background: #fcfdff; }
+.admin-page .rec-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A column of controls, centred under its header. */
+.admin-page .rec-action { justify-self: center; align-self: center; text-align: center; }
+
+.admin-page .rpt-status.overdue, .admin-user-modal .rpt-status.overdue { background: #fff6e0; color: #8a5a00; }
+
+/* Summary cards above each list */
+.admin-page .rec-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.admin-page .rec-summary-card { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid #e6ebf3; border-left: 3px solid #94a3b8; border-radius: 12px; background: #fff; }
+.admin-page .rec-summary-card span { color: #52627b; font-size: var(--fs-10); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.admin-page .rec-summary-card strong { color: #061028; font-size: var(--fs-16, 1rem); font-variant-numeric: tabular-nums; }
+.admin-page .rec-summary-card.blue { border-left-color: #33578c; }
+.admin-page .rec-summary-card.green { border-left-color: #237b35; }
+.admin-page .rec-summary-card.gold { border-left-color: #d4a72c; }
+.admin-page .rec-summary-card.red { border-left-color: #b42318; }
+
+.admin-page .rec-note { display: block; margin-top: 8px; color: #7c8798; font-size: var(--fs-11); }
+
+/* Customer detail dialog */
+.admin-user-modal .rec-id-photo { display: block; max-width: 280px; max-height: 180px; margin-top: 12px; border: 1px solid #e6ebf3; border-radius: 10px; object-fit: contain; }
+.admin-user-modal .rec-history { display: grid; }
+.admin-user-modal .rec-history-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 132px; gap: 12px; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: var(--fs-12); color: #061028;
+}
+.admin-user-modal .rec-history-row:last-child { border-bottom: none; }
+.admin-user-modal .rec-history-row .rpt-item { display: grid; gap: 2px; min-width: 0; }
+.admin-user-modal .rec-history-row .rpt-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-user-modal .rec-history-row .rpt-item small { color: #7c8798; font-size: var(--fs-10); font-weight: 700; }
+.admin-user-modal .rec-history-row .rpt-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .admin-page .rec-head,
+  .admin-page .rec-row { grid-template-columns: var(--rec-cols-narrow); }
+  .admin-page .rec-wide { display: none; }
+  .admin-user-modal .rec-history-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-user-modal .rec-history-row em { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page .rec-row, .admin-page .rec-export { transition: none !important; }
+}

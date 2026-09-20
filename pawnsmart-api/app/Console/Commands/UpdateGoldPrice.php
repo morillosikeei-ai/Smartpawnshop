@@ -6,6 +6,7 @@ use App\Models\GoldPrice;
 use App\Models\Item;
 use App\Models\ItemValueLog;
 use App\Models\RiskAlert;
+use App\Models\SilverPrice;
 use App\Models\SystemSetting;
 use App\Models\Transaction;
 use App\Services\GoldPriceService;
@@ -16,6 +17,7 @@ use Throwable;
 
 /**
  * Records one gold price row per day and stores the next-day forecast beside it.
+ * Does the same for silver in silver_prices.
  *
  * Runs automatically once a day from the scheduler (see routes/console.php).
  * An admin can also run it by hand and pass a price to override the API.
@@ -24,18 +26,17 @@ class UpdateGoldPrice extends Command
 {
     protected $signature = 'gold:update-price {price? : Manually entered price per gram}';
 
-    protected $description = "Record today's gold price per gram and predict tomorrow's price.";
-
-    /**
-     * Response keys we accept from the external API, in order of preference.
-     * Different gold price providers name the per gram field differently.
-     */
-    private const API_PRICE_KEYS = ['price_gram_24k', 'price_per_gram', 'price'];
+    protected $description = "Record today's gold and silver prices per gram and predict tomorrow's prices.";
 
     /**
      * Last resort price when there is no argument, no API, and no history.
      */
     private const DEFAULT_PRICE = GoldPriceService::DEFAULT_PRICE;
+
+    /**
+     * Silver counterpart of DEFAULT_PRICE.
+     */
+    private const DEFAULT_SILVER_PRICE = GoldPriceService::DEFAULT_SILVER_PRICE;
 
     /**
      * Risk margin in percent, used when system_settings has no
@@ -47,13 +48,15 @@ class UpdateGoldPrice extends Command
     public function handle(GoldPriceService $goldPriceService): int
     {
         // Step 1: work out today's price and where it came from.
-        [$pricePerGram, $source] = $this->resolvePrice();
+        [$pricePerGram, $source, $meltPrices] = $this->resolvePrice();
 
         // Step 2: one row per day. price_date is unique, so updateOrCreate
         // rewrites today's row instead of failing when the command reruns.
+        // melt_prices_json is written every time, so a manual or carried
+        // forward rerun clears per-karat prices that no longer apply.
         $goldPrice = GoldPrice::updateOrCreate(
             ['price_date' => today()],
-            ['price_per_gram' => $pricePerGram, 'source' => $source]
+            ['price_per_gram' => $pricePerGram, 'melt_prices_json' => $meltPrices, 'source' => $source]
         );
 
         // Step 3: forecast tomorrow from the 7 day moving average. Today's row
@@ -70,12 +73,39 @@ class UpdateGoldPrice extends Command
             number_format($predictedNextPrice, 2)
         ));
 
+        // Step 4b: the same daily row and forecast for silver, from the XAG
+        // endpoint. The manual price argument is a gold price, so silver
+        // always tries the API first.
+        [$silverPricePerGram, $silverSource, $silverMeltPrices] = $this->resolveSilverPrice();
+
+        $silverPrice = SilverPrice::updateOrCreate(
+            ['price_date' => today()],
+            ['price_per_gram' => $silverPricePerGram, 'melt_prices_json' => $silverMeltPrices, 'source' => $silverSource]
+        );
+
+        $predictedNextSilverPrice = $goldPriceService->predictNextSilverPrice();
+        $silverPrice->update(['predicted_next_price' => $predictedNextSilverPrice]);
+
+        $this->info(sprintf(
+            'Silver price for %s: PHP %s/gram (source: %s), predicted next: PHP %s',
+            $silverPrice->price_date->toDateString(),
+            number_format($silverPricePerGram, 2),
+            $silverSource,
+            number_format($predictedNextSilverPrice, 2)
+        ));
+
         // Step 5: today's price changes what every pawned jewelry item is
         // worth, so recompute and log each active jewelry item at the new
         // price, and check whether any of them now secures its loan too thinly.
+        // Silver items use today's silver price, everything else gold's.
         // The other item groups are valued by hand and are skipped.
         ['recomputed' => $recomputedCount, 'high' => $highCount, 'medium' => $mediumCount] =
-            $this->recomputeItemValues($pricePerGram);
+            $this->recomputeItemValues(
+                $pricePerGram,
+                $goldPrice->melt_prices_json,
+                $silverPricePerGram,
+                $silverPrice->melt_prices_json
+            );
 
         $this->info("Recomputed values for {$recomputedCount} active jewelry items.");
 
@@ -93,6 +123,11 @@ class UpdateGoldPrice extends Command
      *
      *     value = weight in grams * karat purity fraction * price per gram
      *
+     * or, when today's row carries the API's per-karat melt prices, the
+     * item's karat price directly:
+     *
+     *     value = weight in grams * melt price per gram for that karat
+     *
      * One row per item per day keeps a history the pawnshop can chart later.
      * The (item_id, log_date) pair is unique, so updateOrCreate rewrites
      * today's row rather than failing when the command reruns.
@@ -105,21 +140,33 @@ class UpdateGoldPrice extends Command
      * the gold price would report drift that did not happen. If those groups
      * need alerts later, they need a separate rule based on the due date.
      *
+     * An item with metal_type silver is valued the same way from today's
+     * silver price and silver melt prices instead of gold's. Its log row
+     * stores the silver price in gold_price_used.
+     *
+     * @param  array<string, mixed>|null  $meltPrices  today's gold melt_prices_json, or null
+     * @param  array<string, mixed>|null  $silverMeltPrices  today's silver melt_prices_json, or null
      * @return array{recomputed: int, high: int, medium: int} counts
      */
-    private function recomputeItemValues(float $pricePerGram): array
+    private function recomputeItemValues(float $pricePerGram, ?array $meltPrices, float $silverPricePerGram, ?array $silverMeltPrices): array
     {
         $counts = ['recomputed' => 0, 'high' => 0, 'medium' => 0];
         $riskThresholdPercent = $this->riskThresholdPercent();
 
         // chunkById keeps memory flat when the shop holds many items.
-        Item::where('status', 'active')->where('group', Item::GROUP_JEWELRY)->chunkById(200, function ($items) use ($pricePerGram, $riskThresholdPercent, &$counts) {
+        Item::where('status', 'active')->where('group', Item::GROUP_JEWELRY)->chunkById(200, function ($items) use ($pricePerGram, $meltPrices, $silverPricePerGram, $silverMeltPrices, $riskThresholdPercent, &$counts) {
             foreach ($items as $item) {
-                $computedValue = round((float) $item->weight_grams * $item->karatPurityPercent() * $pricePerGram, 2);
+                $isSilver = $item->metal_type === Item::METAL_SILVER;
+                $itemPricePerGram = $isSilver ? $silverPricePerGram : $pricePerGram;
+                $itemMeltPrices = $isSilver ? $silverMeltPrices : $meltPrices;
+
+                // Only the metal portion is recomputed. A gemstone value is a
+                // one-time estimate from intake, added on top unchanged.
+                $computedValue = $item->valueWithGold($item->goldValueAt($itemPricePerGram, $itemMeltPrices));
 
                 ItemValueLog::updateOrCreate(
                     ['item_id' => $item->items_id, 'log_date' => today()],
-                    ['computed_value' => $computedValue, 'gold_price_used' => $pricePerGram]
+                    ['computed_value' => $computedValue, 'gold_price_used' => $itemPricePerGram]
                 );
 
                 $counts['recomputed']++;
@@ -210,14 +257,16 @@ class UpdateGoldPrice extends Command
      * Priority: manual argument, then the external API, then the most recent
      * saved price, then the built in default.
      *
-     * @return array{0: float, 1: string} price per gram and source
+     * @return array{0: float, 1: string, 2: array<string, float>|null} price per
+     *         gram, source, and the API's per-karat melt prices (null unless
+     *         the price came from the API)
      */
     private function resolvePrice(): array
     {
         // Admin typed a price: trust it and mark the row as manual.
         $manualPrice = $this->argument('price');
         if ($manualPrice !== null && is_numeric($manualPrice)) {
-            return [round((float) $manualPrice, 2), 'manual'];
+            return [round((float) $manualPrice, 2), 'manual', null];
         }
 
         if ($manualPrice !== null) {
@@ -225,65 +274,128 @@ class UpdateGoldPrice extends Command
         }
 
         // No argument: try the external API.
-        $apiPrice = $this->fetchApiPrice();
-        if ($apiPrice !== null) {
-            return [$apiPrice, 'api'];
+        $meltPrices = $this->fetchApiMeltPrices();
+        if ($meltPrices !== null) {
+            return [round($meltPrices['24k'], 2), 'api', $meltPrices];
         }
 
         // API unavailable: carry forward the last known price so the daily row
         // still exists. Not a real reading, so the source stays manual.
         $lastKnownPrice = GoldPrice::orderByDesc('price_date')->value('price_per_gram');
         if ($lastKnownPrice !== null) {
-            return [round((float) $lastKnownPrice, 2), 'manual'];
+            return [round((float) $lastKnownPrice, 2), 'manual', null];
         }
 
         Log::warning('Gold price update: no API price and no saved history, using default price.');
         $this->warn('No API price and no saved history. Using default price.');
 
-        return [self::DEFAULT_PRICE, 'manual'];
+        return [self::DEFAULT_PRICE, 'manual', null];
     }
 
     /**
-     * Fetch today's price per gram from the configured API.
+     * Decide today's silver price per gram and its source.
      *
-     * Returns null on any failure so the caller can fall back. A missing gold
-     * price must never break the daily run.
+     * Same order as resolvePrice() minus the manual argument, which is a gold
+     * price: the external API, then the most recent saved silver price, then
+     * the built in silver default.
+     *
+     * @return array{0: float, 1: string, 2: array<string, float>|null} price per
+     *         gram, source, and the API's per-karat melt prices (null unless
+     *         the price came from the API)
      */
-    private function fetchApiPrice(): ?float
+    private function resolveSilverPrice(): array
     {
-        $url = config('services.gold_price.url');
+        $meltPrices = $this->fetchApiMeltPrices('silver');
+        if ($meltPrices !== null) {
+            return [round($meltPrices['24k'], 2), 'api', $meltPrices];
+        }
 
-        if (! $url) {
-            Log::warning('Gold price update: GOLD_PRICE_API_URL is not configured, falling back.');
-            $this->warn('No GOLD_PRICE_API_URL configured. Falling back to the last saved price.');
+        // API unavailable: carry forward the last known price so the daily row
+        // still exists. Not a real reading, so the source stays manual.
+        $lastKnownPrice = SilverPrice::orderByDesc('price_date')->value('price_per_gram');
+        if ($lastKnownPrice !== null) {
+            return [round((float) $lastKnownPrice, 2), 'manual', null];
+        }
+
+        Log::warning('Silver price update: no API price and no saved history, using default price.');
+        $this->warn('No silver API price and no saved history. Using default silver price.');
+
+        return [self::DEFAULT_SILVER_PRICE, 'manual', null];
+    }
+
+    /**
+     * Fetch today's per-karat melt prices from GoldAPI.io.
+     *
+     * The response's melt_price_per_gram holds a price per gram for each karat
+     * ("24k", "18k", ...), already adjusted for purity. The 24k price becomes
+     * the day's price_per_gram; the whole map is kept for per-karat lookups.
+     *
+     * $metal picks the endpoint: gold reads GOLD_PRICE_API_URL (XAU), silver
+     * reads SILVER_PRICE_API_URL (XAG). Both send the same key.
+     *
+     * Returns null on any failure (not configured, network error, bad key,
+     * rate limit, unexpected body) so the caller can fall back. A missing gold
+     * or silver price must never break the daily run.
+     *
+     * @param  'gold'|'silver'  $metal
+     * @return array<string, float>|null karat => price per gram, with a 24k entry
+     */
+    private function fetchApiMeltPrices(string $metal = 'gold'): ?array
+    {
+        $isSilver = $metal === 'silver';
+        $label = $isSilver ? 'Silver' : 'Gold';
+        $url = (string) config($isSilver ? 'services.goldapi.silver_url' : 'services.goldapi.url');
+        $key = (string) config('services.goldapi.key');
+
+        if ($url === '' || $key === '') {
+            $urlEnv = $isSilver ? 'SILVER_PRICE_API_URL' : 'GOLD_PRICE_API_URL';
+            Log::warning("{$label} price update: {$urlEnv} or GOLD_PRICE_API_KEY is not configured, falling back.");
+            $this->warn(($isSilver ? 'GoldAPI silver URL' : 'GoldAPI URL').' or key not configured. Falling back to the last saved price.');
 
             return null;
         }
 
+        // A protocol-relative URL ("//www.goldapi.io/...") cannot be requested
+        // as is, so it is sent over https.
+        if (str_starts_with($url, '//')) {
+            $url = 'https:'.$url;
+        }
+
         try {
             $response = Http::timeout(10)
-                ->withHeaders(array_filter(['x-access-token' => config('services.gold_price.key')]))
+                ->acceptJson()
+                ->withHeaders(['x-access-token' => $key])
                 ->get($url);
 
+            // Bad key (401/403), rate limit (429), and server errors all land here.
             if (! $response->successful()) {
                 throw new \RuntimeException("API responded with status {$response->status()}.");
             }
 
-            // Providers name the per gram field differently, so check each key.
-            foreach (self::API_PRICE_KEYS as $key) {
-                $value = $response->json($key);
-                if (is_numeric($value) && (float) $value > 0) {
-                    return round((float) $value, 2);
+            $melt = $response->json('melt_price_per_gram');
+            if (! is_array($melt)) {
+                throw new \RuntimeException('API response has no melt_price_per_gram object.');
+            }
+
+            // Keep only usable prices, keyed by lower-case karat as items store it.
+            $meltPrices = [];
+            foreach ($melt as $karat => $price) {
+                if (is_numeric($price) && (float) $price > 0) {
+                    $meltPrices[strtolower((string) $karat)] = (float) $price;
                 }
             }
 
-            throw new \RuntimeException('API response contained no usable price per gram.');
+            if (! isset($meltPrices['24k'])) {
+                throw new \RuntimeException('API response has no usable melt_price_per_gram["24k"].');
+            }
+
+            return $meltPrices;
         } catch (Throwable $exception) {
-            Log::warning('Gold price update: API fetch failed, falling back.', [
+            Log::warning("{$label} price update: API fetch failed, falling back.", [
                 'url' => $url,
                 'error' => $exception->getMessage(),
             ]);
-            $this->warn("Gold price API fetch failed: {$exception->getMessage()}");
+            $this->warn("{$label} price API fetch failed: {$exception->getMessage()}");
 
             return null;
         }

@@ -1,0 +1,696 @@
+/* ============================================================
+   Shared portal look.
+
+   The Admin portal is the reference design. This layer restates
+   its tokens and surfaces for the Staff portal (.staff-page) and
+   the Customer portal (.portal-page), so the three portals read
+   as one product instead of three.
+
+   Only presentation lives here: no markup, data, or behaviour
+   changes. It is imported last in StaffPortal.tsx and
+   CustomerPortal.tsx so it wins over the older per-portal rules,
+   several of which already carry !important.
+
+   Reference values come from AdminPortal.css + AdminPolish.css:
+     ink #061028   blue #1d4ed8   gold #d4a72c   muted #000 (black for readability)
+     line #e6ebf3  page #edf3f5   panel radius 16 / stat 15
+   ============================================================ */
+
+.staff-page,
+.portal-page {
+  --pui-ink: #061028;
+  --pui-blue: #1d4ed8;
+  --pui-gold: #d4a72c;
+  --pui-gold-bright: #f5c842;
+  --pui-muted: #000;
+  --pui-line: #e6ebf3;
+  --pui-page: #edf3f5;
+  --pui-panel-radius: 16px;
+  --pui-panel-shadow: 0 10px 30px rgba(8, 20, 48, .06);
+}
+
+/* ---------- Page surface ---------- */
+.staff-page ion-content,
+.portal-page ion-content {
+  --background: var(--pui-page) !important;
+}
+
+.portal-page .portal-shell,
+.portal-page .portal-main,
+.portal-page .portal-content,
+.staff-page .staff-main,
+.staff-page .staff-content {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.staff-page .staff-content,
+.portal-page .portal-content {
+  max-width: 1220px;
+  margin: auto;
+  padding: 34px clamp(18px, 4vw, 56px) 60px;
+}
+
+/* ---------- Sidebar ----------
+   Admin: 260px rail, ink gradient, gold hairline under the brand,
+   gold rail on the active row. */
+.staff-page .staff-sidebar,
+.portal-page .portal-sidebar {
+  width: 260px !important;
+  flex: 0 0 260px !important;
+  padding: 26px 16px 18px !important;
+  background: linear-gradient(185deg, #0a1730 0%, #061028 55%, #040c1f 100%) !important;
+  border-right: 1px solid rgba(212, 167, 44, .16) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #fff;
+}
+
+.staff-page .staff-side-brand,
+.portal-page .portal-brand {
+  position: relative;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 8px 26px !important;
+  text-align: center !important;
+}
+
+.staff-page .staff-side-brand::after,
+.portal-page .portal-brand::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 167, 44, .5), transparent);
+}
+
+.staff-page .staff-side-brand img,
+.portal-page .portal-brand img {
+  width: 190px !important;
+  height: 108px !important;
+  border-radius: 0 !important;
+  object-fit: contain;
+  background: transparent !important;
+}
+
+.staff-page .staff-side-brand strong,
+.portal-page .portal-brand strong {
+  font-size: var(--fs-13);
+  letter-spacing: .08em;
+}
+
+.staff-page .staff-side-brand span,
+.portal-page .portal-brand span,
+.staff-page .staff-user span,
+.portal-page .portal-user span {
+  color: rgba(232, 238, 248, .7) !important;
+  font-size: var(--fs-11) !important;
+}
+
+.staff-page .staff-menu-label,
+.portal-page .portal-menu-label {
+  padding: 0 12px 10px;
+  color: rgba(212, 167, 44, .82) !important;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.staff-page .staff-nav button,
+.portal-page .portal-nav button,
+.staff-page .staff-logout,
+.portal-page .portal-logout {
+  position: relative;
+  border-radius: 10px;
+  padding: 12px 13px;
+  color: #fff !important;
+  font-size: var(--fs-13) !important;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.staff-page .staff-nav button ion-icon,
+.portal-page .portal-nav button ion-icon {
+  font-size: 1.08rem;
+  transition: color .18s ease;
+}
+
+.staff-page .staff-nav button:hover,
+.portal-page .portal-nav button:hover {
+  background: rgba(255, 255, 255, .07) !important;
+  color: #fff !important;
+  transform: translateX(2px);
+}
+
+.staff-page .staff-nav button:hover ion-icon,
+.portal-page .portal-nav button:hover ion-icon {
+  color: var(--pui-gold);
+}
+
+.staff-page .staff-nav button.active,
+.portal-page .portal-nav button.active {
+  background: linear-gradient(90deg, rgba(212, 167, 44, .2), rgba(212, 167, 44, .04)) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.staff-page .staff-nav button.active ion-icon,
+.portal-page .portal-nav button.active ion-icon {
+  color: var(--pui-gold-bright);
+}
+
+.staff-page .staff-nav button.active::before,
+.portal-page .portal-nav button.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--pui-gold-bright), var(--pui-gold));
+}
+
+/* Signed in card under the logo */
+.staff-page .staff-user,
+.portal-page .portal-user {
+  margin-top: 12px;
+  padding: 11px;
+  border: 1px solid rgba(212, 167, 44, .22) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, .05) !important;
+}
+
+.staff-page .staff-user ion-icon,
+.portal-page .portal-user ion-icon {
+  color: var(--pui-gold);
+  font-size: 1.7rem;
+}
+
+/* ---------- Top bar ---------- */
+.staff-page .staff-topbar,
+.portal-page .portal-topbar {
+  min-height: 88px;
+  padding: 20px clamp(22px, 4vw, 56px);
+  border-bottom: 1px solid var(--pui-line) !important;
+  background: rgba(255, 255, 255, .88) !important;
+  backdrop-filter: blur(18px);
+}
+
+.staff-page .staff-topbar small,
+.portal-page .portal-topbar small,
+.staff-page .staff-content small,
+.portal-page .portal-content small {
+  color: #4a5c52;
+  font-size: var(--fs-11);
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.staff-page .staff-notification,
+.portal-page .portal-notice-button {
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid #e0e6f0 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: var(--pui-ink) !important;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.staff-page .staff-notification:hover,
+.portal-page .portal-notice-button:hover {
+  border-color: var(--pui-gold) !important;
+  box-shadow: 0 0 0 3px rgba(212, 167, 44, .13);
+  transform: translateY(-1px);
+}
+
+/* Admin shows the signed in name as plain text with a chevron, so the
+   other two portals drop their pill frame and do the same. */
+.staff-page .staff-top-user,
+.portal-page .portal-profile-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--pui-ink) !important;
+  font-size: var(--fs-12) !important;
+}
+
+.staff-page .staff-top-user ion-icon:first-child,
+.portal-page .portal-profile-button ion-icon:first-child {
+  color: var(--pui-ink) !important;
+  font-size: 1.1rem !important;
+}
+
+.staff-page .staff-top-user .profile-chevron,
+.portal-page .portal-profile-button .profile-chevron {
+  font-size: var(--fs-13) !important;
+  transition: transform .18s ease;
+}
+
+.staff-page .staff-top-user[aria-expanded='true'] .profile-chevron,
+.portal-page .portal-profile-button[aria-expanded='true'] .profile-chevron {
+  transform: rotate(180deg);
+}
+
+.staff-page .staff-dropdown,
+.portal-page .portal-dropdown {
+  border: 1px solid #e0e6f0 !important;
+  border-radius: 13px !important;
+  box-shadow: 0 18px 42px rgba(6, 16, 40, .16) !important;
+}
+
+/* ---------- Headings ----------
+   Heading colour. Sizes and weights live in theme/portal-type.css. */
+.staff-page .staff-content h1,
+.staff-page .staff-content h2,
+.staff-page .staff-content h3,
+.staff-page .staff-topbar h1,
+.staff-page .staff-panel h3,
+.portal-page .portal-content h1,
+.portal-page .portal-content h2,
+.portal-page .portal-content h3,
+.portal-page .portal-panel h3 {
+  color: var(--pui-ink);
+}
+
+.staff-page .staff-content h2,
+.portal-page .portal-content h2 {
+  margin: 7px 0 6px;
+  font-size: clamp(var(--fs-24), 3vw, var(--fs-32)) !important;
+  font-weight: 700;
+}
+
+.staff-page .staff-content h3,
+.portal-page .portal-content h3 {
+  font-size: var(--fs-16);
+  font-weight: 700;
+}
+
+.staff-page .staff-content p,
+.portal-page .portal-content p {
+  color: var(--pui-muted);
+  font-size: var(--fs-13);
+}
+
+/* ---------- Page intro ----------
+   Admin opens a page with a plain intro block on the page background.
+   The staff dashboard used a dark hero band instead, which is the
+   single largest reason the two portals did not look related. */
+.staff-page .dash-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--pui-ink) !important;
+}
+
+.staff-page .dash-hero-copy small {
+  color: #4a5c52 !important;
+  font-size: var(--fs-11) !important;
+  letter-spacing: .12em !important;
+}
+
+.staff-page .dash-hero-copy h2 {
+  margin: 7px 0 6px !important;
+  color: var(--pui-ink) !important;
+  font-size: clamp(var(--fs-24), 3vw, var(--fs-32)) !important;
+}
+
+.staff-page .dash-hero-copy p {
+  color: var(--pui-muted) !important;
+  font-size: var(--fs-13) !important;
+}
+
+.staff-page .dash-hero-actions ion-button {
+  --background: var(--pui-blue) !important;
+  --background-activated: #1746a2 !important;
+  --color: #fff !important;
+  --border-radius: 7px !important;
+  --box-shadow: none !important;
+}
+
+/* The New Transaction wizard opened with a second dark band carrying the
+   day's gold price. Admin shows the same figure on a white panel, so this
+   band becomes one too; the content is untouched. */
+.staff-page .tx-hero {
+  border: 1px solid var(--pui-line) !important;
+  border-radius: var(--pui-panel-radius) !important;
+  background: #fff !important;
+  box-shadow: var(--pui-panel-shadow) !important;
+  color: var(--pui-ink) !important;
+}
+
+.staff-page .tx-hero-eyebrow {
+  color: var(--pui-muted) !important;
+}
+
+.staff-page .tx-hero-copy h2 {
+  color: var(--pui-ink) !important;
+}
+
+.staff-page .tx-hero-copy p {
+  color: var(--pui-muted) !important;
+}
+
+.staff-page .tx-hero-price {
+  border-left-color: var(--pui-line) !important;
+}
+
+.staff-page .tx-hero-price small,
+.staff-page .tx-hero-price span,
+.staff-page .tx-hero-price strong i {
+  color: var(--pui-muted) !important;
+}
+
+.staff-page .tx-hero-price strong {
+  color: #a8801a !important;
+}
+
+/* ---------- Panels and cards ---------- */
+.staff-page .staff-panel,
+.staff-page .loans-table,
+.staff-page .customer-table,
+.staff-page .report-chart,
+.staff-page .dash-gold,
+.portal-page .portal-panel,
+.portal-page .portal-list,
+.portal-page .detail-card,
+.portal-page .notice-list,
+.portal-page .items-table-wrap {
+  border: 1px solid var(--pui-line) !important;
+  border-radius: var(--pui-panel-radius) !important;
+  background: #fff !important;
+  box-shadow: var(--pui-panel-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.staff-page .staff-panel-head,
+.portal-page .portal-heading {
+  align-items: flex-start;
+}
+
+.staff-page .staff-panel-head small,
+.portal-page .portal-heading small,
+.portal-page .portal-kicker {
+  color: var(--pui-muted) !important;
+  font-size: var(--fs-10) !important;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+/* The customer portal tinted every eyebrow blue; admin keeps them quiet. */
+.portal-page .portal-topbar small,
+.portal-page .portal-intro small,
+.portal-page .portal-content > .portal-intro small {
+  color: #4a5c52 !important;
+}
+
+.staff-page .staff-panel-head h3,
+.portal-page .portal-heading h3 {
+  margin: 5px 0 0;
+  color: var(--pui-ink);
+}
+
+.staff-page .staff-panel-head button,
+.portal-page .portal-heading button,
+.portal-page .portal-heading a {
+  border-radius: 999px;
+  padding: 5px 12px;
+  color: #33578c;
+  font-size: var(--fs-11);
+  transition: background .15s ease;
+}
+
+.staff-page .staff-panel-head button:hover,
+.portal-page .portal-heading button:hover,
+.portal-page .portal-heading a:hover {
+  background: #eef4fd;
+}
+
+/* ---------- Stat tiles ---------- */
+.staff-page .staff-stat,
+.portal-page .portal-stat {
+  padding: 20px;
+  border: 1px solid var(--pui-line) !important;
+  border-radius: 15px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.staff-page .staff-stat:hover,
+.portal-page .portal-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(6, 16, 40, .09) !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Admin stacks the value over its label beside the icon; the customer
+   tiles were a single flex row, so they are re-laid as that same grid. */
+.portal-page .portal-stat {
+  display: grid !important;
+  /* Ionic forces content-box on ion-icon, so the 44px tile measures 66px
+     with its padding. The column is sized from the tile itself. */
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 13px !important;
+  row-gap: 4px;
+}
+
+.portal-page .portal-stat > ion-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  flex: none !important;
+}
+
+.portal-page .portal-stat > strong {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.portal-page .portal-stat > span {
+  grid-column: 2;
+  grid-row: 2;
+  margin-left: 0 !important;
+}
+
+.staff-page .staff-stat > ion-icon,
+.portal-page .portal-stat > ion-icon {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  padding: 11px;
+  border-radius: 9px;
+  background: #edf3ff;
+  color: var(--pui-blue);
+  font-size: 1.2rem;
+}
+
+.staff-page .staff-stat strong,
+.portal-page .portal-stat strong {
+  color: var(--pui-ink) !important;
+  font-size: var(--fs-22);
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-page .staff-stat span,
+.portal-page .portal-stat span {
+  color: var(--pui-muted) !important;
+  font-size: var(--fs-12);
+}
+
+/* ---------- Tables ---------- */
+.staff-page .loans-head,
+.staff-page .loan-table-head,
+.staff-page .dashboard-table-head,
+.portal-page .items-table th {
+  background: #f8fafc !important;
+  color: var(--pui-muted) !important;
+  font-size: var(--fs-10) !important;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.staff-page .loans-tr,
+.staff-page .dashboard-table-row,
+.portal-page .items-table tbody tr {
+  transition: background .15s ease;
+}
+
+.staff-page .loans-tr:hover,
+.staff-page .dashboard-table-row:hover,
+.portal-page .items-table tbody tr:hover {
+  background: #fcfdff !important;
+}
+
+.staff-page .loans-tr,
+.portal-page .items-table td,
+.portal-page .items-table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Status pills ----------
+   One palette for every portal: green active, amber watch, red overdue. */
+.staff-page .loan-pill.low,
+.staff-page .loan-pill.active,
+.staff-page .due-pill.ok,
+.portal-page .pill.active,
+.portal-page .status-pill.active {
+  background: #eafaf0 !important;
+  color: #1a8d59 !important;
+}
+
+.staff-page .loan-pill.medium,
+.staff-page .loan-pill.due-soon,
+.staff-page .due-pill.urgent,
+.portal-page .pill.due-soon,
+.portal-page .status-pill.due-soon {
+  background: #fff5d8 !important;
+  color: #9b6b00 !important;
+}
+
+.staff-page .loan-pill.high,
+.staff-page .loan-pill.high-risk,
+.staff-page .due-pill.overdue,
+.portal-page .pill.overdue,
+.portal-page .status-pill.overdue {
+  background: #ffebe8 !important;
+  color: #c0392b !important;
+}
+
+/* ---------- Buttons ---------- */
+.staff-page ion-button,
+.portal-page ion-button {
+  --background: var(--pui-blue);
+  --background-activated: #1746a2;
+  --color: #fff;
+  --border-radius: 7px;
+  --box-shadow: none;
+  text-transform: none;
+  font-weight: 700;
+}
+
+.staff-page ion-button[fill='outline'],
+.portal-page ion-button[fill='outline'] {
+  --background: transparent;
+  --background-activated: #eef4ff;
+  --color: var(--pui-blue);
+  --border-color: #cfdff7;
+}
+
+.staff-page .primary-button,
+.portal-page .primary-button {
+  border-radius: 11px;
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.staff-page .primary-button:hover:not(:disabled),
+.portal-page .primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(6, 16, 40, .16);
+}
+
+.staff-page .secondary-button,
+.portal-page .secondary-button {
+  border-radius: 11px;
+  transition: border-color .16s ease, background .16s ease;
+}
+
+/* ---------- Form fields ---------- */
+.staff-page input,
+.staff-page select,
+.staff-page textarea,
+.portal-page input,
+.portal-page select,
+.portal-page textarea {
+  border-radius: 10px;
+  border: 1px solid #e0e6f0;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.staff-page input:focus,
+.staff-page select:focus,
+.staff-page textarea:focus,
+.portal-page input:focus,
+.portal-page select:focus,
+.portal-page textarea:focus {
+  outline: none;
+  border-color: var(--pui-gold);
+  box-shadow: 0 0 0 3px rgba(212, 167, 44, .14);
+}
+
+.staff-page .staff-panel ion-item,
+.portal-page .portal-panel ion-item {
+  --background: #fff;
+  border: 1px solid #e0e6f0;
+  border-radius: 10px;
+}
+
+/* ---------- Tabs ---------- */
+.staff-page .staff-tabs button,
+.portal-page .item-tabs button {
+  color: var(--pui-muted);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  transition: color .15s ease, border-color .15s ease;
+}
+
+.staff-page .staff-tabs button:hover,
+.portal-page .item-tabs button:hover {
+  color: var(--pui-ink);
+}
+
+.staff-page .staff-tabs button.active,
+.portal-page .item-tabs button.active {
+  border-bottom-color: var(--pui-gold);
+  color: var(--pui-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-page .staff-nav button,
+  .staff-page .staff-stat,
+  .staff-page .staff-notification,
+  .staff-page .primary-button,
+  .portal-page .portal-nav button,
+  .portal-page .portal-stat,
+  .portal-page .portal-notice-button,
+  .portal-page .primary-button {
+    transition: none !important;
+  }
+}
+
+/* ---------- Narrow screens ----------
+   Both rails keep the Admin width when they slide in over the page. */
+@media (max-width: 800px) {
+  .staff-page .staff-sidebar,
+  .portal-page .portal-sidebar {
+    width: 260px !important;
+    flex-basis: 260px !important;
+  }
+}

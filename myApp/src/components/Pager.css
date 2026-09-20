@@ -1,0 +1,54 @@
+/* ---------- Pager ----------
+   The page controls under a long table. Shared by the customer, staff and
+   admin screens, so the tokens are neutral and each portal's own dark rules
+   only have to restate the surface colors. */
+.pager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 14px;
+	color: #475569;
+	font-size: var(--fs-12);
+}
+
+.pager-count { font-variant-numeric: tabular-nums; }
+
+.pager-controls { display: flex; align-items: center; gap: 8px; }
+
+.pager-position { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pager-controls button {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid #d7dfea;
+	border-radius: 8px;
+	background: #fff;
+	color: #061028;
+	font: inherit;
+	font-size: var(--fs-14);
+	cursor: pointer;
+}
+
+.pager-controls button:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.pager-controls button:disabled { opacity: .45; cursor: default; }
+
+@media (max-width: 520px) {
+	.pager { justify-content: center; }
+}
+
+html[data-theme="dark"] .pager { color: #8b97ad; }
+
+html[data-theme="dark"] .pager-controls button {
+	border-color: #2a3650;
+	background: #0e1626;
+	color: #e6ebf5;
+}
+
+html[data-theme="dark"] .pager-controls button:hover:not(:disabled) {
+	border-color: #8fb0ff;
+	color: #8fb0ff;
+}

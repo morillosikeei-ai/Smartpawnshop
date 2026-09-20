@@ -1,0 +1,9 @@
+# Downloaded tooling, not part of the project.
+ngrok/
+myApp/curl
+
+# Tesseract language data: a 5 MB blob fetched on setup, not source.
+myApp/eng.traineddata
+
+# Item photos written by the running app, not source.
+myApp/public/items/

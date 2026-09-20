@@ -1,25 +1,4 @@
 /* ---- Global Reset & Fonts ---- */
-body,
-.landing-content,
-.landing-content button,
-.landing-content input,
-.landing-content select,
-.landing-content ion-input,
-.landing-content ion-label,
-.landing-content h1,
-.landing-content h2,
-.landing-content h3,
-.landing-content h4,
-.landing-header,
-.landing-header button,
-.landing-header ion-toolbar,
-.landing-header ion-label,
-.landing-header h1,
-.landing-header h2,
-.landing-header h3,
-.landing-header h4 {
-    font-family: Inter, "Segoe UI", system-ui, sans-serif !important;
-}
 
 .landing-content h1,
 .landing-content h2,
@@ -93,7 +72,7 @@ body,
 }
 
 .nav-brand .brand-logo {
-    font-size: 1.8rem;
+    font-size: var(--fs-28);
     font-weight: 700;
     color: #FFFFFF;
     letter-spacing: -0.5px;
@@ -113,7 +92,7 @@ body,
 .nav-links .nav-link {
     color: rgba(255, 255, 255, 0.6);
     text-decoration: none;
-    font-size: 0.95rem;
+    font-size: var(--fs-15);
     font-weight: 500;
     transition: color 0.2s;
     position: relative;
@@ -149,7 +128,7 @@ body,
 .nav-btn {
     --border-radius: 30px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
     text-transform: none;
     --padding-start: 20px;
     --padding-end: 20px;
@@ -174,7 +153,7 @@ body,
     --background-hover: rgba(255, 255, 255, 0.16);
     --padding-start: 8px;
     --padding-end: 8px;
-    font-size: 1.8rem;
+    font-size: var(--fs-28);
     margin: 0;
     visibility: visible;
     opacity: 1;
@@ -216,7 +195,7 @@ body,
     }
 
     .nav-links .nav-link {
-        font-size: 1.6rem;
+        font-size: var(--fs-24);
         color: #FFFFFF;
     }
 
@@ -253,7 +232,7 @@ body,
 
 @media (max-width: 768px) {
     .hero-title {
-        font-size: 2.2rem;
+        font-size: var(--fs-36);
     }
 
     .hero-section {
@@ -330,7 +309,7 @@ body,
 }
 
 .hero-description {
-    font-size: 1.1rem;
+    font-size: var(--fs-18);
     color: rgba(255, 255, 255, 0.7);
     line-height: 1.7;
     max-width: 520px;
@@ -396,14 +375,14 @@ body,
 }
 
 .stat-number {
-    font-size: 1.8rem;
+    font-size: var(--fs-28);
     font-weight: 700;
     color: #FFFFFF;
 }
 
 .stat-label {
     color: rgba(255, 255, 255, 0.5);
-    font-size: 1rem;
+    font-size: var(--fs-16);
 }
 
 /* ---- Search Section ---- */
@@ -449,7 +428,7 @@ body,
     border: none;
     outline: none;
     color: #FFFFFF;
-    font-size: 1rem;
+    font-size: var(--fs-16);
     padding: 14px 0;
     width: 100%;
 }
@@ -500,7 +479,7 @@ body,
 }
 
 .section-title {
-    font-size: 2rem;
+    font-size: var(--fs-32);
     font-weight: 700;
     color: #FFFFFF;
     margin: 0;
@@ -517,7 +496,7 @@ body,
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 30px;
     padding: 6px 20px;
-    font-size: 0.85rem;
+    font-size: var(--fs-14);
     color: rgba(255, 255, 255, 0.6);
     cursor: default;
     transition: 0.2s;
@@ -575,7 +554,7 @@ body,
     background: linear-gradient(135deg, #D4A72C, #f5c842);
     color: #FFFFFF;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: var(--fs-13);
     padding: 4px 14px;
     border-radius: 30px;
     box-shadow: 0 4px 12px rgba(212, 167, 44, 0.3);
@@ -588,7 +567,7 @@ body,
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     color: #FFFFFF;
-    font-size: 0.7rem;
+    font-size: var(--fs-11);
     padding: 4px 12px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -599,14 +578,14 @@ body,
 }
 
 .product-title {
-    font-size: 1.1rem;
+    font-size: var(--fs-18);
     font-weight: 600;
     color: #FFFFFF;
     margin-bottom: 4px;
 }
 
 .product-price {
-    font-size: 1.2rem;
+    font-size: var(--fs-20);
     font-weight: 700;
     color: #D4A72C;
 }
@@ -635,12 +614,12 @@ body,
     justify-content: center;
     color: #FFFFFF;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
 }
 
 .seller-name {
     color: rgba(255, 255, 255, 0.6);
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
 }
 
 .product-action-btn {
@@ -669,7 +648,7 @@ body,
 }
 
 .footer-brand .brand-logo {
-    font-size: 1.6rem;
+    font-size: var(--fs-24);
     font-weight: 700;
     color: #FFFFFF;
     background: linear-gradient(135deg, #1D4ED8, #D4A72C);
@@ -680,7 +659,7 @@ body,
 
 .footer-desc {
     color: rgba(255, 255, 255, 0.5);
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
     margin: 4px 0 0;
 }
 
@@ -692,7 +671,7 @@ body,
 .footer-links a {
     color: rgba(255, 255, 255, 0.5);
     text-decoration: none;
-    font-size: 0.95rem;
+    font-size: var(--fs-15);
     transition: color 0.2s;
 }
 
@@ -702,7 +681,7 @@ body,
 
 .footer-copy {
     color: rgba(255, 255, 255, 0.3);
-    font-size: 0.85rem;
+    font-size: var(--fs-14);
 }
 
 /* ---- Auth Modals ---- */
@@ -750,7 +729,7 @@ body,
 }
 
 .modal-title {
-    font-size: 1.8rem;
+    font-size: var(--fs-28);
     font-weight: 700;
     color: #FFFFFF;
 }
@@ -760,7 +739,7 @@ body,
     --padding-start: 8px;
     --padding-end: 8px;
     margin: 0;
-    font-size: 1.6rem;
+    font-size: var(--fs-24);
 }
 
 .close-btn:hover {
@@ -770,7 +749,7 @@ body,
 .modal-subtitle {
     color: rgba(255, 255, 255, 0.5);
     margin-bottom: 24px;
-    font-size: 1rem;
+    font-size: var(--fs-16);
 }
 
 .auth-input-item {
@@ -783,7 +762,7 @@ body,
 .auth-input-item ion-label {
     color: rgba(255, 255, 255, 0.6);
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
     margin-bottom: 4px;
 }
 
@@ -808,12 +787,21 @@ body,
 
 .forgot-link {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
     text-decoration: none;
 }
 
 .forgot-link:hover {
     color: #D4A72C;
+}
+
+/* The link is a button, so it needs the browser's button look removed. */
+button.forgot-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    cursor: pointer;
 }
 
 .auth-btn {
@@ -905,7 +893,7 @@ body,
 }
 
 .dropdown-title {
-    font-size: 1.3rem;
+    font-size: var(--fs-20);
     font-weight: 600;
     color: #FFFFFF;
 }
@@ -914,7 +902,7 @@ body,
     --color: rgba(255, 255, 255, 0.6);
     --padding-start: 8px;
     --padding-end: 8px;
-    font-size: 1.8rem;
+    font-size: var(--fs-28);
     margin: 0;
 }
 
@@ -932,7 +920,7 @@ body,
     display: block;
     color: #FFFFFF;
     text-decoration: none;
-    font-size: 1.2rem;
+    font-size: var(--fs-20);
     font-weight: 500;
     padding: 8px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -1004,18 +992,18 @@ body,
 
 .brand-copy strong {
     color: #ffffff;
-    font-size: 0.78rem;
+    font-size: var(--fs-12);
     font-weight: 800;
 }
 
 .brand-copy span {
     color: rgba(255, 255, 255, 0.62);
-    font-size: 0.65rem;
+    font-size: var(--fs-10);
 }
 
 .nav-links .nav-link {
     color: rgba(255, 255, 255, 0.78);
-    font-size: 0.8rem;
+    font-size: var(--fs-13);
 }
 
 .nav-links .nav-link.active::after {
@@ -1024,7 +1012,7 @@ body,
 
 .nav-btn {
     --border-radius: 7px;
-    font-size: 0.78rem;
+    font-size: var(--fs-12);
     --padding-start: 14px;
     --padding-end: 14px;
 }
@@ -1074,7 +1062,7 @@ body,
 .hero-title {
     max-width: 700px;
     margin: 0 0 20px;
-    font-size: clamp(2.5rem, 5vw, 4.4rem);
+    font-size: clamp(var(--fs-40), 5vw, 4.4rem);
     line-height: 1.08;
     letter-spacing: 0;
     overflow: visible;
@@ -1090,14 +1078,14 @@ body,
     max-width: 530px;
     margin-bottom: 28px;
     color: rgba(255, 255, 255, 0.82);
-    font-size: 1.12rem;
+    font-size: var(--fs-18);
     line-height: 1.55;
 }
 
 .hero-btn {
     --border-radius: 8px;
     height: 48px;
-    font-size: 0.88rem;
+    font-size: var(--fs-14);
 }
 
 .hero-btn.outline-btn {
@@ -1169,7 +1157,7 @@ body,
 
 .dropdown-link {
     color: #ffffff;
-    font-size: 0.9rem;
+    font-size: var(--fs-14);
     font-weight: 700;
     border-bottom-color: rgba(255, 255, 255, 0.15);
 }
@@ -1190,7 +1178,7 @@ body,
     --border-color: rgba(255, 255, 255, 0.7);
     height: 36px;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--fs-12);
 }
 
 .dropdown-actions ion-button:last-child {
@@ -1209,11 +1197,11 @@ body,
     }
 
     .brand-copy strong {
-        font-size: 0.56rem;
+        font-size: var(--fs-9);
     }
 
     .brand-copy span {
-        font-size: 0.5rem;
+        font-size: var(--fs-9);
     }
 
     .nav-actions .nav-btn {
@@ -1226,11 +1214,11 @@ body,
     }
 
     .hero-title {
-        font-size: 2.25rem;
+        font-size: var(--fs-36);
     }
 
     .hero-description {
-        font-size: 0.9rem;
+        font-size: var(--fs-14);
         line-height: 1.5;
     }
 
@@ -1242,7 +1230,7 @@ body,
         --padding-start: 14px;
         --padding-end: 14px;
         height: 42px;
-        font-size: 0.72rem;
+        font-size: var(--fs-12);
     }
 
     .hero-image-col {
@@ -1301,7 +1289,7 @@ body,
     align-items: center;
     gap: 7px;
     color: rgba(255, 255, 255, 0.84);
-    font-size: 0.82rem;
+    font-size: var(--fs-13);
     font-weight: 600;
     cursor: pointer;
 }
@@ -1328,7 +1316,7 @@ body,
 }
 
 .auth-brand img {
-    width: 142px;
+    width: 150px;
     height: 100px;
     border-radius: 0;
     background: transparent;
@@ -1344,20 +1332,20 @@ body,
 
 .auth-brand strong {
     color: #d4a72c;
-    font-size: 0.72rem;
+    font-size: var(--fs-12);
     font-weight: 800;
 }
 
 .auth-brand span {
     color: rgba(255, 255, 255, 0.78);
-    font-size: 0.64rem;
+    font-size: var(--fs-10);
 }
 
 .auth-modal .modal-title {
     display: block;
     margin: 0 0 6px;
     color: #ffffff;
-    font-size: 1.35rem;
+    font-size: var(--fs-22);
     font-weight: 800;
     text-align: center;
 }
@@ -1365,7 +1353,7 @@ body,
 .auth-modal .modal-subtitle {
     margin: 0 0 28px;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 0.8rem;
+    font-size: var(--fs-13);
     text-align: center;
 }
 
@@ -1378,7 +1366,7 @@ body,
 .auth-modal .auth-input-item ion-label {
     margin-bottom: 7px;
     color: rgba(255, 255, 255, 0.86);
-    font-size: 0.69rem;
+    font-size: var(--fs-11);
     font-weight: 800;
     letter-spacing: 0.02em;
 }
@@ -1408,7 +1396,7 @@ body,
 .auth-modal .forgot-link,
 .auth-modal .auth-switch a {
     color: #ffffff;
-    font-size: 0.78rem;
+    font-size: var(--fs-12);
     font-weight: 700;
     text-decoration: underline;
 }
@@ -1419,7 +1407,7 @@ body,
     --box-shadow: none;
     height: 44px;
     margin-top: 2px;
-    font-size: 0.88rem;
+    font-size: var(--fs-14);
     font-weight: 800;
 }
 
@@ -1430,13 +1418,13 @@ body,
 .auth-modal .auth-switch {
     margin-top: 24px;
     color: rgba(255, 255, 255, 0.72);
-    font-size: 0.76rem;
+    font-size: var(--fs-12);
 }
 
 .auth-error {
     margin: 12px 0 0;
     color: #f4a5a5;
-    font-size: 0.74rem;
+    font-size: var(--fs-12);
     text-align: center;
 }
 
@@ -1451,7 +1439,7 @@ body,
 .auth-info-message p {
     margin: 0;
     color: #f5d979;
-    font-size: .74rem;
+    font-size: var(--fs-12);
     line-height: 1.5;
 }
 
@@ -1488,47 +1476,47 @@ body,
 .nav-brand { display: flex; align-items: center; gap: 10px; }
 .nav-brand .brand-mark { width: 54px; height: 42px; object-fit: contain; }
 .brand-copy { display: grid; gap: 2px; }
-.brand-copy strong { color: #ffffff; font-size: .78rem; letter-spacing: .08em; }
-.brand-copy span { color: #aebbd1; font-size: .62rem; }
+.brand-copy strong { color: #ffffff; font-size: var(--fs-12); letter-spacing: .08em; }
+.brand-copy span { color: #aebbd1; font-size: var(--fs-10); }
 .nav-links { gap: clamp(14px, 2.4vw, 34px); }
-.nav-links .nav-link { color: #c8d3e3; font-size: .76rem; font-weight: 750; }
+.nav-links .nav-link { color: #c8d3e3; font-size: var(--fs-12); font-weight: 750; }
 .nav-links .nav-link:hover, .nav-links .nav-link.active { color: #ffffff; }
 .nav-links .nav-link.active::after { background: var(--landing-gold); }
-.landing-header .nav-btn { --color: #ffffff; --border-radius: 7px; font-size: .72rem; }
+.landing-header .nav-btn { --color: #ffffff; --border-radius: 7px; font-size: var(--fs-12); }
 .landing-header .nav-btn.primary-btn { --background: var(--landing-gold); --color: var(--landing-ink); --box-shadow: none; }
 .landing-section { max-width: 1240px; margin: 0 auto; padding-left: clamp(22px, 5vw, 72px); padding-right: clamp(22px, 5vw, 72px); }
 .hero-section { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); align-items: center; gap: clamp(30px, 7vw, 100px); min-height: 720px; padding-top: 150px; padding-bottom: 80px; background: #061028; }
 .hero-text-col { padding-right: 0; }
-.hero-kicker, .section-eyebrow { display: flex; gap: 14px; color: var(--landing-blue); font-size: .64rem; font-weight: 850; letter-spacing: .14em; }
+.hero-kicker, .section-eyebrow { display: flex; gap: 14px; color: var(--landing-blue); font-size: var(--fs-10); font-weight: 850; letter-spacing: .14em; }
 .hero-kicker span + span { padding-left: 14px; border-left: 1px solid #9bb4dc; }
 .hero-title { max-width: 700px; margin: 18px 0 22px; color: #ffffff; font-size: clamp(2.7rem, 5.6vw, 5.5rem); font-weight: 800; line-height: .98; letter-spacing: -.03em !important; }
 .hero-title .highlight { background: none; color: var(--landing-gold); -webkit-text-fill-color: initial; }
-.hero-description { max-width: 560px; margin-bottom: 30px; color: #c8d3e3; font-size: 1rem; line-height: 1.75; }
+.hero-description { max-width: 560px; margin-bottom: 30px; color: #c8d3e3; font-size: var(--fs-16); line-height: 1.75; }
 .hero-buttons { align-items: center; }
-.hero-btn { height: 48px; --border-radius: 7px; --padding-start: 20px; --padding-end: 20px; font-size: .74rem; }
+.hero-btn { height: 48px; --border-radius: 7px; --padding-start: 20px; --padding-end: 20px; font-size: var(--fs-12); }
 .hero-btn.primary-btn { --background: var(--landing-gold); --color: var(--landing-ink); --box-shadow: none; }
-.hero-text-link { display: inline-flex; align-items: center; gap: 6px; color: #ffffff; font-size: .75rem; font-weight: 800; text-decoration: none; }
+.hero-text-link { display: inline-flex; align-items: center; gap: 6px; color: #ffffff; font-size: var(--fs-12); font-weight: 800; text-decoration: none; }
 .hero-text-link ion-icon { color: var(--landing-gold); }
 .hero-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 410px; border: 1px solid rgba(212,167,44,.35); border-radius: 50% 50% 12px 12px; background: radial-gradient(circle at 50% 42%, #f0d889 0 14%, #d4a72c 15% 22%, transparent 23%), linear-gradient(145deg, #eaf0ff, #dbe5f5); box-shadow: 20px 24px 0 rgba(29,78,216,.12); overflow: hidden; }
 .hero-visual::before { content: ''; position: absolute; inset: 13%; border: 1px solid rgba(24,37,31,.16); border-radius: 50%; transform: rotate(-18deg); }
 .hero-visual-glow { position: absolute; width: 230px; height: 230px; border-radius: 50%; background: rgba(255,255,255,.45); filter: blur(2px); }
-.hero-ring { position: relative; display: grid; place-items: center; width: 118px; height: 118px; border: 18px solid #d4a72c; border-radius: 50%; color: transparent; font-size: 2rem; box-shadow: inset 0 0 0 5px #f5d979, 0 18px 28px rgba(6,16,40,.2); transform: rotate(-18deg); }
+.hero-ring { position: relative; display: grid; place-items: center; width: 118px; height: 118px; border: 18px solid #d4a72c; border-radius: 50%; color: transparent; font-size: var(--fs-32); box-shadow: inset 0 0 0 5px #f5d979, 0 18px 28px rgba(6,16,40,.2); transform: rotate(-18deg); }
 .hero-visual-caption { position: absolute; right: 24px; bottom: 22px; display: grid; gap: 5px; padding: 13px 15px; border: 1px solid rgba(24,37,31,.12); background: rgba(255,255,255,.7); }
-.hero-visual-caption small { color: var(--landing-blue); font-size: .58rem; font-weight: 800; letter-spacing: .1em; }
-.hero-visual-caption strong { font-size: .82rem; }
+.hero-visual-caption small { color: var(--landing-blue); font-size: var(--fs-9); font-weight: 800; letter-spacing: .1em; }
+.hero-visual-caption strong { font-size: var(--fs-13); }
 .about-section, .services-section, .sale-section, .contact-section { padding-top: 105px; padding-bottom: 105px; }
 .about-section { border-top: 1px solid var(--landing-line); background: #dfe7f5; }
 .about-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 80px; margin-top: 22px; }
-.about-layout h2, .section-heading-block h2, .contact-copy h2 { max-width: 560px; margin: 0; color: var(--landing-ink); font-size: clamp(1.8rem, 3.2vw, 3rem); line-height: 1.08; }
-.about-layout p, .sale-heading p, .contact-copy p { max-width: 500px; margin: 0; color: var(--landing-muted); font-size: .92rem; line-height: 1.8; }
+.about-layout h2, .section-heading-block h2, .contact-copy h2 { max-width: 560px; margin: 0; color: var(--landing-ink); font-size: clamp(var(--fs-28), 3.2vw, 3rem); line-height: 1.08; }
+.about-layout p, .sale-heading p, .contact-copy p { max-width: 500px; margin: 0; color: var(--landing-muted); font-size: var(--fs-15); line-height: 1.8; }
 .section-heading-block { margin-bottom: 28px; }
 .section-heading-block h2 { margin-top: 12px; }
 .service-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .service-card { min-height: 210px; padding: 24px 20px; border: 1px solid var(--landing-line); background: #f4f7fb; transition: transform .2s ease, border-color .2s ease; }
 .service-card:hover { border-color: #c6a65d; transform: translateY(-4px); }
 .service-card ion-icon { margin-bottom: 45px; color: var(--landing-gold); font-size: 1.45rem; }
-.service-card h3 { margin: 0 0 8px; color: var(--landing-ink); font-size: .92rem; }
-.service-card p { margin: 0; color: var(--landing-muted); font-size: .75rem; line-height: 1.6; }
+.service-card h3 { margin: 0 0 8px; color: var(--landing-ink); font-size: var(--fs-15); }
+.service-card p { margin: 0; color: var(--landing-muted); font-size: var(--fs-12); line-height:6; }
 .sale-section { background: #cbd8ed; max-width: none; padding-left: max(22px, calc((100% - 1240px) / 2)); padding-right: max(22px, calc((100% - 1240px) / 2)); }
 .sale-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .sale-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
@@ -1538,30 +1526,25 @@ body,
 .sale-grid .product-image { mix-blend-mode: multiply; }
 .sale-grid .product-category { color: var(--landing-ink); background: rgba(255,255,255,.8); }
 .sale-grid .product-header { padding: 17px 16px 4px; }
-.sale-grid .product-title { color: var(--landing-ink); font-size: .86rem; }
-.sale-grid .product-price { color: var(--landing-gold); font-size: 1rem; font-weight: 800; }
+.sale-grid .product-title { color: var(--landing-ink); font-size: var(--fs-14); }
+.sale-grid .product-price { color: var(--landing-gold); font-size: var(--fs-16); font-weight: 800; }
 .sale-grid .product-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 15px; }
-.product-price-label { color: var(--landing-muted); font-size: .65rem; }
-.sale-grid .product-action-btn { --color: var(--landing-ink); margin: 0; font-size: .68rem; }
+.product-price-label { color: var(--landing-muted); font-size: var(--fs-10); }
+.sale-grid .product-action-btn { --color: var(--landing-ink); margin: 0; font-size: var(--fs-11); }
 .contact-section { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr); gap: 80px; background: #e8eef8; }
 .contact-copy h2 { margin: 14px 0 15px; }
 .contact-details { display: grid; gap: 12px; margin-top: 26px; }
-.contact-details span { display: flex; align-items: center; gap: 10px; color: var(--landing-ink); font-size: .78rem; }
+.contact-details span { display: flex; align-items: center; gap: 10px; color: var(--landing-ink); font-size: var(--fs-12); }
 .contact-details ion-icon { color: var(--landing-gold); font-size: 1rem; }
-.contact-map { display: grid; align-content: center; justify-items: start; gap: 9px; min-height: 280px; padding: 35px; border: 1px solid #c9d7eb; background: radial-gradient(circle at 30% 35%, rgba(212,167,44,.2) 0 2px, transparent 3px), radial-gradient(circle at 70% 65%, rgba(6,16,40,.12) 0 2px, transparent 3px), #eaf0ff; background-size: 34px 34px; }
-.map-pin { display: grid; place-items: center; width: 43px; height: 43px; border-radius: 50%; background: var(--landing-ink); color: #f4d47f; }
-.contact-map strong { font-size: 1rem; }
-.contact-map span { color: var(--landing-muted); font-size: .75rem; }
-.contact-map a { display: inline-flex; align-items: center; gap: 7px; margin-top: 17px; color: var(--landing-ink); font-size: .72rem; font-weight: 800; text-decoration: none; }
 .landing-footer { background: var(--landing-ink); }
 .footer-container { display: grid; grid-template-columns: 1.2fr 1fr 1fr; align-items: center; gap: 30px; max-width: 1240px; margin: 0 auto; padding: 30px clamp(22px, 5vw, 72px); }
 .footer-brand { display: flex; align-items: center; gap: 10px; }
 .footer-brand img { width: 48px; height: 38px; object-fit: contain; }
-.footer-brand strong { color: #fff; font-size: .7rem; letter-spacing: .08em; }
-.footer-desc { margin: 4px 0 0; color: #a9b6aa; font-size: .65rem; }
+.footer-brand strong { color: #fff; font-size: var(--fs-11); letter-spacing: .08em; }
+.footer-desc { margin: 4px 0 0; color: #a9b6aa; font-size: var(--fs-10); }
 .footer-links { display: flex; justify-content: center; gap: 18px; }
-.footer-links a { color: #d6ded7; font-size: .68rem; text-decoration: none; }
-.footer-copy { color: #a9b6aa; font-size: .65rem; text-align: right; }
+.footer-links a { color: #d6ded7; font-size: var(--fs-11); text-decoration: none; }
+.footer-copy { color: #a9b6aa; font-size: var(--fs-10); text-align: right; }
 @media (max-width: 900px) { .hero-section, .contact-section { grid-template-columns: 1fr; } .hero-visual { min-height: 300px; } .service-grid, .sale-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .about-layout { gap: 30px; } .footer-container { grid-template-columns: 1fr; text-align: center; } .footer-brand, .footer-links { justify-content: center; } .footer-copy { text-align: center; } }
 @media (max-width: 620px) { .landing-header .nav-actions .primary-btn { display: none; } .hero-section { min-height: auto; padding-top: 132px; } .hero-title { font-size: 2.8rem; } .about-layout, .service-grid, .sale-grid { grid-template-columns: 1fr; } .sale-heading { display: block; } .sale-heading p { margin-top: 15px; } .about-section, .services-section, .sale-section, .contact-section { padding-top: 72px; padding-bottom: 72px; } }
 
@@ -1582,27 +1565,102 @@ body,
 .auth-input-item.password-item .password-toggle { position: absolute; right: 20px; bottom: 8px; z-index: 2; width: 32px; height: 32px; margin: 0; --color: #ffffff; --padding-start: 5px; --padding-end: 5px; }
 .auth-input-item.password-item .password-toggle ion-icon { color: #ffffff; font-size: 1.05rem; }
 
-/* Keep the Login modal comfortable and scrollable on short screens. */
-.auth-modal::part(content) { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); margin: auto; border-radius: 16px; overflow: hidden; }
-.auth-modal .modal-backdrop { min-height: 100%; overflow-y: auto; padding: 16px; box-sizing: border-box; }
-.auth-modal .modal-container { width: 100%; max-height: calc(100vh - 64px); margin: auto; overflow-y: auto; box-sizing: border-box; }
-.auth-modal .modal-header { position: sticky; top: 0; z-index: 2; background: #0b1426; }
-.auth-modal .modal-body { padding-bottom: 26px; }
-@media (max-width: 560px) {
-    .auth-modal::part(content) { width: calc(100vw - 18px); max-height: calc(100vh - 18px); }
-    .auth-modal .modal-backdrop { padding: 9px; }
-    .auth-modal .modal-container { max-height: calc(100vh - 36px); }
+/* ---- Login drawer ------------------------------------------------------
+   The auth modal is a panel pinned to the right edge of the viewport.
+   Every size here is relative to the modal box (100%), never to viewport
+   units (100vw/100vh), because 100vw includes the scrollbar and pushes the
+   panel past the right edge of the screen. min-width: 0 stops long content
+   from growing the panel wider than the space it is given. */
+ion-modal.auth-modal::part(content) {
+    width: min(440px, 100%) !important;
+    max-width: 100% !important; 
+    min-width: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 0 0 auto !important;
+    border-radius: 0 !important;
+    background: #0b1426 !important;
+    box-shadow: -18px 0 40px rgba(6, 16, 40, .45);
+    overflow: hidden;
 }
 
-/* Keep Login as a right-side drawer after all responsive overrides. */
-ion-modal.auth-modal::part(content) { width: min(440px, 100vw) !important; height: 100vh !important; max-height: none !important; margin: 0 0 0 auto !important; border-radius: 0 !important; background: #0b1426 !important; box-shadow: -18px 0 40px rgba(6,16,40,.45); }
-ion-modal.auth-modal .modal-backdrop { min-height: 100vh; align-items: stretch; justify-content: flex-end; padding: 0; overflow-y: auto; }
-ion-modal.auth-modal .modal-container { width: 100%; max-width: none; min-height: 100vh; max-height: none; margin: 0; overflow-y: auto; box-sizing: border-box; padding: 54px 44px 36px; border: 0; border-radius: 0; background: #0b1426; box-shadow: none; }
-ion-modal.auth-modal .modal-header { position: sticky; top: 0; z-index: 2; justify-content: flex-start; margin: -54px -44px 34px; padding: 20px 44px 14px; background: #0b1426; }
+ion-modal.auth-modal .modal-backdrop {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100%;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+ion-modal.auth-modal .modal-container {
+    --drawer-pad-x: clamp(20px, 4vw, 44px);
+    --drawer-pad-top: 54px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: var(--drawer-pad-top) var(--drawer-pad-x) 36px;
+    border: 0;
+    border-radius: 0;
+    background: #0b1426;
+    box-shadow: none;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* The header is full bleed, so its negative margin is tied to the padding
+   above instead of a repeated literal that can drift out of step. */
+ion-modal.auth-modal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    justify-content: flex-start;
+    margin: calc(-1 * var(--drawer-pad-top)) calc(-1 * var(--drawer-pad-x)) 34px;
+    padding: 20px var(--drawer-pad-x) 14px;
+    background: #0b1426;
+}
+
+ion-modal.auth-modal .modal-body,
+ion-modal.auth-modal .auth-input-item,
+ion-modal.auth-modal .auth-input,
+ion-modal.auth-modal .auth-btn,
+ion-modal.auth-modal .auth-error,
+ion-modal.auth-modal .auth-info-message {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+ion-modal.auth-modal .modal-body { padding-bottom: 26px; }
+
+ion-modal.auth-modal .modal-title,
+ion-modal.auth-modal .modal-subtitle,
+ion-modal.auth-modal .auth-error,
+ion-modal.auth-modal .auth-switch,
+ion-modal.auth-modal .auth-info-message p {
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 600px) {
-    ion-modal.auth-modal::part(content) { width: 100vw !important; }
-    ion-modal.auth-modal .modal-container { padding: 32px 24px 28px; }
-    ion-modal.auth-modal .modal-header { margin: -32px -24px 28px; padding: 18px 24px 12px; }
+    ion-modal.auth-modal::part(content) { width: 100% !important; }
+
+    ion-modal.auth-modal .modal-container {
+        --drawer-pad-x: 24px;
+        --drawer-pad-top: 32px;
+        padding-bottom: 28px;
+    }
+
+    ion-modal.auth-modal .modal-header {
+        margin-bottom: 28px;
+        padding-top: 18px;
+        padding-bottom: 12px;
+    }
 }
 
 /* Public landing layout inspired by the supplied reference. */
@@ -1679,8 +1737,7 @@ ion-modal.auth-modal .modal-header { position: sticky; top: 0; z-index: 2; justi
 }
 
 .service-card,
-.sale-grid .product-card,
-.contact-map {
+.sale-grid .product-card {
     border-radius: 4px;
 }
 
@@ -1731,5 +1788,87 @@ ion-modal.auth-modal .modal-header { position: sticky; top: 0; z-index: 2; justi
     .contact-section {
         padding-top: 64px;
         padding-bottom: 64px;
+    }
+}
+/* Hero background image. Full width and full screen height, so the image is
+   not boxed inside the 1240px column; the padding keeps the text and slider
+   in that column. */
+.landing-content .hero-section {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: #061028;
+    max-width: none;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding-left: max(clamp(22px, 5vw, 72px), calc((100% - 1240px) / 2 + clamp(22px, 5vw, 72px)));
+    padding-right: max(clamp(22px, 5vw, 72px), calc((100% - 1240px) / 2 + clamp(22px, 5vw, 72px)));
+}
+
+/* Glass top bar: frosted, see-through navy with a thin light edge. Lighter
+   over the hero at the top of the page, a little denser once scrolled so it
+   stays readable over the light sections below. */
+.landing-header {
+    background: rgba(6, 16, 40, .62);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: 0 10px 30px rgba(6, 16, 40, .25), inset 0 1px 0 rgba(255, 255, 255, .08);
+    transition: background .3s ease, box-shadow .3s ease;
+}
+
+.landing-header .navbar.glass-nav {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02));
+    border-bottom: 1px solid rgba(255, 255, 255, .14);
+}
+
+.landing-header.at-top {
+    background: rgba(6, 16, 40, .22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.landing-header.at-top .navbar.glass-nav {
+    border-bottom-color: rgba(255, 255, 255, .1);
+}
+
+.landing-content .hero-section::after {
+    display: none;
+}
+
+.landing-content .hero-section::before {
+    z-index: 2;
+}
+
+.hero-bg,
+.hero-bg > div {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.hero-bg {
+    z-index: 0;
+}
+
+.hero-bg .hero-bg-image {
+    background: url('/bg.png') center / cover no-repeat;
+}
+
+/* Darkens the left side so the headline stays readable over the image. */
+.hero-bg-shade {
+    background:
+        linear-gradient(90deg, rgba(6, 16, 40, .72) 0%, rgba(6, 16, 40, .4) 38%, rgba(6, 16, 40, 0) 65%),
+        linear-gradient(0deg, rgba(6, 16, 40, .45) 0%, transparent 22%);
+}
+
+.landing-content .hero-section .hero-text-col,
+.landing-content .hero-section .hero-visual-col {
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 900px) {
+    .hero-bg .hero-bg-image { background-position: 70% center; }
+    .hero-bg-shade {
+        background: linear-gradient(180deg, rgba(6, 16, 40, .78) 0%, rgba(6, 16, 40, .6) 55%, rgba(6, 16, 40, .8) 100%);
     }
 }

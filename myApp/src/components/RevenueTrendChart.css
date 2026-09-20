@@ -1,0 +1,119 @@
+/* Revenue trend card: summary line, then the seven day area chart. */
+
+.revenue-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.revenue-summary-total {
+  color: var(--admin-ink, #061028);
+  font-size: var(--fs-24);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.revenue-summary-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.revenue-summary-delta.is-up { color: #0f8d56; background: rgba(15, 141, 86, 0.1); }
+.revenue-summary-delta.is-down { color: #c0392b; background: rgba(192, 57, 43, 0.1); }
+.revenue-summary-delta.is-flat { color: var(--admin-muted, #000); background: rgba(104, 115, 134, 0.1); }
+
+.revenue-summary-caption {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+.revenue-chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin-top: 18px;
+  /* The SVG is sized to the measured width, so nothing can push the card wider. */
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.revenue-chart-svg { display: block; overflow: visible; }
+
+.revenue-chart-baseline { stroke: #e6ecf3; stroke-width: 1; }
+
+.revenue-chart-line {
+  fill: none;
+  stroke: var(--admin-blue, #1d4ed8);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.revenue-chart-cursor {
+  stroke: var(--admin-blue, #1d4ed8);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.35;
+}
+
+.revenue-chart-dot-halo { fill: var(--admin-blue, #1d4ed8); opacity: 0.14; }
+
+.revenue-chart-dot {
+  fill: #ffffff;
+  stroke: var(--admin-blue, #1d4ed8);
+  stroke-width: 2.25;
+}
+
+/* The most recent day reads as the current value, so it is filled solid. */
+.revenue-chart-dot.is-latest { fill: var(--admin-blue, #1d4ed8); stroke: #ffffff; }
+
+.revenue-chart-axis-label {
+  fill: var(--admin-muted, #000);
+  font-size: var(--fs-11);
+  font-weight: 600;
+}
+
+.revenue-chart-axis-label.is-active { fill: var(--admin-ink, #061028); font-weight: 700; }
+
+.revenue-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--admin-ink, #061028);
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.revenue-chart-tooltip small { color: rgba(255, 255, 255, 0.7); font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.04em; }
+.revenue-chart-tooltip strong { font-size: var(--fs-13); font-weight: 700; }
+
+.revenue-chart-empty,
+.revenue-chart-note {
+  margin: 18px 0 0;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+.revenue-chart-note-error { color: #c0392b; }
+
+/* The empty note sits over the flat baseline rather than adding card height. */
+.revenue-chart-empty { position: absolute; inset: auto 0 30px; margin: 0; text-align: center; }
+
+@media (max-width: 560px) {
+  .revenue-summary-total { font-size: var(--fs-22); }
+}

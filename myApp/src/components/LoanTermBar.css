@@ -1,0 +1,48 @@
+/* Loan term bar: fills from date pawned to due date, with the due label beside it.
+   Green on track, yellow near the due date, red once overdue. */
+.loan-term-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.loan-term-track {
+  display: block;
+  flex: 1 1 64px;
+  min-width: 48px;
+  height: 6px;
+  border-radius: 999px;
+  background: #eef2f7;
+  overflow: hidden;
+}
+
+.loan-term-track > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width .35s ease;
+}
+
+.loan-term-label {
+  flex: none;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.loan-term-bar.is-ontrack .loan-term-track > i { background: #16834a; }
+.loan-term-bar.is-ontrack .loan-term-label { background: rgba(22, 131, 74, .1); color: #16834a; }
+
+.loan-term-bar.is-soon .loan-term-track > i { background: #d4a72c; }
+.loan-term-bar.is-soon .loan-term-label { background: rgba(212, 167, 44, .16); color: #8a6100; }
+
+.loan-term-bar.is-overdue .loan-term-track > i { background: #c0392b; }
+.loan-term-bar.is-overdue .loan-term-label { background: rgba(192, 57, 43, .1); color: #b3372a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loan-term-track > i { transition: none; }
+}

@@ -15,7 +15,6 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 12px;
-  font-family: Inter, "Segoe UI", system-ui, sans-serif;
 }
 
 .faq-bubble {
@@ -25,7 +24,7 @@
   border-radius: 50%;
   background: linear-gradient(135deg, var(--faq-gold), var(--faq-gold-bright));
   color: var(--faq-ink);
-  font-size: 1.6rem;
+  font-size: var(--fs-24);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -66,8 +65,8 @@
 }
 
 .faq-head-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.faq-head-brand strong { display: block; color: var(--faq-cream); font-size: .92rem; }
-.faq-head-brand small { display: block; color: var(--faq-gold); font-size: .7rem; letter-spacing: .02em; }
+.faq-head-brand strong { display: block; color: var(--faq-cream); font-size: var(--fs-15); }
+.faq-head-brand small { display: block; color: var(--faq-gold); font-size: var(--fs-11); letter-spacing: .02em; }
 
 .faq-avatar {
   width: 34px;
@@ -78,14 +77,14 @@
   border-radius: 50%;
   background: linear-gradient(135deg, var(--faq-gold), var(--faq-gold-bright));
   color: var(--faq-ink);
-  font-size: 1.05rem;
+  font-size: var(--fs-16);
 }
 
 .faq-panel-close {
   border: none;
   background: transparent;
   color: var(--faq-cream);
-  font-size: 1.25rem;
+  font-size: var(--fs-20);
   line-height: 1;
   padding: 4px;
   cursor: pointer;
@@ -100,39 +99,81 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .faq-message { display: flex; }
 .faq-message.customer { justify-content: flex-end; }
 .faq-message.bot { justify-content: flex-start; }
 
+/* Bubble, quick action, and timestamp stack together, so the time sits under
+   the bubble on the same side the bubble is on. */
+.faq-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 82%;
+  min-width: 0;
+}
+
+.faq-message.customer .faq-bubble-wrap { align-items: flex-end; }
+.faq-message.bot .faq-bubble-wrap { align-items: flex-start; }
+
 .faq-message p {
   margin: 0;
-  max-width: 82%;
-  padding: 10px 13px;
-  border-radius: 14px;
-  font-size: .82rem;
+  padding: 11px 15px;
+  border-radius: 20px;
+  font-size: var(--fs-13);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  box-shadow: 0 3px 10px rgba(6, 16, 40, .32);
 }
 
 .faq-message.bot p {
   background: var(--faq-ink-soft);
   border: 1px solid var(--faq-line);
   color: var(--faq-cream);
-  border-bottom-left-radius: 5px;
+  border-bottom-left-radius: 7px;
 }
 
 .faq-message.customer p {
   background: linear-gradient(135deg, var(--faq-gold), var(--faq-gold-bright));
   color: var(--faq-ink);
   font-weight: 600;
-  border-bottom-right-radius: 5px;
+  border-bottom-right-radius: 7px;
+  box-shadow: 0 3px 12px rgba(212, 167, 44, .26);
 }
 
-.faq-typing p { display: flex; gap: 4px; padding: 13px; }
+.faq-time {
+  font-size: var(--fs-10);
+  letter-spacing: .02em;
+  color: rgba(232, 238, 248, .45);
+  padding: 0 6px;
+}
+
+/* Quick action under an answer, e.g. the jump to My Items. */
+.faq-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--faq-line);
+  border-radius: 999px;
+  background: rgba(212, 167, 44, .12);
+  color: var(--faq-gold-bright);
+  padding: 6px 13px;
+  font-family: inherit;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+
+.faq-action:hover { background: rgba(212, 167, 44, .22); transform: translateY(-1px); }
+.faq-action:active { transform: translateY(0); }
+.faq-action ion-icon { font-size: .9rem; }
+
+.faq-typing p { display: flex; gap: 4px; padding: 14px; }
 .faq-typing i {
   width: 6px;
   height: 6px;
@@ -161,7 +202,7 @@
   color: var(--faq-gold);
   border-radius: 999px;
   padding: 5px 11px;
-  font-size: .7rem;
+  font-size: var(--fs-11);
   cursor: pointer;
   transition: background .15s ease;
 }
@@ -186,7 +227,7 @@
   background: rgba(232, 238, 248, .06);
   color: var(--faq-cream);
   padding: 9px 14px;
-  font-size: .82rem;
+  font-size: var(--fs-13);
   font-family: inherit;
   outline: none;
 }
@@ -204,7 +245,7 @@
   border-radius: 50%;
   background: linear-gradient(135deg, var(--faq-gold), var(--faq-gold-bright));
   color: var(--faq-ink);
-  font-size: 1.05rem;
+  font-size: var(--fs-16);
   cursor: pointer;
 }
 

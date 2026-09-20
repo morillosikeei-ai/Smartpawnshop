@@ -1,0 +1,124 @@
+/* Combobox (dropdown plus free text). Matches the look of the Staff form fields
+   (.tx-field in StaffPortal.css): white box, #dfe5ee border, 10px radius,
+   42px control, stacked label above the value. */
+.tx-combobox {
+  position: relative;
+  min-width: 0;
+  padding: 8px 12px 4px;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.tx-combobox:focus-within {
+  border-color: #d4a72c;
+  box-shadow: 0 0 0 3px rgba(212, 167, 44, .14);
+}
+
+.tx-combobox.has-error { border-color: #e3a79f; }
+
+.tx-combobox-label {
+  display: block;
+  color: #000;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.tx-combobox-control {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+
+/* The shared portal rules give every input a border and focus ring; the box
+   around the combobox already carries both, so the inner input drops them. */
+.staff-page .tx-combobox-control input,
+.tx-combobox-control input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: #061028;
+  font: inherit;
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.staff-page .tx-combobox-control input:focus,
+.tx-combobox-control input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.tx-combobox-control input::placeholder { color: #9aa8b8; font-weight: 500; }
+
+.tx-combobox-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #061028;
+  font-size: var(--fs-16);
+  cursor: pointer;
+}
+
+.tx-combobox-toggle:hover { background: #f1f5f9; }
+
+.tx-combobox-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 240px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid #e0e6f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(6, 16, 40, .16);
+}
+
+.tx-combobox-option {
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #061028;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tx-combobox-option.active { background: #f6f9ff; }
+.tx-combobox-option.current { box-shadow: inset 3px 0 #d4a72c; }
+
+.tx-combobox-custom {
+  padding: 9px 10px;
+  color: #000;
+  font-size: var(--fs-12);
+}
+
+.tx-combobox-custom strong { color: #061028; font-weight: 700; }
+
+.tx-combobox .tx-field-error { margin-bottom: 4px; }
+
+/* TypeSelect without a label: the input keeps the page's own input look and
+   the chevron sits inside it on the right. */
+.type-select { position: relative; min-width: 0; }
+.type-select > input { width: 100%; box-sizing: border-box; padding-right: 36px !important; }
+.type-select > .tx-combobox-toggle { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); }
+.type-select > .tx-combobox-list { text-align: left; text-transform: none; letter-spacing: 0; }

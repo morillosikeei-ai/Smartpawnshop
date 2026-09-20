@@ -48,7 +48,7 @@ class CheckUnusualActivity extends Command
             }
 
             $flag->fill([
-                'reason' => "High transaction frequency: {$transactionCount} pawns in {$windowDays} days.",
+                'reason' => "High pawn transaction frequency:{$transactionCount} pawns in {$windowDays} days.",
                 'transaction_count' => $transactionCount,
                 'window_days' => $windowDays,
                 'flagged_at' => now(),

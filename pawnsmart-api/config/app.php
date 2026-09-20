@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'frontend_url' => rtrim(env('FRONTEND_URL', 'http://localhost:8100'), '/'),
+    'frontend_url' => rtrim(env('FRONTEND_URL', 'http://127.0.0.1:8100'), '/'),
 
     /*
     |--------------------------------------------------------------------------

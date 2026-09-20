@@ -1,0 +1,90 @@
+/* AI model performance: prediction accuracy over the selected range. */
+
+.model-chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin-top: 14px;
+  /* The SVG is sized to the measured width, so nothing can push the panel wider. */
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.model-chart-svg { display: block; overflow: visible; }
+
+.model-chart-grid {
+  stroke: #e7edf5;
+  stroke-width: 1;
+}
+
+.model-chart-axis {
+  fill: var(--admin-muted, #000);
+  font-size: var(--fs-10);
+  font-weight: 600;
+}
+
+.model-chart-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Drawn on once per range change, so switching ranges reads as a redraw. */
+  animation: model-chart-draw 620ms ease-out;
+  stroke-dasharray: 2400;
+}
+
+.model-chart-area { animation: model-chart-fade 620ms ease-out; }
+
+.model-chart-cursor {
+  stroke: #1d4ed8;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.35;
+}
+
+.model-chart-dot { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; }
+
+/* The newest reading is the figure the panel quotes, so it carries the gold accent. */
+.model-chart-dot-halo { fill: #d4a72c; opacity: 0.18; }
+.model-chart-dot.is-latest { fill: #d4a72c; stroke: #ffffff; }
+
+.model-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.model-chart-tooltip small { color: rgba(255, 255, 255, 0.7); font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.04em; }
+.model-chart-tooltip strong { font-size: var(--fs-13); font-weight: 700; }
+
+.model-chart-note {
+  margin: 18px 0 0;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+@keyframes model-chart-draw {
+  from { stroke-dashoffset: 2400; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes model-chart-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Motion is decoration here, so it is dropped when the viewer asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  .model-chart-line,
+  .model-chart-area { animation: none; }
+  .model-chart-line { stroke-dasharray: none; }
+}

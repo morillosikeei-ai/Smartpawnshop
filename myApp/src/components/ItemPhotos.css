@@ -1,0 +1,152 @@
+/* Item photo thumbnail, photo strip, and full-size viewer (customer portal). */
+
+.item-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e0e6f0;
+  border-radius: 8px;
+  background: #f4f7fb;
+}
+
+.item-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* No photo: the existing gold letter badge. */
+.item-thumb.is-initial { border: 0; background: var(--gold, #d4a72c); color: var(--ink, #061028); }
+.item-thumb.is-initial i { color: inherit; font-size: var(--fs-16); font-style: normal; font-weight: 800; }
+
+.item-thumb.is-button { cursor: zoom-in; transition: box-shadow .16s ease, transform .16s ease; }
+.item-thumb.is-button:hover { box-shadow: 0 0 0 2px var(--gold, #d4a72c); transform: translateY(-1px); }
+.item-thumb.is-button:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+
+.item-thumb-count {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(6, 16, 40, .78);
+  color: #ffffff;
+  font-size: var(--fs-9);
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* ---- Photo strip in the item detail modal ---- */
+.photo-strip {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.photo-strip-item {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e0e6f0;
+  border-radius: 12px;
+  background: #0b1426;
+  cursor: zoom-in;
+  scroll-snap-align: start;
+}
+
+.photo-strip-item img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo-strip-item:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+
+.photo-strip.is-single .photo-strip-item { width: 100%; height: 220px; }
+.photo-strip.is-single .photo-strip-item img { object-fit: contain; }
+.photo-strip.is-multiple .photo-strip-item { width: 168px; height: 126px; }
+
+/* ---- Full-size viewer ---- */
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: grid;
+  place-items: center;
+  padding: 56px 56px 24px;
+  background: rgba(5, 13, 31, .9);
+  cursor: zoom-out;
+  animation: photo-lightbox-in .16s ease-out both;
+}
+
+.photo-lightbox-figure {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  cursor: default;
+}
+
+.photo-lightbox-figure img {
+  display: block;
+  max-width: min(100%, 1000px);
+  max-height: calc(100vh - 120px);
+  max-height: calc(100dvh - 120px);
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+}
+
+.photo-lightbox-figure figcaption { color: rgba(255, 255, 255, .8); font-size: var(--fs-12); font-weight: 700; }
+
+.photo-lightbox-close,
+.photo-lightbox-nav {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  color: #ffffff;
+  font-size: var(--fs-22);
+  cursor: pointer;
+  transition: background .16s ease;
+}
+
+.photo-lightbox-close:hover,
+.photo-lightbox-nav:hover { background: rgba(255, 255, 255, .24); }
+.photo-lightbox-close:focus-visible,
+.photo-lightbox-nav:focus-visible { outline: 2px solid #d4a72c; outline-offset: 2px; }
+
+.photo-lightbox-close { top: 12px; right: 12px; }
+.photo-lightbox-nav { top: 50%; transform: translateY(-50%); }
+.photo-lightbox-nav.is-prev { left: 8px; }
+.photo-lightbox-nav.is-next { right: 8px; }
+
+@keyframes photo-lightbox-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 560px) {
+  .photo-lightbox { padding: 60px 12px 20px; }
+  .photo-lightbox-nav { top: auto; bottom: 16px; transform: none; }
+  .photo-lightbox-nav.is-prev { left: calc(50% - 52px); }
+  .photo-lightbox-nav.is-next { right: calc(50% - 52px); }
+  .photo-lightbox-figure img { max-height: calc(100dvh - 160px); }
+  .photo-strip.is-single .photo-strip-item { height: 180px; }
+  .photo-strip.is-multiple .photo-strip-item { width: 140px; height: 105px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-lightbox { animation: none; }
+  .item-thumb.is-button { transition: none; }
+}

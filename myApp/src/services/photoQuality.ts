@@ -166,7 +166,17 @@ const ID_PHOTO_MAX_EDGE = 1600;
 const ID_PHOTO_QUALITY = 0.82;
 
 /**
- * Read an image file into a JPEG data URL no wider than ID_PHOTO_MAX_EDGE.
+ * How far an image is downscaled. The defaults suit an ID photo; item photos
+ * pass a smaller edge and always re-encode, because several are stored in one
+ * database row.
+ */
+export type ScaleOptions = { maxEdge?: number; quality?: number; alwaysReencode?: boolean };
+
+/** Item photos: several go into one row, which must stay under MySQL's 1 MB packet. */
+export const ITEM_PHOTO_SCALE: ScaleOptions = { maxEdge: 1000, quality: 0.72, alwaysReencode: true };
+
+/**
+ * Read an image file into a JPEG data URL no wider than maxEdge.
  *
  * A phone camera file runs to several megabytes, and the API carries the photo
  * as text inside the JSON body, so the raw file would be sent base64 encoded at
@@ -176,7 +186,10 @@ const ID_PHOTO_QUALITY = 0.82;
  * Falls back to the untouched file when the browser cannot decode or re-encode
  * it, because a large photo is better than no photo.
  */
-export async function readImageAsScaledDataUrl(file: File): Promise<string> {
+export async function readImageAsScaledDataUrl(
+  file: File,
+  { maxEdge = ID_PHOTO_MAX_EDGE, quality = ID_PHOTO_QUALITY, alwaysReencode = false }: ScaleOptions = {},
+): Promise<string> {
   const original = () => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
@@ -190,8 +203,8 @@ export async function readImageAsScaledDataUrl(file: File): Promise<string> {
     image = await loadImage(file);
     if (!image.width || !image.height) return await original();
 
-    const scale = Math.min(1, ID_PHOTO_MAX_EDGE / Math.max(image.width, image.height));
-    if (scale === 1 && file.size <= 1_000_000) return await original();
+    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+    if (!alwaysReencode && scale === 1 && file.size <= 1_000_000) return await original();
 
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(image.width * scale);
@@ -200,7 +213,7 @@ export async function readImageAsScaledDataUrl(file: File): Promise<string> {
     if (!context) return await original();
 
     context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', ID_PHOTO_QUALITY);
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
 
     return dataUrl.startsWith('data:image/jpeg') ? dataUrl : await original();
   } catch {

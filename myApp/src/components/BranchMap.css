@@ -1,0 +1,106 @@
+/* Branch map card: map on top, address and directions underneath. */
+
+.branch-map-card {
+  display: grid;
+  grid-template-rows: auto auto;
+  overflow: hidden;
+  border: 1px solid #d8e1f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(8, 20, 48, .08);
+}
+
+/* Only holds the overlay label above the map. */
+.branch-map-canvas { position: relative; }
+
+/* Leaflet reads this element's height when it builds the tile grid, so the
+   height is declared on the element itself rather than inherited from a parent
+   or stretched by a grid row: an element sized by its own content is zero tall
+   at that moment, and a zero tall map loads no tiles and renders blank. */
+.branch-map-surface {
+  height: clamp(240px, 34vw, 340px);
+  width: 100%;
+  background: #eaf0ff;
+}
+
+/* Leaflet adds .leaflet-container to this same element, so the rule targets it
+   directly rather than as a descendant. */
+.branch-map-surface.leaflet-container { font: inherit; }
+.branch-map-surface .leaflet-control-attribution { font-size: var(--fs-9); }
+
+.branch-map-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  /* Leaflet's panes run to z-index 700, so the label sits above them. */
+  z-index: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - 24px);
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(8, 20, 48, .22);
+}
+
+.branch-map-badge-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d4a72c;
+}
+
+/* Marker: a gold disc with a white ring, so it reads on light and dark tiles. */
+.branch-map-pin { background: none; border: 0; }
+
+.branch-map-pin-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 4px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #d4a72c;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, .3), 0 4px 10px rgba(8, 20, 48, .35);
+}
+
+.branch-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-top: 1px solid #e9eef7;
+}
+
+.branch-map-address { display: grid; gap: 4px; min-width: 0; }
+.branch-map-address small { color: #8b6b1b; font-size: var(--fs-10); font-weight: 800; letter-spacing: .1em; }
+.branch-map-address strong { color: #0f172a; font-size: var(--fs-12); font-weight: 700; }
+
+.branch-map-directions {
+  flex: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: var(--fs-12);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .18s ease;
+}
+
+.branch-map-directions:hover { background: #1740ba; }
+
+@media (max-width: 560px) {
+  .branch-map-footer { flex-direction: column; align-items: stretch; }
+  .branch-map-directions { text-align: center; }
+}

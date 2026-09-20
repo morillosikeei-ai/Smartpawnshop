@@ -43,6 +43,20 @@ const TrendSuggestionCard: React.FC<{ compact?: boolean }> = ({ compact = false 
           <b>{sign}{suggestion.change_percent}%</b>
           <span> · {suggestion.sample_size}-day average ₱{suggestion.average_price.toLocaleString()}/g</span>
         </p>
+        <div className="trend-suggestion-confidence">
+          <div className="trend-confidence-label">
+            <span>AI confidence</span>
+            <b>{suggestion.confidence_label} · {suggestion.confidence}%</b>
+          </div>
+          <div
+            className="trend-confidence-track"
+            role="img"
+            aria-label={`Forecast confidence ${suggestion.confidence} percent, rated ${suggestion.confidence_label}`}
+          >
+            <i style={{ width: `${suggestion.confidence}%` }} />
+          </div>
+          <small>Read from how steady the last {suggestion.sample_size} recorded days were.</small>
+        </div>
         <p className="trend-suggestion-note">
           <IonIcon icon={informationCircleOutline} aria-hidden="true" />
           {suggestion.disclaimer}

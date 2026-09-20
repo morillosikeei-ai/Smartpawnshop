@@ -35,8 +35,11 @@ return [
         ],
     ],
 
-    'gold_price' => [
+    // GoldAPI.io, read by gold:update-price. The key is sent as the
+    // x-access-token header. Gold (XAU) and silver (XAG) share one key.
+    'goldapi' => [
         'url' => env('GOLD_PRICE_API_URL'),
+        'silver_url' => env('SILVER_PRICE_API_URL'),
         'key' => env('GOLD_PRICE_API_KEY'),
     ],
 

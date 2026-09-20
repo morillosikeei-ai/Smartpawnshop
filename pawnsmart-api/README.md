@@ -23,7 +23,13 @@ Seed accounts:
 - Admin: `admin@smartpawn.ph` / `admin123`
 - Staff: `staff@smartpawn.ph` / `staff123`
 
-The Ionic app reads `VITE_API_URL` from `myApp/.env` and defaults to `http://127.0.0.1:8000/api`.
+The Ionic app builds the API address from the address the browser used to open it: port 8000 on that
+same host, so a phone on the same Wi-Fi needs no address configured and a new address from the router
+keeps working. Set `VITE_API_URL` in `myApp/.env` only when the API runs on a different host.
+
+Mail links follow the same rule: the link points at the address the calling device reaches the app on,
+and only an origin that CORS accepts is used. `FRONTEND_URL` is the fallback for mail sent outside a
+request, as from an artisan command.
 
 ## About Laravel
 

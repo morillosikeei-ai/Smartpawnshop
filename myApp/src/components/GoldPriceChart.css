@@ -1,0 +1,144 @@
+/* Gold price card: headline price, then a compact movement chart. */
+
+.gold-price-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 2px;
+}
+
+.gold-price-current {
+  color: #0f172a;
+  font-size: var(--fs-24);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.gold-price-current i { color: var(--admin-muted, #000); font-size: var(--fs-14); font-style: normal; font-weight: 600; }
+
+.gold-price-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gold-price-delta ion-icon { font-size: 0.85rem; }
+.gold-price-delta.is-up { color: #0f8d56; background: rgba(15, 141, 86, 0.1); }
+.gold-price-delta.is-down { color: #c0392b; background: rgba(192, 57, 43, 0.1); }
+.gold-price-delta.is-flat { color: var(--admin-muted, #000); background: rgba(104, 115, 134, 0.1); }
+
+.gold-chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin-top: 14px;
+  /* The SVG is sized to the measured width, so nothing can push the card wider. */
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.gold-chart-svg { display: block; overflow: visible; }
+
+.gold-chart-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gold-chart-cursor {
+  stroke: #1d4ed8;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.3;
+}
+
+.gold-chart-dot { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; }
+
+/* The newest reading is the price the card quotes, so it carries the gold accent. */
+.gold-chart-dot-halo { fill: #d4a72c; opacity: 0.18; }
+.gold-chart-dot.is-latest { fill: #d4a72c; stroke: #ffffff; }
+
+.gold-chart-latest-label {
+  fill: var(--admin-muted, #000);
+  font-size: var(--fs-10);
+  font-weight: 600;
+}
+
+.gold-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.gold-chart-tooltip small { color: rgba(255, 255, 255, 0.7); font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.04em; }
+.gold-chart-tooltip strong { font-size: var(--fs-13); font-weight: 700; }
+
+.gold-chart-note {
+  margin: 14px 0 0;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+.gold-chart-note-error { color: #c0392b; }
+
+.gold-price-caption {
+  display: block;
+  margin-top: 10px;
+  color: var(--admin-muted, #000);
+  font-size: var(--fs-12);
+}
+
+/* Gold / Silver switch on the admin dashboard's Market Reference card. */
+.gold-metal-toggle {
+  display: inline-flex;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid var(--admin-line, #d7e2da);
+  border-radius: 999px;
+  background: var(--admin-surface, #fff);
+}
+.gold-metal-toggle button {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted, #475569);
+  font: inherit;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  cursor: pointer;
+}
+.gold-metal-toggle button.active { background: var(--admin-ink, #0f172a); color: #fff; }
+.gold-metal-toggle button:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+
+/* Secondary to the price and the curve, so it is quieter than the caption. */
+.gold-price-accuracy {
+  display: block;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f7;
+  color: #94a3b8;
+  font-size: var(--fs-11);
+}
+
+@media (max-width: 560px) {
+  .gold-price-current { font-size: var(--fs-22); }
+}

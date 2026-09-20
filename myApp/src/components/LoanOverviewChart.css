@@ -1,0 +1,72 @@
+/* Loan Overview card: navy amount-due line, gold principal and highlights. */
+.loan-overview { display: grid; gap: 14px; min-width: 0; }
+
+.loan-overview-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.loan-overview-head small { color: #52678a; font-size: var(--fs-10); font-weight: 800; letter-spacing: .12em; }
+.loan-overview-head h3 { margin: 4px 0 0; color: #061028; font-size: var(--fs-16); font-weight: 700; }
+
+.loan-overview-ranges { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid #e6ebf3; border-radius: 999px; background: #f8fafc; }
+.loan-overview-ranges button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-size: var(--fs-11);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.loan-overview-ranges button:hover { color: #1e3a8a; }
+.loan-overview-ranges button.active { background: #1e3a8a; color: #fff; box-shadow: 0 2px 6px rgba(30, 58, 138, .25); }
+.loan-overview-ranges button:focus-visible { outline: 2px solid #d4a72c; outline-offset: 2px; }
+
+.loan-overview-figures { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.loan-overview-figures > div { display: grid; gap: 3px; }
+.loan-overview-figures span { color: #000; font-size: var(--fs-11); }
+.loan-overview-figures strong { color: #061028; font-size: var(--fs-18); font-weight: 800; font-variant-numeric: tabular-nums; }
+.loan-overview-figures .is-principal strong { color: #8a6100; font-size: var(--fs-15); }
+.loan-overview-figures strong.is-up { color: #b3372a; font-size: var(--fs-15); }
+.loan-overview-figures strong.is-down { color: #16834a; font-size: var(--fs-15); }
+
+.loan-overview-plot { position: relative; min-width: 0; }
+.loan-overview-plot svg { display: block; overflow: visible; touch-action: pan-y; }
+.loan-overview-baseline { stroke: #e6ebf3; stroke-width: 1; }
+.loan-overview-line { fill: none; stroke: #1e3a8a; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.loan-overview-principal { fill: none; stroke: #d4a72c; stroke-width: 1.75; stroke-dasharray: 5 4; stroke-linecap: round; }
+.loan-overview-guide { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 3 3; }
+.loan-overview-dot { fill: #d4a72c; stroke: #fff; stroke-width: 2.5; }
+.loan-overview-axis { fill: #000; font-size: var(--fs-10); font-weight: 600; }
+.loan-overview-empty { display: grid; place-items: center; height: 100%; margin: 0; border: 1px dashed #dbe2ec; border-radius: 12px; color: #000; font-size: var(--fs-12); }
+
+.loan-overview-tooltip {
+  position: absolute;
+  top: 0;
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid #e6ebf3;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(6, 16, 40, .12);
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.loan-overview-tooltip small { color: #000; font-size: var(--fs-10); }
+.loan-overview-tooltip strong { color: #061028; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.loan-overview-tooltip span { color: #8a6100; font-size: var(--fs-10); font-weight: 600; }
+
+.loan-overview-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.loan-overview-legend { display: inline-flex; align-items: center; gap: 6px; color: #000; font-size: var(--fs-11); font-weight: 600; }
+.loan-overview-legend b { width: 14px; height: 3px; border-radius: 3px; }
+.loan-overview-legend b.is-due { background: #1e3a8a; }
+.loan-overview-legend b.is-principal { background: repeating-linear-gradient(90deg, #d4a72c 0 4px, transparent 4px 7px); }
+.loan-overview-foot small { flex: 1 1 220px; color: #000; font-size: var(--fs-10); text-align: right; }
+
+@media (max-width: 560px) {
+  .loan-overview-ranges { width: 100%; justify-content: space-between; }
+  .loan-overview-ranges button { flex: 1; }
+  .loan-overview-foot small { text-align: left; }
+}

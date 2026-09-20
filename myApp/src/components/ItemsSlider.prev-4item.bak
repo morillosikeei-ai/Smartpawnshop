@@ -1,0 +1,149 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { IonIcon } from '@ionic/react';
+import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
+import './ItemsSlider.css';
+
+export interface AcceptedItem {
+    /** Image path. Put files in `public/items/` and reference them as `/items/<file>`. */
+    image: string;
+    name: string;
+    description: string;
+}
+
+/* ============================================================================
+ * EDIT ONLY THIS ARRAY.
+ *
+ * How to swap an image:
+ *   1. Drop the picture into  myApp/public/items/
+ *   2. Point `image` at it, e.g. '/items/gold-jewelry.jpg'
+ *
+ * Nothing below this array needs to change when you add, remove, or reorder
+ * items. Until a real file exists at the path, a styled placeholder is shown.
+ * ========================================================================== */
+export const ACCEPTED_ITEMS: AcceptedItem[] = [
+    {
+        image: '/items/gold-jewelry.png',
+        name: 'Gold Jewelry',
+        description: 'Rings, necklaces, bracelets and earrings appraised by karat and weight.',
+    },
+    {
+        image: '/items/watches.png',
+        name: 'Watches',
+        description: 'Branded and luxury timepieces with original box or papers valued higher.',
+    },
+    {
+        image: '/items/smartphones.png',
+        name: 'Smartphones',
+        description: 'Recent models in working condition, unlocked and free of account locks.',
+    },
+    {
+        image: '/items/laptops.png',
+        name: 'Laptops',
+        description: 'Laptops and tablets valued on model, specs and overall condition.',
+    },
+];
+
+/** Milliseconds each slide stays on screen before auto-advancing. */
+const AUTO_SLIDE_INTERVAL = 4500;
+
+interface ItemsSliderProps {
+    items?: AcceptedItem[];
+}
+
+const ItemsSlider: React.FC<ItemsSliderProps> = ({ items = ACCEPTED_ITEMS }) => {
+    const [index, setIndex] = useState(0);
+    const [paused, setPaused] = useState(false);
+    const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+    const total = items.length;
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const goTo = useCallback((next: number) => {
+        if (total === 0) return;
+        setIndex(((next % total) + total) % total);
+    }, [total]);
+
+    const next = useCallback(() => goTo(index + 1), [goTo, index]);
+    const prev = useCallback(() => goTo(index - 1), [goTo, index]);
+
+    useEffect(() => {
+        if (paused || total < 2) return;
+        timerRef.current = setInterval(() => setIndex((i) => (i + 1) % total), AUTO_SLIDE_INTERVAL);
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
+        };
+    }, [paused, total]);
+
+    if (total === 0) return null;
+
+    return (
+        <div
+            className="items-slider"
+            aria-roledescription="carousel"
+            aria-label="Items we accept"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocusCapture={() => setPaused(true)}
+            onBlurCapture={() => setPaused(false)}
+        >
+            <div className="items-slider-eyebrow">ITEMS WE ACCEPT</div>
+
+            <div className="items-slider-viewport">
+                <div className="items-slider-track" style={{ transform: `translateX(-${index * 100}%)` }}>
+                    {items.map((item, i) => (
+                        <div
+                            className="items-slide"
+                            key={`${item.name}-${i}`}
+                            role="group"
+                            aria-roledescription="slide"
+                            aria-label={`${i + 1} of ${total}: ${item.name}`}
+                            aria-hidden={i !== index}
+                        >
+                            <div className="items-slide-media">
+                                {failedImages[item.image] ? (
+                                    <div className="items-slide-placeholder" aria-hidden="true">
+                                        <span>{item.name.charAt(0)}</span>
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        loading={i === 0 ? 'eager' : 'lazy'}
+                                        onError={() => setFailedImages((f) => ({ ...f, [item.image]: true }))}
+                                    />
+                                )}
+                            </div>
+                            <div className="items-slide-caption">
+                                <strong>{item.name}</strong>
+                                <p>{item.description}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <button type="button" className="items-slider-arrow prev" onClick={prev} aria-label="Previous item">
+                    <IonIcon icon={chevronBackOutline} />
+                </button>
+                <button type="button" className="items-slider-arrow next" onClick={next} aria-label="Next item">
+                    <IonIcon icon={chevronForwardOutline} />
+                </button>
+            </div>
+
+            <div className="items-slider-dots" role="tablist" aria-label="Choose item">
+                {items.map((item, i) => (
+                    <button
+                        type="button"
+                        key={`dot-${item.name}-${i}`}
+                        className={`items-slider-dot${i === index ? ' active' : ''}`}
+                        onClick={() => goTo(i)}
+                        role="tab"
+                        aria-selected={i === index}
+                        aria-label={item.name}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+export default ItemsSlider;

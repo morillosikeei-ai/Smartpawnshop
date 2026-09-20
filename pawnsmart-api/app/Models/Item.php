@@ -10,13 +10,98 @@ class Item extends Model
     use HasFactory;
 
     protected $primaryKey = 'items_id';
-    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'description', 'brand_model', 'karat', 'weight_grams', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'status'];
-    protected $casts = ['weight_grams' => 'decimal:3', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2'];
+    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'status'];
+    protected $casts = ['weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2'];
+
+    /**
+     * total_value is sent with every item so each screen shows the same total:
+     * gold plus gemstone for jewelry with a stone, the appraised value otherwise.
+     */
+    protected $appends = ['total_value', 'photo_urls'];
+
+    /**
+     * photo_path is sent as photo_urls instead. Sending both would put every
+     * photo in each response twice.
+     */
+    protected $hidden = ['photo_path'];
+
+    /** Most photos one item keeps. */
+    public const MAX_PHOTOS = 4;
+
+    /**
+     * The item's photos, first one first, as image URLs the app can show.
+     *
+     * photo_path holds a JSON list of data URLs for items recorded with photos.
+     * A single plain URL or data URL, as an older record might hold, is read as
+     * a list of one; an empty column is an empty list.
+     */
+    public function getPhotoUrlsAttribute(): array
+    {
+        $stored = trim((string) $this->photo_path);
+
+        if ($stored === '') {
+            return [];
+        }
+
+        if (str_starts_with($stored, '[')) {
+            $decoded = json_decode($stored, true);
+
+            return is_array($decoded)
+                ? array_values(array_filter($decoded, fn ($photo) => is_string($photo) && $photo !== ''))
+                : [];
+        }
+
+        return [$stored];
+    }
+
+    /**
+     * The gemstone portion of this item's value, or zero when it has none.
+     *
+     * Only jewelry carries a gemstone. The value is the staff's own estimate
+     * from intake and is never recomputed from the gold price.
+     */
+    public function gemstoneValue(): float
+    {
+        return $this->group === self::GROUP_JEWELRY && $this->has_gemstone
+            ? (float) $this->gemstone_value
+            : 0.0;
+    }
+
+    /**
+     * The item's value for a given gold portion: the gold portion plus the
+     * gemstone portion when there is one. The daily jobs pass the freshly
+     * computed gold value; everything else uses totalValue().
+     */
+    public function valueWithGold(float $goldValue): float
+    {
+        return round($goldValue + $this->gemstoneValue(), 2);
+    }
+
+    /**
+     * The item's current total value: appraised_value (the gold portion for
+     * jewelry, the staff value otherwise) plus any gemstone value.
+     */
+    public function totalValue(): float
+    {
+        return $this->valueWithGold((float) $this->appraised_value);
+    }
+
+    public function getTotalValueAttribute(): float
+    {
+        return $this->totalValue();
+    }
 
     /**
      * The item group whose value is computed from the gold price.
      */
     public const GROUP_JEWELRY = 'jewelry';
+
+    /**
+     * Precious metal of a jewelry item. Gold items are valued from
+     * gold_prices, silver items from silver_prices.
+     */
+    public const METAL_GOLD = 'gold';
+    public const METAL_SILVER = 'silver';
 
     /**
      * The item group for watches and cellphones. Valued by hand.
@@ -30,11 +115,24 @@ class Item extends Model
     public const GROUP_BULKY = 'bulky';
 
     /**
+     * The catch-all item type. An item recorded under it must also carry the
+     * exact type in custom_item_type, which is what every screen displays in
+     * place of the word "Others".
+     */
+    public const CATEGORY_OTHERS = 'others';
+
+    /**
      * Item types accepted in each group. The group column says which family an
      * item belongs to; the category column says which specific type it is.
      */
     public const CATEGORIES_BY_GROUP = [
-        self::GROUP_JEWELRY => ['ring', 'necklace', 'bracelet', 'earrings', 'pendant', 'others'],
+        self::GROUP_JEWELRY => [
+            'ring', 'necklace', 'bracelet', 'earrings', 'pendant',
+            'chain', 'anklet', 'brooch_pin', 'cufflinks',
+            // The catch-all type. An item stored under it also carries the
+            // exact type the staff typed in, in custom_item_type.
+            self::CATEGORY_OTHERS,
+        ],
         self::GROUP_WATCH_PHONE => ['watch', 'cellphone'],
         self::GROUP_BULKY => [
             'tablet', 'digital_camera', 'laptop', 'desktop_computer', 'notebook_netbook',
@@ -72,15 +170,89 @@ class Item extends Model
      * pure gold (1.0) and 18k is 18 parts out of 24 (0.75). An item's gold
      * content is its weight multiplied by this fraction.
      */
-    public const KARAT_PURITY = ['10k' => 0.417, '14k' => 0.583, '18k' => 0.75, '21k' => 0.875, '24k' => 1.0];
+    public const KARAT_PURITY = ['10k' => 0.417, '14k' => 0.583, '18k' => 0.75, '21k' => 0.875, '22k' => 0.917, '24k' => 1.0];
+
+    /**
+     * Silver purity by fineness, as a fraction of pure silver. 925 is sterling
+     * silver (92.5 percent), 999 is fine silver. Stored in the fineness column,
+     * never in karat, which holds gold karats only.
+     */
+    public const SILVER_PURITY = ['800' => 0.8, '925' => 0.925, '950' => 0.95, '999' => 0.999];
+
+    /**
+     * Gemstone types the staff form suggests. Staff may also type any other
+     * stone, so gemstone_type is not limited to these. The specifics (carat,
+     * cut) stay in the free-text gemstone_details.
+     */
+    public const GEMSTONE_TYPES = ['diamond', 'ruby', 'sapphire', 'emerald', 'pearl', 'other'];
 
     /**
      * Purity fraction for this item's karat. Unknown karat falls back to pure
      * gold so a value is never silently reported as zero.
      */
+    /**
+     * The item type as a person should read it.
+     *
+     * An item recorded under the catch-all type reads as what the staff typed
+     * in, so no screen ever shows the uninformative word "Others".
+     */
+    public function itemTypeLabel(): string
+    {
+        if ($this->category === self::CATEGORY_OTHERS && filled($this->custom_item_type)) {
+            return trim($this->custom_item_type);
+        }
+
+        // A suggested type is stored as a key such as brooch_pin and is made
+        // readable. A custom type the staff typed in is shown as typed.
+        if (preg_match('/^[a-z0-9_]+$/', (string) $this->category)) {
+            return ucwords(str_replace('_', ' ', (string) $this->category));
+        }
+
+        return trim((string) $this->category);
+    }
+
+    /**
+     * The gold portion of this item's value at a day's gold price.
+     *
+     * When that day has the API's per-karat melt prices, which are already
+     * purity-adjusted, the item's own karat price is used directly. Otherwise,
+     * or when the item's karat is not in the list, it falls back to
+     * weight x karat purity x 24k price per gram.
+     *
+     * @param  array<string, mixed>|null  $meltPrices  melt_prices_json of the day
+     */
+    public function goldValueAt(float $pricePerGram, ?array $meltPrices = null): float
+    {
+        $karatPrice = $meltPrices ? (array_change_key_case($meltPrices, CASE_LOWER)[strtolower((string) $this->purityCode())] ?? null) : null;
+
+        if (is_numeric($karatPrice) && (float) $karatPrice > 0) {
+            return (float) $this->weight_grams * (float) $karatPrice;
+        }
+
+        return (float) $this->weight_grams * $this->karatPurityPercent() * $pricePerGram;
+    }
+
     public function karatPurityPercent(): float
     {
+        if ($this->metal_type === self::METAL_SILVER) {
+            return self::SILVER_PURITY[$this->purityCode()] ?? 1.0;
+        }
+
         return self::KARAT_PURITY[$this->karat] ?? 1.0;
+    }
+
+    /**
+     * The purity grade this item is valued by: the silver fineness for silver,
+     * the gold karat for gold. A silver row recorded before the fineness column
+     * existed may still carry its fineness in karat, so that is the fallback.
+     */
+    public function purityCode(): ?string
+    {
+        if ($this->metal_type === self::METAL_SILVER) {
+            return $this->fineness ?: $this->karat;
+        }
+
+        return $this->karat;
     }
 
     /**

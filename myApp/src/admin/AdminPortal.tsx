@@ -7,27 +7,51 @@ import {
   chevronUpOutline,
   closeOutline,
   documentTextOutline,
+  downloadOutline,
+  folderOpenOutline,
+  eyeOffOutline,
+  eyeOutline,
   gridOutline,
   menuOutline,
   notificationsOutline,
   peopleOutline,
+  personAddOutline,
   personCircleOutline,
   pulseOutline,
   searchOutline,
   shieldCheckmarkOutline,
+  removeOutline,
+  trendingDownOutline,
   trendingUpOutline,
   warningOutline,
 } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
-import { money, shortDate } from '../data/pawnshopStore';
-import { createUser, getActivityFlags, getDashboard, getRiskAlerts, getSystemSettings, getUsers, resolveActivityFlag, saveSystemSetting, type ApiActivityFlag, type ApiRiskAlert, type ApiSystemSetting, type ApiUser } from '../services/api';
-import TrendSuggestionCard from '../components/TrendSuggestionCard';
+import { money, moneyExact, timeAgo } from '../data/pawnshopStore';
+import { createUser, updateUser, getAuditLogs, getCustomers, getDashboard, getModelMetrics, getReportSummary, getRiskAlerts, getSystemSettings, getTransactions, getUsers, saveSystemSetting, NOTIFICATION_TITLES, type ApiAuditLog, type ApiNotification, type ApiReportSummary, type ApiRiskAlert, type ApiSystemSetting, type ApiTransaction, type ApiUser } from '../services/api';
+import RevenueTrendChart, { type RevenuePoint } from '../components/RevenueTrendChart';
+import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
+import { useNotifications } from '../components/useNotifications';
+import ThemeToggle from '../components/ThemeToggle';
+import GoldPriceTracking from './GoldPriceTracking';
+import ModelMonitoring from './ModelMonitoring';
+import RiskManagement from './RiskManagement';
+import AdminRecords, { type RecordsTab } from './AdminRecords';
+import { activityCsv, customersCsv, isOverdue, isPayment, overdueCsv, paymentsCsv, transactionsCsv } from './recordsExport';
+import { Skeleton, SkeletonList, SkeletonRows, SkeletonStat, SkeletonText, Spinner } from '../components/Skeleton';
+import Pager, { usePagedRows } from '../components/Pager';
+import { useModal } from '../components/ModalProvider';
 import './AdminPortal.css';
 import './AdminPolish.css';
 import './AccountsTable.css';
+import TypeSelect from '../components/TypeSelect';
 
-type AdminView = 'dashboard' | 'manage' | 'monitoring' | 'reports' | 'profile';
-type Tab = 'users' | 'settings' | 'models' | 'gold' | 'risk' | 'unusual' | 'activity' | 'analytics' | 'exports';
+const ACCOUNT_STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
+type AdminView = 'dashboard' | 'manage' | 'records' | 'monitoring' | 'reports' | 'profile';
+type Tab = 'users' | 'settings' | 'models' | 'gold' | 'risk' | 'activity' | 'analytics' | 'exports';
 
 type AuditItem = {
   time: string;
@@ -39,41 +63,49 @@ type AuditItem = {
 const navigation: Array<{ id: AdminView; label: string; icon: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: gridOutline },
   { id: 'manage', label: 'Manage', icon: peopleOutline },
+  { id: 'records', label: 'Records', icon: folderOpenOutline },
   { id: 'monitoring', label: 'Monitoring', icon: pulseOutline },
   { id: 'reports', label: 'Reports', icon: analyticsOutline },
 ];
 
-const auditLog: AuditItem[] = [
-  { time: '09:42 AM', actor: 'Admin Staff', action: 'Updated risk management settings', category: 'Monitoring' },
-  { time: '09:18 AM', actor: 'Maria Santos', action: 'Completed loan redemption SP-1042', category: 'Transaction' },
-  { time: '08:56 AM', actor: 'Admin Staff', action: 'Exported September loan report', category: 'Reports' },
-  { time: '08:31 AM', actor: 'John Dela Cruz', action: 'Updated customer profile information', category: 'Account' },
-];
+/**
+ * Where a notification opens, by type.
+ *
+ * An admin receives the staff side messages, and every one of them is about a
+ * loan or an item, so each opens the Monitoring tab that holds those records.
+ */
+const NOTIFICATION_TAB: Partial<Record<ApiNotification['type'], Tab>> = {
+  staff_high_risk: 'risk',
+};
 
-const notifications = [
-  ['High-risk loan needs review', 'SP-1031 · 5 minutes ago'],
-  ['Monthly report is ready', 'September 2026 · 1 hour ago'],
-  ['Gold price spike detected', 'Today · 12 minutes ago'],
-];
+/** Notifications about a pawn's due date or payment open the matching Records tab. */
+const NOTIFICATION_RECORDS: Partial<Record<ApiNotification['type'], RecordsTab>> = {
+  staff_redeem_request: 'transactions',
+  staff_appointment_request: 'transactions',
+  staff_renewal_request: 'transactions',
+  staff_overdue: 'overdue',
+  staff_forfeited: 'overdue',
+};
 
 const overviewStats = [
-  { icon: cashOutline, value: '42', label: 'Total active loans', tone: 'primary' },
+  { icon: cashOutline, value: '42', label: 'Total active pawns', tone: 'primary' },
   { icon: peopleOutline, value: '128', label: 'Total customers', tone: 'success' },
   { icon: warningOutline, value: '7', label: 'Total risk alerts', tone: 'warning' },
   { icon: analyticsOutline, value: '₱48.6K', label: "Today's revenue", tone: 'success' },
 ];
 
-const goldPriceTrend = [
-  { label: 'Mon', value: 3410 },
-  { label: 'Tue', value: 3442 },
-  { label: 'Wed', value: 3468 },
-  { label: 'Thu', value: 3495 },
-  { label: 'Fri', value: 3518 },
-  { label: 'Sat', value: 3542 },
-];
-
 /** A risk alert flattened for the dashboard table. */
 type RiskRow = { id: string; customer: string; item: string; currentValue: string; amount: string; risk: 'High' | 'Medium' | 'Low' };
+
+/** Map an API audit log row onto the dashboard activity feed item. */
+const toAuditItem = (log: ApiAuditLog): AuditItem => ({
+  // Relative, because the feed spans several days: a bare clock time would
+  // read as today for a row recorded last week.
+  time: timeAgo(log.created_at),
+  actor: log.user?.name || 'System',
+  action: log.action,
+  category: log.ticket_number || '',
+});
 
 /** Map an API risk alert onto the dashboard table row. */
 const toRiskRow = (alert: ApiRiskAlert): RiskRow => ({
@@ -85,20 +117,91 @@ const toRiskRow = (alert: ApiRiskAlert): RiskRow => ({
   risk: (alert.risk_level.charAt(0).toUpperCase() + alert.risk_level.slice(1)) as RiskRow['risk'],
 });
 
-const revenueTrend = [42000, 46500, 38200, 51200, 44800, 48600, 53800];
+/** Midnight of the given day, so day buckets compare on the date alone. */
+const startOfDay = (value: Date) => {
+  const day = new Date(value);
+  day.setHours(0, 0, 0, 0);
+  return day;
+};
+
+const DAY_MS = 86400000;
+
+/**
+ * Revenue collected in the seven days before the charted week.
+ *
+ * The dashboard endpoint sends revenue_trend for the current seven days only,
+ * so the comparison baseline is summed on the client from the redeemed
+ * transactions that same response already carries. total_payable is computed
+ * by the API and frozen at the redemption date, which is exactly what
+ * revenue_trend buckets, so both sides of the percentage use the same figure.
+ */
+const previousWeekRevenue = (transactions: ApiTransaction[]) => {
+  const todayStart = startOfDay(new Date()).getTime();
+  const windowStart = todayStart - 13 * DAY_MS;
+  const windowEnd = todayStart - 7 * DAY_MS;
+
+  return transactions.reduce((total, transaction) => {
+    if (transaction.status !== 'redeemed' || !transaction.redeemed_at) return total;
+    const redeemedDay = startOfDay(new Date(transaction.redeemed_at)).getTime();
+    if (redeemedDay < windowStart || redeemedDay > windowEnd) return total;
+    return total + Number(transaction.total_payable || 0);
+  }, 0);
+};
 
 const AdminPortal: React.FC = () => {
   const navigate = useNavigate();
+  const modal = useModal();
   const [view, setView] = useState<AdminView>('dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
   const [monitoringTab, setMonitoringTab] = useState<Tab>('models');
+  const [recordsTab, setRecordsTab] = useState<RecordsTab>('customers');
+  // Ticket number a notification opened Records with, prefilled in the search.
+  const [recordsSearch, setRecordsSearch] = useState('');
+  const [recordsVisit, setRecordsVisit] = useState(0);
+
+  // Stored rows, polled, so the badge stays current without a page reload.
+  const { notifications, unreadCount, loaded: noticesLoaded, markRead, markAllRead } = useNotifications();
 
   const go = (next: AdminView) => {
     setView(next);
     setMenuOpen(false);
+  };
+
+  /** Mark the row read, then open the records it is about. */
+  const openNotification = (notice: ApiNotification) => {
+    markRead(notice.notifications_id);
+    setNotificationsOpen(false);
+    const recordsTarget = NOTIFICATION_RECORDS[notice.type];
+    if (recordsTarget) {
+      // Every staff message names its ticket as "Ticket #PS-...", so the list
+      // opens filtered to that one pawn and its customer.
+      openRecords(recordsTarget, notice.message.match(/Ticket #([A-Za-z0-9-]+)/)?.[1] ?? '');
+      return;
+    }
+    setMonitoringTab(NOTIFICATION_TAB[notice.type] ?? 'risk');
+    go('monitoring');
+  };
+
+  const openRecords = (tab: RecordsTab, search = '') => {
+    setRecordsTab(tab);
+    setRecordsSearch(search);
+    setRecordsVisit(visit => visit + 1);
+    go('records');
+  };
+
+  const logout = async () => {
+    setProfileOpen(false);
+    const confirmed = await modal.confirm({
+      title: 'Sign out of the admin portal?',
+      message: 'You will need to sign in again to manage accounts, policies, and reports.',
+      confirmLabel: 'Sign out',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    navigate('/');
   };
 
   return (
@@ -109,7 +212,13 @@ const AdminPortal: React.FC = () => {
           <aside className={`admin-sidebar ${menuOpen ? 'open' : ''}`}>
             <div className="admin-brand">
               <img src="/pagasa.png" alt="Pag-Asa Pawnshop" />
-              <span>Admin Portal</span>
+            </div>
+            <div className="admin-account">
+              <IonIcon icon={personCircleOutline} />
+              <div>
+                <strong>System Admin</strong>
+                <span>Administrator</span>
+              </div>
             </div>
             <small className="admin-label">ADMINISTRATION</small>
             <nav className="admin-nav">
@@ -120,13 +229,6 @@ const AdminPortal: React.FC = () => {
                 </button>
               ))}
             </nav>
-            <div className="admin-account">
-              <IonIcon icon={personCircleOutline} />
-              <div>
-                <strong>System Admin</strong>
-                <span>Administrator</span>
-              </div>
-            </div>
           </aside>
 
           <main className="admin-main">
@@ -140,6 +242,9 @@ const AdminPortal: React.FC = () => {
 
               <div className="admin-header-actions">
                 <div className="admin-action-wrap">
+                  <ThemeToggle className="admin-notification" />
+                </div>
+                <div className="admin-action-wrap">
                   <button
                     className="admin-notification"
                     aria-label="Notifications"
@@ -150,21 +255,27 @@ const AdminPortal: React.FC = () => {
                     }}
                   >
                     <IonIcon icon={notificationsOutline} />
-                    {hasUnreadNotifications && <span className="notification-dot" aria-label="Unread notifications" />}
+                    {unreadCount > 0 && <b className="notification-count" aria-label={`${unreadCount} unread notifications`}>{unreadCount}</b>}
                   </button>
 
                   {notificationsOpen && (
                     <div className="admin-dropdown notification-dropdown">
                       <div className="admin-dropdown-head">
                         <strong>Notifications</strong>
-                        <button onClick={() => setHasUnreadNotifications(false)}>Mark all read</button>
+                        <button onClick={markAllRead}>Mark all read</button>
                       </div>
-                      {notifications.map(([title, detail]) => (
-                        <button className="notification-item" key={title} onClick={() => setHasUnreadNotifications(false)}>
-                          <strong>{title}</strong>
-                          <small>{detail}</small>
+                      {notifications.map((notice) => (
+                        <button
+                          className={`notification-item ${notice.is_read ? 'read' : 'unread'}`}
+                          key={notice.notifications_id}
+                          onClick={() => openNotification(notice)}
+                        >
+                          <strong>{NOTIFICATION_TITLES[notice.type] || 'Notification'}</strong>
+                          <small>{notice.message} &middot; {timeAgo(notice.created_at)}</small>
                         </button>
                       ))}
+                      {!noticesLoaded && <SkeletonList rows={3} />}
+                      {noticesLoaded && notifications.length === 0 && <p className="notification-empty">Nothing needs your attention right now.</p>}
                     </div>
                   )}
                 </div>
@@ -188,7 +299,7 @@ const AdminPortal: React.FC = () => {
                       <button onClick={() => { setProfileOpen(false); go('profile'); }}>
                         <IonIcon icon={personCircleOutline} /> Profile
                       </button>
-                      <button onClick={() => navigate('/')}>
+                      <button onClick={logout}>
                         <IonIcon icon={closeOutline} /> Logout
                       </button>
                     </div>
@@ -197,9 +308,10 @@ const AdminPortal: React.FC = () => {
               </div>
             </header>
 
-            {view === 'dashboard' && <Dashboard go={go} onViewRiskAlerts={() => { setMonitoringTab('risk'); go('monitoring'); }} />}
+            {view === 'dashboard' && <Dashboard go={go} onOpenRecords={openRecords} onViewRiskAlerts={() => { setMonitoringTab('risk'); go('monitoring'); }} />}
             {view === 'manage' && <Manage />}
-            {view === 'monitoring' && <Monitoring initialTab={monitoringTab} />}
+            {view === 'records' && <AdminRecords key={`${recordsTab}-${recordsVisit}`} initialTab={recordsTab} initialSearch={recordsSearch} />}
+            {view === 'monitoring' && <Monitoring key={monitoringTab} initialTab={monitoringTab} />}
             {view === 'reports' && <Reports />}
             {view === 'profile' && <AdminProfile />}
           </main>
@@ -209,31 +321,125 @@ const AdminPortal: React.FC = () => {
   );
 };
 
-const Dashboard: React.FC<{ go: (view: AdminView) => void; onViewRiskAlerts: () => void }> = ({ go, onViewRiskAlerts }) => {
-  const [liveStats, setLiveStats] = useState(overviewStats);
-  const [liveGoldTrend, setLiveGoldTrend] = useState(goldPriceTrend);
-  const [liveRevenue, setLiveRevenue] = useState(revenueTrend);
+const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: RecordsTab) => void; onViewRiskAlerts: () => void }> = ({ go, onOpenRecords, onViewRiskAlerts }) => {
+  // Empty until the API answers: the dashboard shows placeholders rather than
+  // a set of demo figures that would be read as real for a moment.
+  const [liveStats, setLiveStats] = useState<typeof overviewStats>([]);
+  const [statsLoaded, setStatsLoaded] = useState(false);
+  const [goldOnlySeries, setGoldOnlySeries] = useState<GoldPricePoint[]>([]);
+  const [silverSeries, setSilverSeries] = useState<GoldPricePoint[]>([]);
+  // Which metal the Market Reference card shows. Gold on every load.
+  const [marketMetal, setMarketMetal] = useState<'gold' | 'silver'>('gold');
+  const goldSeries = marketMetal === 'silver' ? silverSeries : goldOnlySeries;
+  const marketName = marketMetal === 'silver' ? 'Silver' : 'Gold';
+  const [goldLoaded, setGoldLoaded] = useState(false);
+  const [predictionAccuracy, setPredictionAccuracy] = useState<number | null>(null);
+  const [revenueSeries, setRevenueSeries] = useState<RevenuePoint[]>([]);
+  const [priorWeekRevenue, setPriorWeekRevenue] = useState(0);
+  const [revenueLoaded, setRevenueLoaded] = useState(false);
   const [liveRiskAlerts, setLiveRiskAlerts] = useState<RiskRow[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const [liveActivity, setLiveActivity] = useState<AuditItem[]>([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     Promise.all([getDashboard('admin'), getRiskAlerts()]).then(([dashboard, alerts]) => {
+      // The API computes these counts, so each card matches the list it opens.
       setLiveStats([
-        { icon: cashOutline, value: String(dashboard.items.length), label: 'Total active loans', tone: 'primary' },
-        { icon: peopleOutline, value: String(new Set(dashboard.transactions.map(transaction => String((transaction as { customer_id?: number }).customer_id))).size), label: 'Total customers', tone: 'success' },
-        { icon: warningOutline, value: String(dashboard.risk_alerts), label: 'Total risk alerts', tone: 'warning' },
-        { icon: analyticsOutline, value: money(Number(dashboard.revenue)), label: "Today's revenue", tone: 'success' },
+        { icon: cashOutline, value: String(dashboard.stats.active_loans), label: 'Total active pawns', tone: 'primary' },
+        { icon: peopleOutline, value: String(dashboard.stats.total_customers), label: 'Total customers', tone: 'success' },
+        { icon: warningOutline, value: String(dashboard.stats.open_risk_alerts), label: 'Total risk alerts', tone: 'warning' },
+        { icon: analyticsOutline, value: money(Number(dashboard.stats.revenue_today)), label: "Today's revenue", tone: 'success' },
       ]);
-      const prices = dashboard.gold_prices.map(price => Number((price as { price_per_gram?: number }).price_per_gram)).filter(Boolean).slice(-7);
-      if (prices.length) setLiveGoldTrend(prices.map((value, index) => ({ label: String(index + 1), value })));
-      if (dashboard.revenue) setLiveRevenue([...revenueTrend.slice(1), Number(dashboard.revenue)]);
+      setStatsLoaded(true);
+      // gold_prices arrives newest first, so it is sorted back into date order
+      // before the most recent week is taken. Whatever days exist are charted;
+      // nothing is padded out to seven.
+      // Silver rows share the gold shape, so both go through the same steps.
+      const lastWeek = (rows: Array<{ price_date: string; price_per_gram: string | number }>) =>
+        rows
+          .map(price => ({ date: price.price_date, price: Number(price.price_per_gram) }))
+          .filter(point => point.date && Number.isFinite(point.price) && point.price > 0)
+          .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+          .slice(-7);
+      setGoldOnlySeries(lastWeek(dashboard.gold_prices || []));
+      setSilverSeries(lastWeek(dashboard.silver_prices || []));
+      setGoldLoaded(true);
+      // The seven day series comes straight from the API. Nothing is invented
+      // on the client, so a quiet week charts as a quiet week.
+      setRevenueSeries((dashboard.revenue_trend || []).map((day) => ({ date: day.date, revenue: Number(day.revenue) || 0 })));
+      setPriorWeekRevenue(previousWeekRevenue(dashboard.transactions || []));
+      setRevenueLoaded(true);
       // Only unresolved alerts are live risk. A resolved row is history: the
       // item's value recovered above the threshold on a later day.
       setLiveRiskAlerts(alerts.filter(alert => !alert.resolved).map(toRiskRow));
       setAlertsLoaded(true);
     }).catch(error => setLoadError(error instanceof Error ? error.message : 'Unable to load dashboard data.'));
+
+    // The activity feed has its own endpoint, so it loads on its own and its
+    // panel fills in as soon as it answers.
+    getAuditLogs(6)
+      .then(logs => setLiveActivity(logs.map(toAuditItem)))
+      .catch(() => setLiveActivity([]))
+      .finally(() => setActivityLoaded(true));
+
+    // The forecast accuracy is a footnote on the gold card, so it is fetched on
+    // its own: if this endpoint is unavailable the card still shows the price.
+    getModelMetrics()
+      .then(metrics => setPredictionAccuracy(metrics.prediction_accuracy_percent))
+      .catch(() => setPredictionAccuracy(null));
   }, []);
+
+  // Quick links, in card order: each opens the full list behind the figure.
+  const statLinks = [
+    () => onOpenRecords('transactions'),
+    () => onOpenRecords('customers'),
+    onViewRiskAlerts,
+    () => onOpenRecords('payments'),
+  ];
+
+  // A card is ready once its request has answered. On failure it is ready too:
+  // the panel shows the error rather than sweeping placeholders forever.
+  const goldReady = goldLoaded || Boolean(loadError);
+  const revenueReady = revenueLoaded || Boolean(loadError);
+
+  // Headline figures for the gold card, read off the charted series itself.
+  const latestGoldPrice = goldSeries.length ? goldSeries[goldSeries.length - 1].price : 0;
+  const previousGoldPrice = goldSeries.length > 1 ? goldSeries[goldSeries.length - 2].price : 0;
+
+  // Movement against the previous recorded price. One lone record has nothing
+  // to compare against, so the badge is left off rather than shown as zero.
+  const goldChangePercent = previousGoldPrice > 0
+    ? ((latestGoldPrice - previousGoldPrice) / previousGoldPrice) * 100
+    : null;
+  const goldIsFlat = goldChangePercent === null || Math.abs(goldChangePercent) < 0.005;
+  const goldChangeTone = goldIsFlat ? 'is-flat' : goldChangePercent! > 0 ? 'is-up' : 'is-down';
+  const goldChangeIcon = goldIsFlat ? removeOutline : goldChangePercent! > 0 ? trendingUpOutline : trendingDownOutline;
+  const goldChangeLabel = goldChangePercent === null
+    ? ''
+    : goldIsFlat
+      ? 'No change'
+      : `${goldChangePercent > 0 ? '+' : '-'}${Math.abs(goldChangePercent).toFixed(2)}%`;
+
+  // Headline figures for the revenue card, all derived from the charted series.
+  const revenueTotal = revenueSeries.reduce((total, day) => total + day.revenue, 0);
+  const bestRevenueDay = revenueSeries.reduce((best, day) => Math.max(best, day.revenue), 0);
+
+  // Week on week movement. A previous week with no collections has no base to
+  // take a percentage of, so the badge is left off rather than shown as a
+  // meaningless figure.
+  const revenueChangePercent = priorWeekRevenue > 0
+    ? ((revenueTotal - priorWeekRevenue) / priorWeekRevenue) * 100
+    : null;
+  const revenueChangeTone = revenueChangePercent === null || Math.abs(revenueChangePercent) < 0.05
+    ? 'is-flat'
+    : revenueChangePercent > 0 ? 'is-up' : 'is-down';
+  const revenueChangeLabel = revenueChangePercent === null
+    ? ''
+    : Math.abs(revenueChangePercent) < 0.05
+      ? 'No change from last week'
+      : `${revenueChangePercent > 0 ? '↑' : '↓'} ${Math.abs(revenueChangePercent).toFixed(1)}% from last week`;
 
   return (
   <section className="admin-content">
@@ -247,28 +453,91 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onViewRiskAlerts: () 
     </div>
     {loadError && <p className="admin-load-error">{loadError}</p>}
 
-    <div className="admin-stats overview-grid">
-      {liveStats.map((stat) => (
-        <Stat key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} tone={stat.tone} />
-      ))}
+    <div className="admin-stats overview-grid" aria-busy={!statsLoaded}>
+      {statsLoaded
+        ? liveStats.map((stat, index) => (
+            <Stat key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} tone={stat.tone} onClick={statLinks[index]} />
+          ))
+        : overviewStats.map((stat) => <SkeletonStat key={stat.label} />)}
     </div>
 
     <div className="dashboard-insight-grid">
       <div className="admin-panel dashboard-widget gold-dashboard-widget">
-        <PanelHead title="Gold price" eyebrow="MARKET UPDATE" />
-        <div className="dashboard-price-line"><strong>₱3,542 / gram</strong><span><IonIcon icon={trendingUpOutline} /> +2.6% from yesterday</span></div>
-        <div className="dashboard-sparkline" aria-label="Seven day gold price trend">
-          {liveGoldTrend.map((point) => <span key={point.label} style={{ height: `${(point.value / 3600) * 100}%` }}><b>{point.label}</b></span>)}
+        <PanelHead title="Market Reference" eyebrow="MARKET UPDATE" />
+        <div className="gold-metal-toggle" role="tablist" aria-label="Metal">
+          {(['gold', 'silver'] as const).map(metal => (
+            <button
+              key={metal}
+              type="button"
+              role="tab"
+              aria-selected={marketMetal === metal}
+              className={marketMetal === metal ? 'active' : ''}
+              onClick={() => setMarketMetal(metal)}
+            >
+              {metal === 'gold' ? 'Gold' : 'Silver'}
+            </button>
+          ))}
         </div>
-        <small className="dashboard-widget-note">AI Predicted Price Accuracy: 97.9%</small>
+        <small className="gold-price-caption">Today's {marketName} Reference Price</small>
+        <div className="gold-price-summary">
+          {goldReady ? (
+            <>
+              <strong className="gold-price-current">
+                {latestGoldPrice > 0 ? <>{money(latestGoldPrice)} <i>/ gram</i></> : 'No price recorded'}
+              </strong>
+              {goldChangeLabel && (
+                <span className={`gold-price-delta ${goldChangeTone}`}>
+                  <IonIcon icon={goldChangeIcon} aria-hidden="true" />
+                  {goldChangeLabel}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <Skeleton width="46%" height="1.6rem" radius="8px" />
+              <Skeleton width="72px" height="1.1rem" radius="999px" />
+            </>
+          )}
+        </div>
+        <GoldPriceChart
+          points={goldSeries}
+          loading={!goldLoaded && !loadError}
+          error={loadError ? `${marketName} price history is unavailable right now.` : ''}
+        />
+        <small className="gold-price-caption">Recent {marketName.toLowerCase()} price movement</small>
+        <small className="gold-price-caption">Used as a starting reference for jewelry valuation — final appraisal remains at staff's discretion.</small>
+        {/* The accuracy figure is measured on the gold forecast only. */}
+        {marketMetal === 'gold' && predictionAccuracy !== null && (
+          <small className="gold-price-accuracy">AI predicted price accuracy: {predictionAccuracy}%</small>
+        )}
       </div>
 
       <div className="admin-panel dashboard-widget revenue-widget">
         <PanelHead title="Revenue trend" eyebrow="LAST 7 DAYS" />
-        <div className="revenue-total"><strong>₱53,800</strong><span>Best daily collection</span></div>
-        <div className="dashboard-revenue-chart" aria-label="Seven day revenue trend">
-          {liveRevenue.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${(value / 60000) * 100}%` }}><b>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</b></span>)}
+        <div className="revenue-summary">
+          {revenueReady ? (
+            <>
+              <strong className="revenue-summary-total">{moneyExact(revenueTotal)}</strong>
+              {revenueChangeLabel && <span className={`revenue-summary-delta ${revenueChangeTone}`}>{revenueChangeLabel}</span>}
+            </>
+          ) : (
+            <>
+              <Skeleton width="46%" height="1.6rem" radius="8px" />
+              <Skeleton width="96px" height="1.1rem" radius="999px" />
+            </>
+          )}
         </div>
+        {revenueReady && (
+          <small className="revenue-summary-caption">
+            Collected over the last 7 days
+            {bestRevenueDay > 0 && ` · Best day ${moneyExact(bestRevenueDay)}`}
+          </small>
+        )}
+        <RevenueTrendChart
+          points={revenueSeries}
+          loading={!revenueLoaded && !loadError}
+          error={loadError ? 'Revenue data is unavailable right now.' : ''}
+        />
       </div>
     </div>
 
@@ -279,38 +548,55 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onViewRiskAlerts: () 
           <button onClick={onViewRiskAlerts}>View all</button>
         </div>
         <div className="risk-legend">
-          <span><i className="risk-dot high" />High &middot; value below the loan</span>
+          <span><i className="risk-dot high" />High &middot; value below the pawn amount</span>
           <span><i className="risk-dot medium" />Medium &middot; within the safety margin</span>
         </div>
         <div className="dashboard-risk-table-wrap">
-          <table className="dashboard-risk-table"><thead><tr><th>Item</th><th>Customer</th><th>Current value</th><th>Loan amount</th><th>Risk</th></tr></thead><tbody>
-            {liveRiskAlerts.map((alert) => <tr key={alert.id}><td><strong>{alert.item}</strong><small>{alert.id}</small></td><td>{alert.customer}</td><td>{alert.currentValue}</td><td>{alert.amount}</td><td><em className={`risk-pill ${alert.risk.toLowerCase()}`}>{alert.risk}</em></td></tr>)}
+          <table className="dashboard-risk-table" aria-busy={!alertsLoaded}><thead><tr><th>Item</th><th>Customer</th><th>Current value</th><th>Pawn amount</th><th>Risk</th></tr></thead><tbody>
+            {alertsLoaded
+              ? liveRiskAlerts.map((alert) => <tr key={alert.id}><td><strong>{alert.item}</strong><small>{alert.id}</small></td><td>{alert.customer}</td><td>{alert.currentValue}</td><td>{alert.amount}</td><td><em className={`risk-pill ${alert.risk.toLowerCase()}`}>{alert.risk}</em></td></tr>)
+              : <SkeletonRows rows={3} columns={['70%', '58%', '48%', '48%', '42px']} />}
           </tbody></table>
-          {liveRiskAlerts.length === 0 && <p className="risk-empty">{alertsLoaded ? 'No unresolved risk alerts. Every active item is above its loan amount plus the safety margin.' : 'Loading risk alerts...'}</p>}
+          {alertsLoaded && liveRiskAlerts.length === 0 && <p className="risk-empty">No unresolved risk alerts. Every active item is above its pawn amount plus the safety margin.</p>}
         </div>
       </div>
 
       <div className="admin-panel dashboard-audit-panel">
         <div className="admin-panel-head">
           <div><small>OPERATIONAL SUMMARY</small><h3>Recent activity</h3></div>
-          <button onClick={() => go('monitoring')}>View all</button>
+          <button onClick={() => onOpenRecords('activity')}>View all</button>
         </div>
-        <div className="dashboard-audit-list">{auditLog.map((item) => <div className="dashboard-audit-item" key={`${item.time}-${item.action}`}><IonIcon icon={documentTextOutline} /><div><strong>{item.action}</strong><span>{item.actor} · {item.time}</span></div></div>)}</div>
+        <div className="dashboard-audit-list" aria-busy={!activityLoaded}>
+          {!activityLoaded && <SkeletonList rows={4} />}
+          {activityLoaded && liveActivity.map((item) => <div className="dashboard-audit-item" key={`${item.time}-${item.action}`}><IonIcon icon={documentTextOutline} /><div><strong>{item.action}</strong><span>{item.actor} · {item.time}</span></div></div>)}
+          {activityLoaded && liveActivity.length === 0 && <p className="risk-empty">No recorded activity yet.</p>}
+        </div>
       </div>
     </div>
   </section>
   );
 };
 
-const Stat: React.FC<{ icon: string; value: string; label: string; tone?: string }> = ({ icon, value, label, tone = 'primary' }) => (
-  <div className={`admin-stat ${tone}`}>
-    <IonIcon icon={icon} />
-    <div>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
-  </div>
-);
+const Stat: React.FC<{ icon: string; value: string; label: string; tone?: string; onClick?: () => void }> = ({ icon, value, label, tone = 'primary', onClick }) => {
+  const body = (
+    <>
+      <IonIcon icon={icon} />
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
+      </div>
+    </>
+  );
+
+  // With a handler the card is a quick link to the list behind its figure.
+  return onClick ? (
+    <button type="button" className={`admin-stat admin-stat-link ${tone}`} onClick={onClick} aria-label={`${label}: ${value}. Open list`}>
+      {body}
+    </button>
+  ) : (
+    <div className={`admin-stat ${tone}`}>{body}</div>
+  );
+};
 
 const Tabs: React.FC<{ tabs: Array<{ id: Tab; label: string }>; active: Tab; onChange: (tab: Tab) => void }> = ({ tabs, active, onChange }) => (
   <div className="admin-tabs" role="tablist">
@@ -345,6 +631,13 @@ const Manage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // The account currently open in the update dialog, plus its editable copy.
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [updateTarget, setUpdateTarget] = useState<ApiUser | null>(null);
+  const [updateForm, setUpdateForm] = useState({ status: 'active' as ApiUser['status'], password: '' });
+  const [updateError, setUpdateError] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     getUsers()
@@ -372,6 +665,34 @@ const Manage: React.FC = () => {
     }
   };
 
+  const openUpdate = (user: ApiUser) => {
+    setUpdateError('');
+    setUpdateTarget(user);
+    setUpdateForm({ status: user.status, password: '' });
+  };
+
+  const submitUpdate = async () => {
+    if (!updateTarget) return;
+    setUpdateError('');
+    if (updateForm.password && updateForm.password.length < 8) {
+      setUpdateError('A new password needs at least 8 characters.');
+      return;
+    }
+    setUpdating(true);
+    try {
+      const saved = await updateUser(updateTarget.users_id, {
+        status: updateForm.status,
+        ...(updateForm.password ? { password: updateForm.password } : {}),
+      });
+      setUsers((current) => current.map((user) => (user.users_id === saved.users_id ? saved : user)));
+      setUpdateTarget(null);
+    } catch (requestError) {
+      setUpdateError(requestError instanceof Error ? requestError.message : 'Unable to update user.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const staffCount = users.filter((user) => user.role === 'staff').length;
   const customerCount = users.filter((user) => user.role === 'customer').length;
 
@@ -380,12 +701,13 @@ const Manage: React.FC = () => {
   const visibleUsers = users
     .filter((user) => user.role === accountTab)
     .filter((user) => !term || user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term));
+  const userPage = usePagedRows(visibleUsers);
 
   return (
     <section className="admin-content">
       <PageIntro eyebrow="ADMINISTRATION" title="Manage" text="Manage staff and customer accounts, then configure system-wide policies." />
       <Tabs
-        tabs={[{ id: 'users', label: 'User Management' }, { id: 'settings', label: 'System Settings' }]}
+        tabs={[{ id: 'users', label: 'Staff & Customer Accounts' }, { id: 'settings', label: 'System Settings' }]}
         active={tab}
         onChange={setTab}
       />
@@ -393,7 +715,7 @@ const Manage: React.FC = () => {
       <div className="admin-panel">
         {tab === 'users' ? (
           <>
-            {loading && <p className="admin-inline-message">Loading users...</p>}
+            {loading && <SkeletonList rows={5} />}
             {!loading && <>
               <PanelHead
                 title="Accounts"
@@ -439,7 +761,7 @@ const Manage: React.FC = () => {
                   <span>Action</span>
                 </div>
 
-                {visibleUsers.map((user) => (
+                {userPage.pageRows.map((user) => (
                   <div className="acct-row" key={user.users_id}>
                     <div className="acct-user">
                       <i aria-hidden="true">{user.name.trim().charAt(0).toUpperCase()}</i>
@@ -450,7 +772,7 @@ const Manage: React.FC = () => {
                     <em className={user.status === 'active' ? 'acct-status active' : 'acct-status inactive'}>
                       {user.status === 'active' ? 'Active' : 'Inactive'}
                     </em>
-                    <button type="button" className="acct-action">Edit</button>
+                    <button type="button" className="acct-action" onClick={() => openUpdate(user)}>Update</button>
                   </div>
                 ))}
 
@@ -462,6 +784,8 @@ const Manage: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              <Pager pager={userPage.pager} label="accounts" />
             </>}
           </>
         ) : (
@@ -469,17 +793,96 @@ const Manage: React.FC = () => {
         )}
       </div>
 
-      <IonModal isOpen={showAddUser} onDidDismiss={() => setShowAddUser(false)} className="admin-user-modal">
+      <IonModal isOpen={showAddUser} onDidDismiss={() => { setShowAddUser(false); setShowNewPassword(false); }} className="admin-user-modal">
         <div className="admin-user-modal-box">
           <div className="admin-user-modal-head">
-            <div><small>STAFF MANAGEMENT</small><h3>Add staff</h3></div>
+            <span className="admin-modal-icon" aria-hidden="true"><IonIcon icon={personAddOutline} /></span>
+            <div>
+              <small>STAFF MANAGEMENT</small>
+              <h3>Add staff</h3>
+              <p className="admin-modal-sub">The account is created active, with the staff role and the password you set here.</p>
+            </div>
             <button type="button" onClick={() => setShowAddUser(false)} aria-label="Close add user dialog"><IonIcon icon={closeOutline} /></button>
           </div>
-          <label>Full name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="User full name" /></label>
-          <label>Email address<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="user@smartpawn.ph" /></label>
-          <label>Password<input type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} placeholder="At least 8 characters" /></label>
-          {error && <p className="admin-form-error">{error}</p>}
-          <div className="admin-user-modal-actions"><button type="button" className="admin-secondary-button" onClick={() => setShowAddUser(false)}>Cancel</button><button type="button" className="admin-primary-button" onClick={addUser} disabled={saving}>{saving ? 'Saving...' : 'Create user'}</button></div>
+
+          <div className="admin-modal-fields">
+            <label>Full name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="User full name" /></label>
+            <label>Email address<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="user@smartpawn.ph" /></label>
+            <label>
+              Password
+              <span className="admin-modal-password">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                  placeholder="At least 8 characters"
+                />
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} aria-label={showNewPassword ? 'Hide password' : 'Show password'}>
+                  <IonIcon icon={showNewPassword ? eyeOffOutline : eyeOutline} />
+                </button>
+              </span>
+              <small className="admin-modal-hint">Eight characters or more. The staff member can change it later from their profile.</small>
+            </label>
+          </div>
+
+          {error && <p className="admin-form-error" role="alert">{error}</p>}
+          <div className="admin-user-modal-actions"><button type="button" className="admin-secondary-button" onClick={() => setShowAddUser(false)}>Cancel</button><button type="button" className="admin-primary-button" onClick={addUser} disabled={saving} aria-busy={saving}>{saving && <Spinner />}{saving ? 'Saving' : 'Create user'}</button></div>
+        </div>
+      </IonModal>
+
+      <IonModal isOpen={updateTarget !== null} onDidDismiss={() => { setUpdateTarget(null); setShowUpdatePassword(false); }} className="admin-user-modal">
+        <div className="admin-user-modal-box">
+          <div className="admin-user-modal-head">
+            <span className="admin-modal-icon" aria-hidden="true"><IonIcon icon={personCircleOutline} /></span>
+            <div>
+              <small>{updateTarget?.role === 'customer' ? 'CUSTOMER MANAGEMENT' : 'STAFF MANAGEMENT'}</small>
+              <h3>Update account</h3>
+              <p className="admin-modal-sub">Status and password only. The name and email stay as the account holder set them.</p>
+            </div>
+            <button type="button" onClick={() => setUpdateTarget(null)} aria-label="Close update user dialog"><IonIcon icon={closeOutline} /></button>
+          </div>
+
+          <div className="admin-user-modal-summary">
+            <i aria-hidden="true">{(updateTarget?.name || '?').trim().charAt(0).toUpperCase()}</i>
+            <div>
+              <strong>{updateTarget?.name}</strong>
+              <span>{updateTarget?.email}</span>
+            </div>
+            <div className="admin-modal-badges">
+              {updateTarget && <em className={`acct-role ${updateTarget.role}`}>{updateTarget.role}</em>}
+              {updateTarget && <em className={updateTarget.status === 'active' ? 'acct-status active' : 'acct-status inactive'}>{updateTarget.status === 'active' ? 'Active' : 'Inactive'}</em>}
+            </div>
+          </div>
+
+          <div className="admin-modal-fields">
+            <label>Status
+              <TypeSelect
+                ariaLabel="Status"
+                value={updateForm.status}
+                options={ACCOUNT_STATUS_OPTIONS}
+                onChange={(value) => setUpdateForm((current) => ({ ...current, status: value as ApiUser['status'] }))}
+              />
+              <small className="admin-modal-hint">An inactive account keeps its records but cannot sign in.</small>
+            </label>
+            <label>
+              New password
+              <span className="admin-modal-password">
+                <input
+                  type={showUpdatePassword ? 'text' : 'password'}
+                  value={updateForm.password}
+                  onChange={(event) => setUpdateForm((current) => ({ ...current, password: event.target.value }))}
+                  placeholder="Leave blank to keep current password"
+                />
+                <button type="button" onClick={() => setShowUpdatePassword(!showUpdatePassword)} aria-label={showUpdatePassword ? 'Hide password' : 'Show password'}>
+                  <IonIcon icon={showUpdatePassword ? eyeOffOutline : eyeOutline} />
+                </button>
+              </span>
+              <small className="admin-modal-hint">Leave blank to keep the current password, or set eight characters or more.</small>
+            </label>
+          </div>
+
+          {updateError && <p className="admin-form-error" role="alert">{updateError}</p>}
+          <div className="admin-user-modal-actions"><button type="button" className="admin-secondary-button" onClick={() => setUpdateTarget(null)}>Cancel</button><button type="button" className="admin-primary-button" onClick={submitUpdate} disabled={updating} aria-busy={updating}>{updating && <Spinner />}{updating ? 'Saving' : 'Save changes'}</button></div>
         </div>
       </IonModal>
     </section>
@@ -490,11 +893,16 @@ const Manage: React.FC = () => {
 const SETTING_LABEL: Record<string, string> = {
   current_gold_price: 'Fallback gold price per gram',
   risk_threshold_percent: 'Risk safety margin (%)',
-  jewelry_watch_phone_rate: 'Monthly interest — jewelry, watch, cellphone (%)',
-  bulky_item_rate: 'Monthly interest — bulky items (%)',
-  default_loan_to_value: 'Default loan-to-value (%)',
-  loan_term_days: 'Loan term (days)',
-  grace_period_days: 'Grace period (days)',
+  jewelry_watch_phone_rate: 'Monthly Interest (Renta) — jewelry, watch, cellphone (%)',
+  bulky_item_rate: 'Monthly Interest (Renta) — bulky items (%)',
+  default_loan_to_value: 'Default pawn-to-value (%)',
+  loan_term_days: 'Pawn term (days)',
+  grace_period_days: 'Extension period (days)',
+  due_soon_notice_days: 'Due date reminder (days before)',
+  value_change_notice_percent: 'Value change notice (%)',
+  redemption_visit_days: 'Redemption hold (days)',
+  renewal_term_days: 'Online renewal extension (days)',
+  gcash_payment_info: 'GCash number/account shown to customers',
 };
 
 const settingLabel = (key: string) => SETTING_LABEL[key] || key.split('_').join(' ');
@@ -546,11 +954,11 @@ const SystemSettingsForm: React.FC<{ only?: string[]; title?: string }> = ({ onl
 
   const dirty = settings.some((row) => draft[row.setting_key] !== row.setting_value);
 
-  if (loading) return <p className="admin-inline-message">Loading settings...</p>;
+  if (loading) return <div className="settings-grid" aria-busy="true"><SkeletonText lines={4} /><SkeletonText lines={4} /></div>;
 
   return (
     <>
-      <PanelHead title={title} action={saving ? 'Saving...' : 'Save settings'} onAction={save} />
+      <PanelHead title={title} action="Save settings" busy={saving} onAction={save} />
       {error && <p className="admin-form-error">{error}</p>}
       {saved && !dirty && <p className="admin-inline-message">Settings saved.</p>}
       {settings.length === 0 && !error && <p className="admin-inline-message">No settings returned by the API.</p>}
@@ -571,30 +979,8 @@ const SystemSettingsForm: React.FC<{ only?: string[]; title?: string }> = ({ onl
 
 const Monitoring: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'models' }) => {
   const [tab, setTab] = useState<Tab>(initialTab);
+  // The risk tab owns its own alert request, so it can refresh in place.
   const [policySaved, setPolicySaved] = useState(false);
-  const [goldPrice, setGoldPrice] = useState(0);
-  const [goldRecordedAt, setGoldRecordedAt] = useState('');
-  const [monitorAlerts, setMonitorAlerts] = useState<RiskRow[]>([]);
-  const [monitorLoaded, setMonitorLoaded] = useState(false);
-
-  useEffect(() => {
-    // The gold price and the open alerts both come from the API now, so the
-    // monitoring tabs show the same numbers as the rest of the portal.
-    Promise.all([
-      getDashboard('admin').catch(() => null),
-      getRiskAlerts().catch(() => [] as ApiRiskAlert[]),
-    ]).then(([dashboard, alerts]) => {
-      const latest = dashboard?.gold_prices?.[0] as { price_per_gram?: number; price_date?: string } | undefined;
-      if (latest?.price_per_gram) {
-        setGoldPrice(Number(latest.price_per_gram));
-        setGoldRecordedAt(shortDate(latest.price_date));
-      }
-      setMonitorAlerts(alerts.filter(alert => !alert.resolved).map(toRiskRow));
-      setMonitorLoaded(true);
-    });
-  }, []);
-
-  const clearSavedState = () => setPolicySaved(false);
 
   return (
     <section className="admin-content">
@@ -604,8 +990,7 @@ const Monitoring: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'models' }) =
           { id: 'models', label: 'AI Model Monitoring' },
           { id: 'gold', label: 'Gold Price Tracking' },
           { id: 'risk', label: 'Risk Management' },
-          { id: 'unusual', label: 'Unusual Activity' },
-          { id: 'activity', label: 'Loans & Transactions' },
+          { id: 'activity', label: 'Open Risk List' },
         ]}
         active={tab}
         onChange={setTab}
@@ -613,158 +998,29 @@ const Monitoring: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'models' }) =
 
       <div className="admin-panel">
         {tab === 'models' && (
-          <div className="admin-stats monitor-stats">
-            <Stat icon={pulseOutline} value="98.2%" label="Model availability" />
-            <Stat icon={analyticsOutline} value="92%" label="Average confidence" />
-            <Stat icon={shieldCheckmarkOutline} value="97.9%" label="Prediction accuracy" />
-          </div>
-        )}
-
-        {tab === 'gold' && (
-          <div className="monitor-layout">
-            <div className="mini-panel">
-              <div className="section-heading">
-                <div>
-                  <small>LIVE TREND</small>
-                  <h3>Gold price</h3>
-                </div>
-                <span className="chip success">+2.6%</span>
-              </div>
-
-              <div className="gold-price-header">
-                <strong>{goldPrice > 0 ? `${money(goldPrice)} / gram` : 'No price recorded'}</strong>
-                <small>{goldRecordedAt ? `Recorded ${goldRecordedAt}` : 'Loading...'}</small>
-              </div>
-
-
-              <TrendSuggestionCard />
-
-              <div className="bar-chart" aria-label="Gold price trend chart">
-                {goldPriceTrend.map((point) => (
-                  <div key={point.label} className="bar-group">
-                    <span className="bar" style={{ height: `${(point.value / 3600) * 100}%` }} />
-                    <small>{point.label}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mini-panel">
-              <div className="section-heading">
-                <div>
-                  <small>PRICE ALERT</small>
-                  <h3>Valuation review</h3>
-                </div>
-              </div>
-              <ul className="inline-list">
-                <li>Jewelry items revalued at 2.8% above prior benchmark.</li>
-                <li>High-demand 18K inventory is trending above projection.</li>
-                <li>Risk team recommended slight tightening for high-ticket collateral.</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {tab === 'risk' && (
           <>
-            <div className="admin-panel monitor-risk-list">
-              <PanelHead title="Live risk alerts" action="Refresh" onAction={() => window.location.reload()} />
-              {monitorAlerts.map(alert => <div className="activity-row" key={alert.id}><div><strong>{alert.item}</strong><small>{alert.customer} &middot; {alert.currentValue} against {alert.amount}</small></div><em className={alert.risk.toLowerCase()}>{alert.risk}</em></div>)}
-              {monitorAlerts.length === 0 && <p className="risk-empty">{monitorLoaded ? 'No unresolved risk alerts.' : 'Loading risk alerts...'}</p>}
+            <div className="admin-stats monitor-stats">
+              <Stat icon={pulseOutline} value="98.2%" label="Model availability" />
+              <Stat icon={analyticsOutline} value="92%" label="Average confidence" />
+              <Stat icon={shieldCheckmarkOutline} value="97.9%" label="Prediction accuracy" />
             </div>
-            <PanelHead title="Risk management settings" action="Save policy" onAction={() => setPolicySaved(true)} />
-            <div className="settings-grid">
-              <label>
-                High-risk threshold
-                <input defaultValue="₱75,000" onChange={clearSavedState} />
-              </label>
-              <label>
-                Medium-risk threshold
-                <input defaultValue="₱30,000" onChange={clearSavedState} />
-              </label>
-              <label>
-                Review window
-                <input defaultValue="14 days" onChange={clearSavedState} />
-              </label>
-              <label>
-                Auto-escalation
-                <select defaultValue="Enabled" onChange={clearSavedState}>
-                  <option>Enabled</option>
-                  <option>Disabled</option>
-                </select>
-              </label>
-            </div>
-            {policySaved && <small className="policy-saved">Risk management policy saved successfully.</small>}
+            <ModelMonitoring />
           </>
         )}
 
-        {tab === 'unusual' && <UnusualActivity />}
+        {tab === 'gold' && <GoldPriceTracking />}
+
+        {tab === 'risk' && (
+          <RiskManagement
+            policySaved={policySaved}
+            onSavePolicy={() => setPolicySaved(true)}
+            onPolicyEdited={() => setPolicySaved(false)}
+          />
+        )}
 
         {tab === 'activity' && <Activity />}
       </div>
     </section>
-  );
-};
-
-/** Date only, which is all the review list needs from the flag timestamp. */
-const flagDate = (value: string) => new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-
-/**
- * Customers the frequency heuristic put up for review.
- *
- * The wording stays "for review" everywhere: the check counts pawns in a
- * rolling window, so a busy customer is not a fraudulent one.
- */
-const UnusualActivity: React.FC = () => {
-  const [flags, setFlags] = useState<ApiActivityFlag[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState('');
-  const [resolvingId, setResolvingId] = useState<number | null>(null);
-
-  useEffect(() => {
-    getActivityFlags()
-      .then(setFlags)
-      .catch((cause: Error) => setError(cause.message))
-      .finally(() => setLoaded(true));
-  }, []);
-
-  const markReviewed = async (flagId: number) => {
-    setResolvingId(flagId);
-    setError('');
-    try {
-      await resolveActivityFlag(flagId);
-      setFlags(current => current.filter(flag => flag.activity_flags_id !== flagId));
-    } catch (cause) {
-      setError((cause as Error).message);
-    } finally {
-      setResolvingId(null);
-    }
-  };
-
-  return (
-    <div className="activity-list">
-      <PanelHead title="Unusual activity (for review)" />
-      <p className="risk-empty">Customers with more pawns in the window than the threshold allows. This is a frequency check for review, not a fraud finding.</p>
-
-      {flags.map((flag) => (
-        <div className="activity-row" key={flag.activity_flags_id}>
-          <div>
-            <strong>{flag.customer?.name || `Customer #${flag.customer_id}`}</strong>
-            <small>{flag.reason} &middot; {flagDate(flag.flagged_at)}</small>
-          </div>
-          <button
-            className="admin-secondary-button"
-            onClick={() => markReviewed(flag.activity_flags_id)}
-            disabled={resolvingId === flag.activity_flags_id}
-          >
-            {resolvingId === flag.activity_flags_id ? 'Saving...' : 'Mark reviewed'}
-          </button>
-        </div>
-      ))}
-
-      {error && <p className="admin-form-error">{error}</p>}
-      {flags.length === 0 && <p className="risk-empty">{loaded ? 'No customers are flagged for review.' : 'Loading flags...'}</p>}
-    </div>
   );
 };
 
@@ -783,7 +1039,7 @@ const Activity: React.FC = () => {
     <div className="activity-list">
       <div className="admin-table-head activity-table-head">
         <span>Customer / Item</span>
-        <span>Loan amount</span>
+        <span>Pawn amount</span>
         <span>Risk</span>
       </div>
 
@@ -802,40 +1058,83 @@ const Activity: React.FC = () => {
   );
 };
 
+/** One export in Reports > Exports: what it holds and how its rows are fetched. */
+const EXPORTS: Array<{ id: string; title: string; detail: string; run: () => Promise<number> }> = [
+  { id: 'transactions', title: 'All pawn transactions', detail: 'Every ticket with amounts, due date and status.', run: async () => { const rows = await getTransactions(); transactionsCsv(rows); return rows.length; } },
+  { id: 'payments', title: 'Payments collected', detail: 'Redemptions with principal, interest and total paid.', run: async () => { const rows = (await getTransactions()).filter(isPayment); paymentsCsv(rows); return rows.length; } },
+  { id: 'overdue', title: 'Overdue and expired/unclaimed', detail: 'Active pawns past due, plus forfeited pawns.', run: async () => { const rows = (await getTransactions()).filter(row => isOverdue(row) || row.status === 'forfeited'); overdueCsv(rows); return rows.length; } },
+  { id: 'customers', title: 'Customer records', detail: 'Profile, valid ID and pawn counts per customer.', run: async () => { const rows = await getCustomers(); customersCsv(rows); return rows.length; } },
+  { id: 'activity', title: 'Staff activity log', detail: 'The latest 200 recorded staff and admin actions.', run: async () => { const rows = await getAuditLogs(200); activityCsv(rows); return rows.length; } },
+];
+
+const percent = (value: number | null) => (value === null ? '-' : `${value}%`);
+
 const Reports: React.FC = () => {
+  const modal = useModal();
   const [tab, setTab] = useState<Tab>('analytics');
+  const [summary, setSummary] = useState<ApiReportSummary | null>(null);
+  const [summaryError, setSummaryError] = useState('');
+  const [exporting, setExporting] = useState('');
+
+  useEffect(() => {
+    getReportSummary()
+      .then(setSummary)
+      .catch(error => setSummaryError(error instanceof Error ? error.message : 'Unable to load the report summary.'));
+  }, []);
+
+  const runExport = async (entry: typeof EXPORTS[number]) => {
+    setExporting(entry.id);
+    try {
+      const count = await entry.run();
+      if (count === 0) modal.info({ title: 'Nothing to export', message: <><strong>{entry.title}</strong> has no rows yet. An empty file with headers was downloaded.</> });
+    } catch (error) {
+      modal.info({ title: 'Export failed', message: error instanceof Error ? error.message : 'Unable to export this report.' });
+    } finally {
+      setExporting('');
+    }
+  };
+
+  const change = summary?.monthly_loan_volume_change_percent;
 
   return (
     <section className="admin-content">
-      <PageIntro eyebrow="BUSINESS INTELLIGENCE" title="Reports" text="Review analytics and export reliable operational records." />
+      <PageIntro eyebrow="BUSINESS INTELLIGENCE" title="Reports" text="Review live shop figures and download records as CSV files." />
       <Tabs tabs={[{ id: 'analytics', label: 'Analytics' }, { id: 'exports', label: 'Exports' }]} active={tab} onChange={setTab} />
 
       <div className="admin-panel">
         {tab === 'analytics' ? (
-          <div className="report-grid">
-            <Metric label="Monthly loan volume" value="₱1.24M" detail="+12.8% vs last month" />
-            <Metric label="Redemption rate" value="76.4%" detail="+4.2% vs last month" />
-            <Metric label="Average loan" value="₱28,600" detail="Across 184 active loans" />
-            <Metric label="Risk alerts" value="7" detail="3 require escalation" />
-            <Metric label="Revenue summary" value="₱486K" detail="Net collections processed" />
-            <Metric label="Gold inventory" value="₱612K" detail="Based on current benchmark" />
-          </div>
+          summaryError ? <p className="admin-form-error">{summaryError}</p> : !summary ? <SkeletonText lines={4} /> : (
+            <div className="report-grid">
+              <Metric label="Monthly pawn volume" value={money(summary.monthly_loan_volume)} detail={change === null || change === undefined ? 'No pawns last month to compare' : `${change > 0 ? '+' : ''}${change}% vs last month`} />
+              <Metric label="Redemption rate" value={percent(summary.redemption_rate_percent)} detail="Redeemed out of all closed pawns" />
+              <Metric label="Average pawn amount" value={money(summary.average_loan)} detail={`Across ${summary.active_loans} active pawns`} />
+              <Metric label="Risk alerts" value={String(summary.open_risk_alerts)} detail={`${summary.high_risk_alerts} high risk`} />
+              <Metric label="Total collected" value={money(summary.total_collected)} detail="Principal plus interest from redemptions" />
+              <Metric label="Inventory value" value={money(summary.inventory_value)} detail={`For-sale items: ${money(summary.items_for_sale_value)}`} />
+              {/* Renewals are renta collected without the pawn closing, so
+                  they are counted apart from redemptions rather than folded
+                  into Total collected. */}
+              <Metric label="Renewals this month" value={String(summary.renewals_this_month)} detail={`${summary.pending_renewals} waiting to be checked`} />
+              <Metric label="Renewal income" value={money(summary.renewal_income_this_month)} detail={`${money(summary.renewal_income_total)} since the shop opened`} />
+            </div>
+          )
         ) : (
           <div className="export-list">
             <div className="admin-table-head export-table-head">
               <span>Report</span>
-              <span>Last updated</span>
+              <span>Contents</span>
               <span>Action</span>
             </div>
 
-            {['Monthly loan performance', 'Loans nearing due date', 'Transaction audit log', 'AI appraisal accuracy', 'Gold price benchmark'].map((report) => (
-              <div className="export-row" key={report}>
+            {EXPORTS.map((entry) => (
+              <div className="export-row" key={entry.id}>
                 <IonIcon icon={documentTextOutline} />
                 <div>
-                  <strong>{report}</strong>
-                  <small>Updated September 03, 2026</small>
+                  <strong>{entry.title}</strong>
+                  <small>{entry.detail}</small>
                 </div>
-                <IonButton fill="outline" onClick={() => alert(`${report} exported.`)}>
+                <IonButton fill="outline" onClick={() => runExport(entry)} disabled={exporting !== ''} aria-busy={exporting === entry.id}>
+                  {exporting === entry.id ? <Spinner /> : <IonIcon slot="start" icon={downloadOutline} />}
                   Export CSV
                 </IonButton>
               </div>
@@ -855,10 +1154,14 @@ const PageIntro: React.FC<{ eyebrow: string; title: string; text: string }> = ({
   </div>
 );
 
-const PanelHead: React.FC<{ title: string; action?: string; eyebrow?: string; onAction?: () => void }> = ({ title, action, eyebrow, onAction }) => (
+const PanelHead: React.FC<{ title: string; action?: string; eyebrow?: string; busy?: boolean; onAction?: () => void }> = ({ title, action, eyebrow, busy = false, onAction }) => (
   <div className="admin-panel-head">
     <div>{eyebrow && <small>{eyebrow}</small>}<h3>{title}</h3></div>
-    {action && <IonButton onClick={onAction}>{action}</IonButton>}
+    {action && (
+      // The label stays put while the action runs, so the button keeps its
+      // width and the reader keeps their place.
+      <IonButton onClick={onAction} disabled={busy} aria-busy={busy}>{busy && <Spinner />}{action}</IonButton>
+    )}
   </div>
 );
 

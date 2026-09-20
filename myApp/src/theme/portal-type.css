@@ -1,0 +1,243 @@
+/* ============================================================
+   Shared typography roles.
+
+   The font family and the --fs-* size scale live in
+   theme/variables.css. This file makes each kind of text use the
+   same size and weight wherever it appears: a panel title in Admin
+   looks like a panel title in Staff and Customer, a table header
+   like every other table header, and so on.
+
+   Admin is the reference. Roles set size and weight only (form
+   labels and notifications also set their colour, as before).
+
+   Imported last from App.tsx so it loads after every portal
+   stylesheet. Several older per-portal rules carry !important,
+   so these do too.
+
+   Hierarchy, largest to smallest:
+     page title     24-32px fluid, 700
+     modal title    20-28px fluid, 700
+     panel title    16px, 700
+     form label     12px, 700
+     action link    11px, 700
+     eyebrow        10px, 800, uppercase, .12em tracking
+     table header   10px, 800, uppercase
+   ============================================================ */
+
+/* ---------- Form field labels ---------- */
+.admin-page .admin-content label:not(.acct-search):not(.risk-policy-field),
+.admin-modal-fields label,
+.admin-page .risk-policy-copy b,
+.staff-page ion-label[position],
+.staff-page .staff-panel ion-label,
+.staff-page .register-customer-fields ion-label,
+.staff-page .file-input,
+.staff-page .file-input span,
+.staff-login-page ion-label,
+.tx-customer-modal-box ion-label,
+.tx-customer-modal-box .file-input,
+.portal-page ion-label[position],
+.portal-page .profile-grid ion-label,
+.portal-page .filter ion-label {
+  color: #000 !important;
+  font-size: var(--fs-12) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* ---------- Notifications ----------
+   Admin's bell dropdown is the reference. Staff used a .82rem heading,
+   grey #52627b message text, weight 600 on read titles and a separate
+   small grey time stamp; the Customer toast used .78rem titles and a
+   .64rem grey time. All three now share the Admin text styles:
+     heading 13px bold ink, action links 11px bold blue,
+     title 13px bold, message and time 12px regular black. */
+.admin-page .notification-dropdown,
+.admin-page .notification-dropdown button,
+.admin-page .notification-dropdown strong,
+.admin-page .notification-dropdown small,
+.admin-page .notification-dropdown p,
+.staff-page .staff-notification-dropdown,
+.staff-page .staff-notification-dropdown button,
+.staff-page .staff-notification-dropdown strong,
+.staff-page .staff-notification-dropdown small,
+.staff-page .staff-notification-dropdown time,
+.staff-page .staff-notification-dropdown p,
+.portal-page .portal-notification-dropdown,
+.portal-page .portal-notification-dropdown button,
+.portal-page .portal-notification-dropdown strong,
+.portal-page .portal-notification-dropdown small,
+.portal-page .portal-notification-dropdown p,
+.portal-page .portal-toast,
+.portal-page .portal-toast strong,
+.portal-page .portal-toast small,
+.portal-page .portal-toast em {
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+}
+
+/* Dropdown heading */
+.admin-page .notification-dropdown .admin-dropdown-head strong,
+.staff-page .staff-notification-dropdown .staff-dropdown-head strong,
+.portal-page .portal-notification-dropdown .portal-dropdown-head strong {
+  color: #061028 !important;
+  font-size: var(--fs-13) !important;
+  font-weight: 700 !important;
+}
+
+/* "Mark all read" and "View all" links */
+.admin-page .notification-dropdown .admin-dropdown-head button,
+.staff-page .staff-notification-dropdown .staff-dropdown-head button:not(:disabled),
+.staff-page .staff-notification-dropdown .staff-notification-all,
+.portal-page .portal-notification-dropdown .portal-dropdown-head button {
+  color: #1d4ed8 !important;
+  font-size: var(--fs-11) !important;
+  font-weight: 700 !important;
+}
+
+/* Notification title, read or unread */
+.admin-page .notification-dropdown .notification-item strong,
+.staff-page .staff-notification-dropdown .staff-notification-item strong,
+.portal-page .portal-notification-dropdown .portal-notification-item strong,
+.portal-page .portal-toast .portal-toast-copy strong {
+  color: #061028 !important;
+  font-size: var(--fs-13) !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+}
+
+/* Message, time stamp and empty state */
+.admin-page .notification-dropdown .notification-item small,
+.admin-page .notification-dropdown .notification-empty,
+.staff-page .staff-notification-dropdown .staff-notification-item small,
+.staff-page .staff-notification-dropdown .staff-notification-item time,
+.staff-page .staff-notification-dropdown .staff-notification-empty,
+.portal-page .portal-notification-dropdown .portal-notification-item small,
+.portal-page .portal-notification-dropdown .portal-notification-empty,
+.portal-page .portal-toast .portal-toast-copy small,
+.portal-page .portal-toast .portal-toast-copy em {
+  color: #000 !important;
+  font-size: var(--fs-12) !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+}
+
+/* ---------- Page titles ---------- */
+.admin-page .admin-content h2,
+.staff-page .staff-content h2,
+.portal-page .portal-content h2,
+.portal-page .portal-intro h2 {
+  font-size: clamp(var(--fs-24), 3vw, var(--fs-32)) !important;
+  font-weight: 700 !important;
+}
+
+/* ---------- Modal titles ----------
+   Loan detail (Staff), item detail (Customer), account modal (Admin),
+   Add New Customer, and the sign-in and set password forms. */
+.admin-user-modal-head h3,
+.portal-page .item-modal-head h3,
+ion-modal.ldm-modal .ldm-heading h3,
+ion-modal .tx-customer-modal-header h3,
+.staff-page .tx-customer-modal-header h3,
+ion-modal .loan-detail-header h3,
+.staff-page .loan-detail-header h3,
+.auth-modal .modal-title,
+.set-password-title,
+.set-password-body .set-password-title,
+.staff-login-page .staff-login-form h1 {
+  font-size: clamp(var(--fs-20), 3vw, var(--fs-28)) !important;
+  font-weight: 700 !important;
+}
+
+/* ---------- Panel and card titles ---------- */
+.admin-page .admin-content h3,
+.admin-page .admin-panel-head h3,
+.staff-page .staff-panel h3,
+.staff-page .section-title-row h3,
+.staff-page .transaction-step-heading h3,
+.staff-page .tx-step-panel .form-section h3,
+.portal-page .portal-heading h3,
+.portal-page .portal-panel h3,
+.loan-overview-head h3,
+.gold-trend-head h3 {
+  font-size: var(--fs-16) !important;
+  font-weight: 700 !important;
+}
+
+/* ---------- Eyebrows ----------
+   The small uppercase line above a page, panel, or modal title,
+   including the portal name in the top bar and the date above the
+   dashboard greeting. */
+.admin-page .admin-heading small,
+.admin-page .admin-intro small,
+.staff-page .staff-title small,
+.staff-page .dash-hero-copy small,
+.portal-page .dashboard-welcome small,
+.admin-page .admin-panel-head small,
+.admin-page .section-heading small,
+.admin-user-modal-head small,
+.staff-page .staff-panel-head small,
+.staff-page .tx-customer-modal-header small,
+.staff-page .tx-review-header small,
+.staff-page .loan-detail-header small,
+ion-modal .tx-customer-modal-header small,
+ion-modal .loan-detail-header small,
+ion-modal.ldm-modal .ldm-heading small,
+.portal-page .portal-heading small,
+.portal-page .portal-kicker,
+.portal-page .portal-topbar small,
+.portal-page .portal-intro small,
+.portal-page .item-modal-head small,
+.portal-page .payment-summary-head small,
+.loan-overview-head small,
+.gold-trend-head small {
+  font-size: var(--fs-10) !important;
+  font-weight: 800 !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase !important;
+}
+
+/* ---------- Table headers ---------- */
+.admin-page .acct-head,
+.admin-page .admin-table-head,
+.admin-page .dashboard-risk-table th,
+.model-table th,
+.risk-table th,
+.staff-page .loans-head,
+.staff-page .loan-table-head,
+.staff-page .dashboard-table-head,
+.staff-page .loan-history-head,
+.staff-page .customer-table-head,
+.staff-page .admin-table-head,
+.staff-page .audit-table-head,
+.staff-page .gold-history-head,
+.staff-page .workflow-table th,
+ion-modal .loan-history-head,
+ion-modal.ldm-modal .ldm-table-head,
+.portal-page .items-table th {
+  font-size: var(--fs-10) !important;
+  font-weight: 800 !important;
+}
+
+/* ---------- Panel header action links ("View all", "Refresh") ---------- */
+.admin-page .admin-panel-head button,
+.staff-page .staff-panel-head button,
+.portal-page .portal-heading button,
+.portal-page .portal-heading a {
+  font-size: var(--fs-11) !important;
+  font-weight: 700 !important;
+}
+
+/* ---------- Sign-in and set password labels ----------
+   Same size, weight, and case as the portal form labels. Colour is
+   left alone because these forms sit on dark backgrounds. */
+.auth-modal .login-label,
+.auth-input-item ion-label,
+.set-password-body .password-label,
+.tx-combobox-label {
+  font-size: var(--fs-12) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}

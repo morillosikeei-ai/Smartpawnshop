@@ -1,0 +1,39 @@
+/* Item value sparkline: label and latest value, a bare line, and the change. */
+.value-sparkline {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 14px 0 0;
+  border-top: 1px solid #dbe2ec;
+}
+
+.value-sparkline.single { grid-template-columns: 1fr; }
+
+.value-sparkline-copy { display: grid; gap: 4px; }
+.value-sparkline-copy span { color: #000; font-size: var(--fs-11); }
+.value-sparkline-copy strong { color: #061028; font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+
+.value-sparkline-line { display: block; width: 100%; height: 32px; overflow: visible; }
+.value-sparkline-line path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.value-sparkline-line.up path { stroke: #16834a; }
+.value-sparkline-line.down path { stroke: #b42318; }
+.value-sparkline-line.flat path { stroke: #1d4ed8; }
+
+.value-sparkline-change {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: var(--fs-11);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.value-sparkline-change.up { background: rgba(22, 131, 74, .1); color: #16834a; }
+.value-sparkline-change.down { background: rgba(180, 35, 24, .09); color: #b42318; }
+.value-sparkline-change.flat { background: #eef2f8; color: #000; }
+
+@media (max-width: 480px) {
+  .value-sparkline { grid-template-columns: 1fr auto; }
+  .value-sparkline-line { grid-column: 1 / -1; grid-row: 2; }
+}
