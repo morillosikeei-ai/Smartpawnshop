@@ -14,7 +14,7 @@
 }
 .staff-page .id-photo-preview small {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-11); font-weight: 700; color: #237b35;
+  font-size: var(--fs-11); font-weight: 700; color: #15803d;
 }
 
 .staff-page .id-photo-filled {
@@ -30,7 +30,7 @@
 .staff-page .id-photo-filled > div { display: grid; gap: 5px; }
 .staff-page .id-photo-filled strong {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-12); font-weight: 800; color: #237b35;
+  font-size: var(--fs-12); font-weight: 800; color: #15803d;
 }
 .staff-page .id-photo-filled button {
   justify-self: start;

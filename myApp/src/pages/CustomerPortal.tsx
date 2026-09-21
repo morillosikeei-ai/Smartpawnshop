@@ -17,6 +17,7 @@ import {
     submitOnlineRenewal,
     type CustomerRequestType,
     updateMe,
+    updateMyPassword,
     NOTIFICATION_TITLES,
     type ApiDashboard,
     type ApiItemDetail,
@@ -319,6 +320,26 @@ const CustomerPortal: React.FC = () => {
 
     useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
 
+    /*
+      An account that was never activated has no password: the shop made it and
+      the customer reached the portal by scanning their pawn ticket. They are
+      asked once, when they arrive, rather than on every screen. Setting the
+      password activates the account, so the question stops being asked.
+    */
+    const passwordPromptShown = useRef(false);
+
+    useEffect(() => {
+        if (!me || me.user.is_activated || passwordPromptShown.current) return;
+
+        passwordPromptShown.current = true;
+        modal.confirm({
+            title: 'Set a password for your account',
+            message: 'You signed in by scanning your pawn ticket. Set a password so you can sign in with your email address from any device.',
+            confirmLabel: 'Set password now',
+            cancelLabel: 'Later',
+        }).then(confirmed => { if (confirmed) go('profile'); });
+    }, [me]);
+
     const dismissToast = () => {
         if (toastTimer.current) clearTimeout(toastTimer.current);
         setToast(null);
@@ -430,7 +451,7 @@ const CustomerPortal: React.FC = () => {
                 // go() clears the open card, so the item is selected after it.
                 if (item) setSelected(item);
             }} />}
-            {view === 'profile' && <Profile me={me} items={items} logout={logout} onOpenHistory={() => go('history')} />}
+            {view === 'profile' && <Profile me={me} logout={logout} onAccountChanged={loadAccount} onFlash={showFlash} />}
         </main>
         <FaqChatbot customerName={me?.user.name} onGoToItems={() => go('items')} />
     </div></IonContent></IonPage>;
@@ -735,6 +756,62 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
 };
 
 /**
+ * A dialog opened from inside the item modal.
+ *
+ * Both actions on an item used to grow the modal they were opened from, which
+ * pushed the record the customer was reading off the screen. Each one now
+ * stands on its own above it, and closing it leaves the item exactly where it
+ * was.
+ *
+ * It mounts on the portal page for the same reason the item modal does: the
+ * shell blurs its backdrop, which makes it the containing block for anything
+ * fixed inside it.
+ */
+const ActionDialog: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => {
+    const anchorRef = useRef<HTMLSpanElement>(null);
+    const closeRef = useRef<HTMLButtonElement>(null);
+    const [host, setHost] = useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        setHost(anchorRef.current?.closest<HTMLElement>('.portal-page') ?? document.body);
+    }, []);
+
+    // The parent passes a fresh onClose each render; a ref keeps the listener
+    // and the initial focus from being reset on every re-render.
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
+    useEffect(() => {
+        if (!host) return;
+        closeRef.current?.focus();
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            // The item modal listens for Escape too, and only the dialog on
+            // top should answer it.
+            event.stopPropagation();
+            onCloseRef.current();
+        };
+        document.addEventListener('keydown', onKey, true);
+        return () => document.removeEventListener('keydown', onKey, true);
+    }, [host]);
+
+    const dialog = <div className="action-dialog-backdrop" onClick={onClose}>
+        <div className="action-dialog" role="dialog" aria-modal="true" aria-label={title} onClick={event => event.stopPropagation()}>
+            <header className="action-dialog-head">
+                <h4>{title}</h4>
+                <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close ${title}`}><IonIcon icon={closeOutline} /></button>
+            </header>
+            <div className="action-dialog-body">{children}</div>
+        </div>
+    </div>;
+
+    return <>
+        <span ref={anchorRef} hidden />
+        {host && createPortal(dialog, host)}
+    </>;
+};
+
+/**
  * The code the customer shows at the counter.
  *
  * A ticket number is long and a name is not proof of anything. Four digits are
@@ -744,6 +821,7 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
  * that is still good.
  */
 const PickupCodePanel: React.FC<{ transactionId: number; onFlash: (message: string) => void }> = ({ transactionId, onFlash }) => {
+    const [open, setOpen] = useState(false);
     const [code, setCode] = useState<ApiPickupCode | null>(null);
     const [loading, setLoading] = useState(true);
     const [working, setWorking] = useState(false);
@@ -790,21 +868,30 @@ const PickupCodePanel: React.FC<{ transactionId: number; onFlash: (message: stri
     if (loading) return null;
 
     return <div className="pickup-code">
-        {live
-            ? <div className="pickup-code-live">
-                <span>Your pickup code</span>
-                <strong className="pickup-code-digits">{code?.pickup_code}</strong>
-                <small>Show this code to staff at the shop. Valid for {code?.valid_hours} hours.</small>
-                <em>{minutesLeft > 60 ? `Expires in ${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m` : `Expires in ${minutesLeft} min`}</em>
-                <button type="button" onClick={generate} disabled={working} aria-busy={working}>
-                    {working && <Spinner />}{working ? 'Making a new code' : 'Make a new code'}
-                </button>
-            </div>
-            : <button type="button" className="pickup-code-button" onClick={generate} disabled={working} aria-busy={working}>
-                {working ? <Spinner /> : <IonIcon icon={keyOutline} aria-hidden="true" />}
-                {working ? 'Generating' : 'Generate Pickup Code'}
-            </button>}
-        {error && <p className="pickup-code-error">{error}</p>}
+        <button type="button" className="pickup-code-button" onClick={() => setOpen(true)}>
+            <IonIcon icon={keyOutline} aria-hidden="true" />
+            {live ? 'Your Pickup Code' : 'Generate Pickup Code'}
+        </button>
+
+        {open && <ActionDialog title="Pickup Code" onClose={() => setOpen(false)}>
+            {live
+                ? <div className="pickup-code-live">
+                    <span>Your pickup code</span>
+                    <strong className="pickup-code-digits">{code?.pickup_code}</strong>
+                    <small>Show this code to staff at the shop. Valid for {code?.valid_hours} hours.</small>
+                    <em>{minutesLeft > 60 ? `Expires in ${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m` : `Expires in ${minutesLeft} min`}</em>
+                    <button type="button" onClick={generate} disabled={working} aria-busy={working}>
+                        {working && <Spinner />}{working ? 'Making a new code' : 'Make a new code'}
+                    </button>
+                </div>
+                : <>
+                    <p className="pickup-code-lead">Staff read this out instead of your ticket number. It lasts {code?.valid_hours ?? 2} hours and stops working once your pawn is paid.</p>
+                    <button type="button" className="pickup-code-generate" onClick={generate} disabled={working} aria-busy={working}>
+                        {working && <Spinner />}{working ? 'Generating' : 'Generate Pickup Code'}
+                    </button>
+                </>}
+            {error && <p className="pickup-code-error">{error}</p>}
+        </ActionDialog>}
     </div>;
 };
 
@@ -910,21 +997,13 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
         }
     };
 
-    if (!open) {
-        return <div className="renew-online">
-            <button type="button" className="renew-online-open" onClick={() => setOpen(true)}>
-                <IonIcon icon={refreshOutline} aria-hidden="true" />
-                Renew Online
-            </button>
-        </div>;
-    }
+    return <div className="renew-online">
+        <button type="button" className="renew-online-open" onClick={() => setOpen(true)}>
+            <IonIcon icon={refreshOutline} aria-hidden="true" />
+            Renew Online
+        </button>
 
-    return <section className="renew-online is-open" aria-label={`Renew ${itemName} online`}>
-        <header className="renew-online-head">
-            <h4>Renew Online</h4>
-            <button type="button" className="renew-online-close" onClick={() => setOpen(false)} aria-label="Close renewal panel"><IonIcon icon={closeOutline} /></button>
-        </header>
-
+        {open && <ActionDialog title="Renew Online" onClose={() => setOpen(false)}>
         {loading && <p className="renew-online-note">Loading your renewal details...</p>}
 
         {info && !info.renewable && <p className="renew-online-note">This pawn can no longer be renewed online. Please contact the shop.</p>}
@@ -1011,7 +1090,8 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
         </>}
 
         {error && <p className="renew-online-error">{error}</p>}
-    </section>;
+        </ActionDialog>}
+    </div>;
 };
 
 const Payments: React.FC<{ active: Item[]; go: (view: View) => void; loaded: boolean; onFlash: (message: string) => void }> = ({ active, go, loaded, onFlash }) => {
@@ -1187,13 +1267,20 @@ const LoanCard: React.FC<{ item: Item; onClick: () => void }> = ({ item, onClick
 };
 
 
-const Profile: React.FC<{ me: ApiMe | null; items: Item[]; logout: () => void; onOpenHistory: () => void }> = ({ me, items, logout, onOpenHistory }) => {
+const Profile: React.FC<{ me: ApiMe | null; logout: () => void; onAccountChanged: () => void; onFlash: (message: string) => void }> = ({ me, logout, onAccountChanged, onFlash }) => {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // An account that was never activated has no password to state. That is
+    // every customer who reached the portal by scanning their pawn ticket.
+    const isFirstPassword = me !== null && !me.user.is_activated;
 
     // Fill the form once the account has loaded, and again if it reloads.
     useEffect(() => {
@@ -1203,11 +1290,53 @@ const Profile: React.FC<{ me: ApiMe | null; items: Item[]; logout: () => void; o
         setAddress(me.customer?.address || '');
     }, [me]);
 
+    const edit = (apply: () => void) => {
+        apply();
+        setSaved(false);
+        setError('');
+    };
+
+    /**
+     * Save the details, and the password with them when one was typed.
+     *
+     * The password fields are part of this form rather than a card of their
+     * own, so leaving them empty simply means the password is not being
+     * changed today.
+     */
     const save = async () => {
+        const wantsPassword = password !== '' || confirmPassword !== '';
+
+        if (wantsPassword) {
+            if (password.length < 8) {
+                setError('Use at least 8 characters for your new password.');
+                return;
+            }
+            if (password !== confirmPassword) {
+                setError('The two passwords do not match.');
+                return;
+            }
+        }
+
         setError('');
         setSaving(true);
         try {
             await updateMe({ name: name.trim(), contact_number: phone.trim(), address: address.trim() });
+
+            if (wantsPassword) {
+                await updateMyPassword({
+                    current_password: isFirstPassword ? undefined : currentPassword,
+                    password,
+                    password_confirmation: confirmPassword,
+                });
+                setCurrentPassword('');
+                setPassword('');
+                setConfirmPassword('');
+                onAccountChanged();
+                onFlash(isFirstPassword
+                    ? 'Your password is set. You can now sign in with your email address and password.'
+                    : 'Your password has been changed. Any other device you were signed in on has been signed out.');
+            }
+
             setSaved(true);
         } catch (requestError) {
             setError(requestError instanceof Error ? requestError.message : 'Unable to save your profile.');
@@ -1216,26 +1345,33 @@ const Profile: React.FC<{ me: ApiMe | null; items: Item[]; logout: () => void; o
         }
     };
 
-    // The latest few tickets; the History page has the full record.
-    const history = items.filter(item => item.ticketNumber !== '-').slice(0, 4);
-
     return <section className="portal-content">
         <div className="portal-intro"><div><small>YOUR ACCOUNT</small><h2>Profile</h2><p>Manage your information, account settings, and access.</p></div></div>
         <div className="profile-grid">
             <Panel title="Personal information">
-                <IonItem lines="none"><IonLabel position="stacked">FULL NAME</IonLabel><IonInput value={name} onIonInput={event => { setName(event.detail.value || ''); setSaved(false); }} /></IonItem>
+                <IonItem lines="none"><IonLabel position="stacked">FULL NAME</IonLabel><IonInput value={name} onIonInput={event => edit(() => setName(event.detail.value || ''))} /></IonItem>
                 <IonItem lines="none"><IonLabel position="stacked">EMAIL ADDRESS</IonLabel><IonInput value={me?.user.email || ''} readonly /></IonItem>
-                <IonItem lines="none"><IonLabel position="stacked">CONTACT NUMBER</IonLabel><IonInput value={phone} onIonInput={event => { setPhone(event.detail.value || ''); setSaved(false); }} /></IonItem>
-                <IonItem lines="none"><IonLabel position="stacked">ADDRESS</IonLabel><IonInput value={address} onIonInput={event => { setAddress(event.detail.value || ''); setSaved(false); }} /></IonItem>
+                <IonItem lines="none"><IonLabel position="stacked">CONTACT NUMBER</IonLabel><IonInput value={phone} onIonInput={event => edit(() => setPhone(event.detail.value || ''))} /></IonItem>
+                <IonItem lines="none"><IonLabel position="stacked">ADDRESS</IonLabel><IonInput value={address} onIonInput={event => edit(() => setAddress(event.detail.value || ''))} /></IonItem>
+
+                {/* The banner on every other screen already explains why a
+                    QR customer is being asked for one, so this says nothing
+                    to them and speaks only to a change. */}
+                {!isFirstPassword && (
+                    <p className="password-lead">Leave these empty unless you are changing your password. Changing it signs out every other device.</p>
+                )}
+                {/* Somebody who already has a password states it; somebody who
+                    has never had one has nothing to state. */}
+                {!isFirstPassword && (
+                    <IonItem lines="none"><IonLabel position="stacked">CURRENT PASSWORD</IonLabel><IonInput type="password" value={currentPassword} onIonInput={event => edit(() => setCurrentPassword(event.detail.value || ''))} /></IonItem>
+                )}
+                <IonItem lines="none"><IonLabel position="stacked">NEW PASSWORD</IonLabel><IonInput type="password" value={password} onIonInput={event => edit(() => setPassword(event.detail.value || ''))} /></IonItem>
+                <IonItem lines="none"><IonLabel position="stacked">CONFIRM NEW PASSWORD</IonLabel><IonInput type="password" value={confirmPassword} onIonInput={event => edit(() => setConfirmPassword(event.detail.value || ''))} /></IonItem>
+
                 <IonButton onClick={save} disabled={saving || !me} aria-busy={saving}>{saving && <Spinner />}{saving ? 'Saving' : 'Save changes'}</IonButton>
                 {saved && <small className="saved">Changes saved successfully.</small>}
                 {error && <small className="portal-load-error">{error}</small>}
                 <IonButton className="profile-logout" fill="outline" color="danger" onClick={logout}><IonIcon icon={logOutOutline} slot="start" />Log out</IonButton>
-            </Panel>
-            <Panel title="Pawn Transaction history">
-                {history.map(item => <div className="history" key={item.id}><span>{item.status} · {item.name}</span><strong>{item.loan}</strong><small>{item.pawned}</small></div>)}
-                {history.length === 0 && <p className="notice-empty">No pawn transactions on record yet.</p>}
-                <IonButton fill="outline" onClick={onOpenHistory}><IonIcon icon={receiptOutline} slot="start" />View full history</IonButton>
             </Panel>
         </div>
     </section>;

@@ -90,8 +90,8 @@
 }
 .admin-page .acct-role.staff, .admin-user-modal .acct-role.staff { background: #eef4fd; color: #33578c; }
 .admin-page .acct-role.customer, .admin-user-modal .acct-role.customer { background: #f3f0fb; color: #5b4a97; }
-.admin-page .acct-role.admin, .admin-user-modal .acct-role.admin { background: #fff8df; color: #8a6a12; }
-.admin-page .acct-status.active, .admin-user-modal .acct-status.active { background: #e8f5e9; color: #237b35; }
+.admin-page .acct-role.admin, .admin-user-modal .acct-role.admin { background: #fffbeb; color: #8a6a12; }
+.admin-page .acct-status.active, .admin-user-modal .acct-status.active { background: #ecfdf3; color: #15803d; }
 .admin-page .acct-status.inactive, .admin-user-modal .acct-status.inactive { background: #f1f5f9; color: #7c8798; }
 
 /* Row action */

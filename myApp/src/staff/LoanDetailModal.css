@@ -129,12 +129,12 @@ ion-modal.ldm-modal .ldm-badge::before {
   background: currentColor;
 }
 ion-modal.ldm-modal .ldm-badge.status-active { background: #e8f0ff; border-color: #c7d8fb; color: #1d4ed8; }
-ion-modal.ldm-modal .ldm-badge.status-overdue { background: #fff0ee; border-color: #f6cfc9; color: #b34e42; }
-ion-modal.ldm-modal .ldm-badge.status-redeemed { background: #e8f5e9; border-color: #c6e6ca; color: #237b35; }
+ion-modal.ldm-modal .ldm-badge.status-overdue { background: #fef3f2; border-color: #f6cfc9; color: #b42318; }
+ion-modal.ldm-modal .ldm-badge.status-redeemed { background: #ecfdf3; border-color: #c6e6ca; color: #15803d; }
 ion-modal.ldm-modal .ldm-badge.status-forfeited { background: #eef1f5; border-color: #d7dde6; color: #52627b; }
-ion-modal.ldm-modal .ldm-badge.risk-low { background: #e8f5e9; border-color: #c6e6ca; color: #237b35; }
-ion-modal.ldm-modal .ldm-badge.risk-medium { background: #fff8df; border-color: #f1df9f; color: #957000; }
-ion-modal.ldm-modal .ldm-badge.risk-high { background: #fff0ee; border-color: #f6cfc9; color: #b34e42; }
+ion-modal.ldm-modal .ldm-badge.risk-low { background: #ecfdf3; border-color: #c6e6ca; color: #15803d; }
+ion-modal.ldm-modal .ldm-badge.risk-medium { background: #fffbeb; border-color: #f1df9f; color: #a16207; }
+ion-modal.ldm-modal .ldm-badge.risk-high { background: #fef3f2; border-color: #f6cfc9; color: #b42318; }
 
 /* ---- Key figures ---- */
 ion-modal.ldm-modal .ldm-stats {
@@ -312,8 +312,8 @@ ion-modal.ldm-modal .ldm-value em {
   font-style: normal;
   font-weight: 700;
 }
-ion-modal.ldm-modal .ldm-value em.up { color: #237b35; }
-ion-modal.ldm-modal .ldm-value em.down { color: #b34e42; }
+ion-modal.ldm-modal .ldm-value em.up { color: #15803d; }
+ion-modal.ldm-modal .ldm-value em.down { color: #b42318; }
 
 ion-modal.ldm-modal .ldm-empty {
   display: flex;
@@ -418,7 +418,7 @@ ion-modal.ldm-modal .ldm-renewals .ldm-table-row {
 }
 ion-modal.ldm-modal .ldm-renewal-status { font-style: normal; font-weight: 700; }
 ion-modal.ldm-modal .ldm-renewal-status.is-confirmed { color: #2f7d55; }
-ion-modal.ldm-modal .ldm-renewal-status.is-rejected { color: #b34e42; }
+ion-modal.ldm-modal .ldm-renewal-status.is-rejected { color: #b42318; }
 ion-modal.ldm-modal .ldm-renewal-status.is-pending { color: #8a6400; }
 
 /* Link to the receipt attached to a renewal. */

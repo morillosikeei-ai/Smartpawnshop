@@ -12,9 +12,38 @@
    several of which already carry !important.
 
    Reference values come from AdminPortal.css + AdminPolish.css:
-     ink #061028   blue #1d4ed8   gold #d4a72c   muted #000 (black for readability)
+     ink #061028   blue #1d4ed8   gold #d4a72c   muted #64748b
      line #e6ebf3  page #edf3f5   panel radius 16 / stat 15
    ============================================================ */
+
+:root {
+  /* Neutral ramp. Every grey in the three portals was picked by hand, so the
+     same idea (a label, a hint, a hairline) came out a different colour on
+     each screen. These are the greys to reach for. */
+  --pui-n-900: #0b1220;
+  --pui-n-700: #334155;
+  --pui-n-500: #64748b;
+  --pui-n-300: #cbd5e1;
+  --pui-n-200: #e2e8f0;
+  --pui-n-100: #f1f5f9;
+  --pui-n-50: #f8fafc;
+
+  /* Status, named once. The portals already use these three ideas; this stops
+     the next badge inventing a fourth red. */
+  --pui-success: #15803d;
+  --pui-success-bg: #ecfdf3;
+  --pui-warning: #a16207;
+  --pui-warning-bg: #fffbeb;
+  --pui-danger: #b42318;
+  --pui-danger-bg: #fef3f2;
+
+  /* Gold is the money colour: pawn amounts, renta, gold price, valuations.
+     Blue is what you press. Keeping them apart is what stops two strong
+     accents cancelling each other out. */
+  --pui-gold-deep: #8a6100;
+  --pui-gold-bg: #fff9e6;
+
+}
 
 .staff-page,
 .portal-page {
@@ -22,7 +51,7 @@
   --pui-blue: #1d4ed8;
   --pui-gold: #d4a72c;
   --pui-gold-bright: #f5c842;
-  --pui-muted: #000;
+  --pui-muted: #64748b;
   --pui-line: #e6ebf3;
   --pui-page: #edf3f5;
   --pui-panel-radius: 16px;

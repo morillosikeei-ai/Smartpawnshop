@@ -30,15 +30,15 @@
 .staff-page .dash-stats .staff-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(6, 16, 40, .09); border-color: #cbd5e1; }
 .staff-page .dash-stats .staff-stat strong { font-variant-numeric: tabular-nums; }
 .staff-page .dash-stats .staff-stat.danger { border-color: #f0c3bb; background: #fff7f5; }
-.staff-page .dash-stats .staff-stat.danger ion-icon { color: #b34e42; }
-.staff-page .dash-stats .staff-stat.danger strong { color: #b34e42; }
+.staff-page .dash-stats .staff-stat.danger ion-icon { color: #b42318; }
+.staff-page .dash-stats .staff-stat.danger strong { color: #b42318; }
 
 /* Gold price widget */
 .staff-page .dash-gold { border: 1px solid var(--dash-line); border-radius: 16px; background: linear-gradient(135deg, #fffdf6, #fff8e6); }
 .staff-page .dash-gold .widget-label { font-size: var(--fs-10); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--dash-muted); }
 .staff-page .dash-gold .gold-price-line strong { font-variant-numeric: tabular-nums; color: var(--dash-ink); }
-.staff-page .dash-gold .price-trend.up { color: #237b35; }
-.staff-page .dash-gold .price-trend.down { color: #b34e42; }
+.staff-page .dash-gold .price-trend.up { color: #15803d; }
+.staff-page .dash-gold .price-trend.down { color: #b42318; }
 .staff-page .dash-gold .sparkline { display: flex; align-items: flex-end; gap: 5px; height: 54px; margin-top: 12px; }
 .staff-page .dash-gold .sparkline span {
   flex: 1; min-width: 6px; border-radius: 5px 5px 2px 2px;
@@ -53,10 +53,10 @@
   padding: 5px 8px; border-radius: 999px;
   font-size: var(--fs-10); font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums;
 }
-.staff-page .due-pill.ok { background: #e8f5e9; color: #237b35; }
+.staff-page .due-pill.ok { background: #ecfdf3; color: #15803d; }
 .staff-page .due-pill.soon { background: #eef4fd; color: #33578c; }
-.staff-page .due-pill.urgent { background: #fff8df; color: #957000; }
-.staff-page .due-pill.overdue { background: #fff0ee; color: #b34e42; }
+.staff-page .due-pill.urgent { background: #fffbeb; color: #a16207; }
+.staff-page .due-pill.overdue { background: #fef3f2; color: #b42318; }
 
 @media (max-width: 900px) {
   .staff-page .dash-hero { padding: 18px; }

@@ -14,7 +14,7 @@
   background: var(--trend-wash);
 }
 
-.trend-suggestion.up { --trend-tone: #237b35; --trend-wash: #f1f9f2; }
+.trend-suggestion.up { --trend-tone: #15803d; --trend-wash: #f1f9f2; }
 .trend-suggestion.down { --trend-tone: #b3641f; --trend-wash: #fdf6ee; }
 .trend-suggestion.stable { --trend-tone: #476083; --trend-wash: #f2f6fb; }
 

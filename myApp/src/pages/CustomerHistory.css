@@ -39,19 +39,19 @@
 .portal-page .ch-row:focus-visible { outline: 2px solid #d4a72c; outline-offset: -2px; }
 
 .portal-page .ch-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ch-pill); color: var(--ch-muted); font-size: 1rem; }
-.portal-page .ch-row.paid .ch-icon { background: #e8f5e9; color: #237b35; }
-.portal-page .ch-row.expired .ch-icon { background: #fff0ee; color: #b34e42; }
+.portal-page .ch-row.paid .ch-icon { background: #ecfdf3; color: #15803d; }
+.portal-page .ch-row.expired .ch-icon { background: #fef3f2; color: #b42318; }
 /* Renewal: gold, the same as the pawn amount reads everywhere else. A rejected
    one takes the expired red, because nothing was extended. */
 .portal-page .ch-row.renewed .ch-icon,
 .portal-page .ch-row.renewal_sent .ch-icon { background: #fff9e6; color: #8a6100; }
-.portal-page .ch-row.renewal_rejected .ch-icon { background: #fff0ee; color: #b34e42; }
+.portal-page .ch-row.renewal_rejected .ch-icon { background: #fef3f2; color: #b42318; }
 
 .portal-page .ch-text { display: grid; gap: 2px; min-width: 0; }
 .portal-page .ch-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); }
 .portal-page .ch-text small { color: var(--ch-muted); font-size: var(--fs-11); }
 .portal-page .ch-amount { font-size: var(--fs-13); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.portal-page .ch-row.paid .ch-amount { color: #237b35; }
+.portal-page .ch-row.paid .ch-amount { color: #15803d; }
 .portal-page .ch-row.renewed .ch-amount { color: #8a6100; }
 
 @media (max-width: 560px) {

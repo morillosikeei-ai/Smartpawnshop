@@ -77,7 +77,7 @@
 	font-size: var(--fs-11);
 }
 
-.gold-price-headline .chip.danger { background: #fdeeec; color: #b34e42; }
+.gold-price-headline .chip.danger { background: #fdeeec; color: #b42318; }
 .gold-price-headline .chip.neutral { background: var(--admin-soft); color: var(--admin-muted); }
 
 .gold-figure-grid {
@@ -142,7 +142,7 @@
 }
 
 .gold-forecast-value em.up { background: #eafaf0; color: #1a8d59; }
-.gold-forecast-value em.down { background: #fdeeec; color: #b34e42; }
+.gold-forecast-value em.down { background: #fdeeec; color: #b42318; }
 .gold-forecast-value em.flat { background: var(--admin-soft); color: var(--admin-muted); }
 
 .gold-forecast-basis {
@@ -180,7 +180,7 @@
 
 .gold-confidence-track i.high { background: #1a8d59; }
 .gold-confidence-track i.moderate { background: var(--admin-gold); }
-.gold-confidence-track i.low { background: #b34e42; }
+.gold-confidence-track i.low { background: #b42318; }
 
 .gold-forecast-note {
 	display: flex;
@@ -229,7 +229,7 @@
 .gold-alert-list li.ok { --alert-tone: #1a8d59; }
 .gold-alert-list li.info { --alert-tone: var(--admin-blue); }
 .gold-alert-list li.warn { --alert-tone: var(--admin-gold); }
-.gold-alert-list li.danger { --alert-tone: #b34e42; }
+.gold-alert-list li.danger { --alert-tone: #b42318; }
 
 .gold-alert-dot {
 	flex: none;

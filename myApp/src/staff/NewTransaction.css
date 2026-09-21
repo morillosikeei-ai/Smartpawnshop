@@ -27,7 +27,7 @@
 .staff-page .tx-steps li.done { border-color: #bfe3c8; background: #f4fbf6; }
 .staff-page .tx-step-node { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #eef2f7; color: var(--tx-muted); font-size: var(--fs-12); font-weight: 800; }
 .staff-page .tx-steps li.active .tx-step-node { background: linear-gradient(135deg, var(--tx-gold), var(--tx-gold-bright)); color: var(--tx-ink); }
-.staff-page .tx-steps li.done .tx-step-node { background: #237b35; color: #fff; }
+.staff-page .tx-steps li.done .tx-step-node { background: #15803d; color: #fff; }
 .staff-page .tx-step-text strong { display: block; font-size: var(--fs-12); color: var(--tx-ink); }
 .staff-page .tx-step-text small { display: block; font-size: var(--fs-10); color: var(--tx-muted); }
 
@@ -49,7 +49,7 @@
 .staff-page .tx-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); z-index: 2; color: var(--tx-muted); font-size: 1rem; pointer-events: none; }
 .staff-page .tx-search ion-input { --padding-start: 38px; }
 .staff-page .tx-selected-chip { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 14px; border: 1px solid #bfe3c8; border-radius: 12px; background: #f4fbf6; }
-.staff-page .tx-selected-chip ion-icon { font-size: 1.25rem; color: #237b35; }
+.staff-page .tx-selected-chip ion-icon { font-size: 1.25rem; color: #15803d; }
 .staff-page .tx-selected-chip strong { display: block; font-size: var(--fs-13); color: var(--tx-ink); }
 .staff-page .tx-selected-chip small { display: block; font-size: var(--fs-11); color: var(--tx-muted); }
 
@@ -168,7 +168,7 @@
   box-shadow: 0 18px 44px rgba(6, 16, 40, .12);
 }
 .staff-page .tx-success-mark { display: inline-grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #f1f9f3; border: 1px solid #bfe3c8; }
-.staff-page .tx-success-mark ion-icon { font-size: 2.1rem; color: #237b35; }
+.staff-page .tx-success-mark ion-icon { font-size: 2.1rem; color: #15803d; }
 .staff-page .tx-success h2 { margin: 14px 0 4px; font-size: var(--fs-22); color: var(--tx-ink); }
 .staff-page .tx-success > p { margin: 0; font-size: var(--fs-13); color: var(--tx-muted); }
 

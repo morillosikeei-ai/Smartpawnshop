@@ -1,0 +1,237 @@
+/* ---------- Glass surfaces ----------
+   One translucent card treatment across the three portals.
+
+   The Staff portal already had it; this brings Customer and Admin to the same
+   thing rather than leaving each portal with its own idea of a card.
+
+   Glass needs something behind it to be worth having. A flat page colour
+   blurred is the same flat colour, so every shell gets a faint ambient wash
+   first: two large, low contrast colour pools that the cards then blur.
+
+   Loaded after portal-dark.css, because the generated dark rules set solid
+   backgrounds with !important and the dark half of this file has to beat them.
+
+   Modals are left solid on purpose. They already float above a blurred
+   backdrop, and glass on glass reads as neither. */
+
+/* ---------- Ambient wash ---------- */
+.portal-page .portal-shell,
+.admin-page .admin-shell,
+.staff-page .staff-shell {
+	position: relative;
+	isolation: isolate;
+}
+
+.portal-page .portal-shell::before,
+.admin-page .admin-shell::before,
+.staff-page .staff-shell::before {
+	content: "";
+	position: fixed;
+	z-index: -1;
+	inset: 0;
+	pointer-events: none;
+	/* The pools sit on a slate base rather than on the flat page colour: a
+	   card can only look lighter than its surroundings if the surroundings
+	   are darker than the card. */
+	background:
+		radial-gradient(60rem 40rem at 82% -10%, rgba(29, 78, 216, .26), transparent 60%),
+		radial-gradient(48rem 34rem at -5% 108%, rgba(212, 167, 44, .3), transparent 62%),
+		linear-gradient(180deg, #e6ecf6 0%, #dbe4f2 100%);
+}
+
+/* ---------- Cards ---------- */
+.portal-page .portal-stat,
+.portal-page .portal-panel,
+.portal-page .portal-list,
+.portal-page .detail-card,
+.portal-page .notice-list,
+.portal-page .items-table-wrap,
+.portal-page .payment-summary,
+.portal-page .payment-action-card,
+.portal-page .payment-loan-card,
+.portal-page .pawn-card,
+.portal-page .transaction-card,
+.portal-page .estimate-card,
+.portal-page .item-value-chart-card,
+.admin-page .dashboard-panel,
+.admin-page .dashboard-widget,
+.admin-page .dashboard-insight-card,
+.admin-page .dashboard-risk-panel,
+.admin-page .dashboard-audit-panel,
+.admin-page .rec-summary-card,
+.admin-page .gold-panel,
+.admin-page .gold-trend-panel,
+.admin-page .gold-forecast-panel,
+.admin-page .gold-alerts-panel,
+.admin-page .market-price-card,
+.staff-page .loan-panel,
+.staff-page .staff-report-tile,
+.staff-page .staff-report-panel,
+.staff-page .tx-step-panel,
+.staff-page .tx-summary-card,
+.staff-page .terms-card,
+.staff-page .appraisal-card,
+.staff-page .workflow-operations-panel,
+.staff-page .value-summary-card,
+.admin-page .admin-stat,
+.admin-page .admin-panel,
+.admin-page .metric,
+.admin-page .mini-panel {
+	border-color: rgba(255, 255, 255, .9);
+	background: rgba(255, 255, 255, .62);
+	/* The inset top edge is the thing that reads as glass rather than as a
+	   translucent rectangle: light catching the lip of the pane. */
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .95),
+		0 14px 34px rgba(8, 20, 48, .12);
+	backdrop-filter: blur(26px) saturate(165%);
+	-webkit-backdrop-filter: blur(26px) saturate(165%);
+}
+
+/* A row inside a glass card draws its own separators, not its own pane. */
+.portal-page .portal-list .item-row,
+.portal-page .notice-list .notice {
+	background: transparent;
+}
+
+.portal-page .portal-list .item-row:hover {
+	background: rgba(255, 255, 255, .55);
+}
+
+/*
+  The payment total is a filled gradient panel rather than a pane of glass, so
+  it keeps its own surface and only gains the depth.
+*/
+.portal-page .payment-total,
+.portal-page .payment-summary-head {
+	box-shadow: 0 12px 30px rgba(8, 20, 48, .12);
+}
+
+/* ---------- Dark ---------- */
+html[data-theme="dark"] .portal-page .portal-shell::before,
+html[data-theme="dark"] .admin-page .admin-shell::before,
+html[data-theme="dark"] .staff-page .staff-shell::before {
+	background:
+		radial-gradient(60rem 40rem at 82% -10%, rgba(80, 130, 255, .28), transparent 60%),
+		radial-gradient(48rem 34rem at -5% 108%, rgba(212, 167, 44, .16), transparent 62%),
+		linear-gradient(180deg, #0d1424 0%, #080d18 100%);
+}
+
+html[data-theme="dark"] .portal-page .portal-stat,
+html[data-theme="dark"] .portal-page .portal-panel,
+html[data-theme="dark"] .portal-page .portal-list,
+html[data-theme="dark"] .portal-page .detail-card,
+html[data-theme="dark"] .portal-page .notice-list,
+html[data-theme="dark"] .portal-page .items-table-wrap,
+html[data-theme="dark"] .portal-page .payment-summary,
+html[data-theme="dark"] .portal-page .payment-action-card,
+html[data-theme="dark"] .portal-page .payment-loan-card,
+html[data-theme="dark"] .admin-page .admin-stat,
+html[data-theme="dark"] .admin-page .admin-panel,
+html[data-theme="dark"] .admin-page .metric,
+html[data-theme="dark"] .admin-page .mini-panel,
+html[data-theme="dark"] .portal-page .pawn-card,
+html[data-theme="dark"] .portal-page .transaction-card,
+html[data-theme="dark"] .portal-page .estimate-card,
+html[data-theme="dark"] .portal-page .item-value-chart-card,
+html[data-theme="dark"] .admin-page .dashboard-panel,
+html[data-theme="dark"] .admin-page .dashboard-widget,
+html[data-theme="dark"] .admin-page .dashboard-insight-card,
+html[data-theme="dark"] .admin-page .dashboard-risk-panel,
+html[data-theme="dark"] .admin-page .dashboard-audit-panel,
+html[data-theme="dark"] .admin-page .rec-summary-card,
+html[data-theme="dark"] .admin-page .gold-panel,
+html[data-theme="dark"] .admin-page .gold-trend-panel,
+html[data-theme="dark"] .admin-page .gold-forecast-panel,
+html[data-theme="dark"] .admin-page .gold-alerts-panel,
+html[data-theme="dark"] .admin-page .market-price-card,
+html[data-theme="dark"] .staff-page .loan-panel,
+html[data-theme="dark"] .staff-page .staff-report-tile,
+html[data-theme="dark"] .staff-page .staff-report-panel,
+html[data-theme="dark"] .staff-page .tx-step-panel,
+html[data-theme="dark"] .staff-page .tx-summary-card,
+html[data-theme="dark"] .staff-page .terms-card,
+html[data-theme="dark"] .staff-page .appraisal-card,
+html[data-theme="dark"] .staff-page .workflow-operations-panel,
+html[data-theme="dark"] .staff-page .value-summary-card,
+html[data-theme="dark"] .staff-page .staff-stat,
+html[data-theme="dark"] .staff-page .staff-panel,
+html[data-theme="dark"] .staff-page .loans-table,
+html[data-theme="dark"] .staff-page .risk-card,
+html[data-theme="dark"] .staff-page .customer-table {
+	border-color: rgba(120, 140, 185, .3) !important;
+	background: rgba(19, 28, 46, .58) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .06),
+		0 14px 34px rgba(0, 0, 0, .38) !important;
+	backdrop-filter: blur(26px) saturate(165%);
+	-webkit-backdrop-filter: blur(26px) saturate(165%);
+}
+
+html[data-theme="dark"] .portal-page .portal-list .item-row,
+html[data-theme="dark"] .portal-page .notice-list .notice {
+	background: transparent !important;
+}
+
+html[data-theme="dark"] .portal-page .portal-list .item-row:hover {
+	background: rgba(255, 255, 255, .04) !important;
+}
+
+/*
+  A phone that cannot blur gets the same layout in flat colour rather than a
+  card that has quietly turned see through.
+*/
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+	.portal-page .portal-stat,
+	.portal-page .portal-panel,
+	.portal-page .portal-list,
+	.portal-page .detail-card,
+	.portal-page .notice-list,
+	.portal-page .items-table-wrap,
+	.portal-page .payment-summary,
+	.portal-page .payment-action-card,
+	.portal-page .payment-loan-card,
+.portal-page .pawn-card,
+.portal-page .transaction-card,
+.portal-page .estimate-card,
+.portal-page .item-value-chart-card,
+.admin-page .dashboard-panel,
+.admin-page .dashboard-widget,
+.admin-page .dashboard-insight-card,
+.admin-page .dashboard-risk-panel,
+.admin-page .dashboard-audit-panel,
+.admin-page .rec-summary-card,
+.admin-page .gold-panel,
+.admin-page .gold-trend-panel,
+.admin-page .gold-forecast-panel,
+.admin-page .gold-alerts-panel,
+.admin-page .market-price-card,
+.staff-page .loan-panel,
+.staff-page .staff-report-tile,
+.staff-page .staff-report-panel,
+.staff-page .tx-step-panel,
+.staff-page .tx-summary-card,
+.staff-page .terms-card,
+.staff-page .appraisal-card,
+.staff-page .workflow-operations-panel,
+.staff-page .value-summary-card,
+	.admin-page .admin-stat,
+	.admin-page .admin-panel,
+	.admin-page .metric,
+	.admin-page .mini-panel {
+		background: #ffffff;
+	}
+
+	html[data-theme="dark"] .portal-page .portal-stat,
+	html[data-theme="dark"] .portal-page .portal-panel,
+	html[data-theme="dark"] .portal-page .portal-list,
+	html[data-theme="dark"] .portal-page .detail-card,
+	html[data-theme="dark"] .portal-page .notice-list,
+	html[data-theme="dark"] .portal-page .items-table-wrap,
+	html[data-theme="dark"] .admin-page .admin-stat,
+	html[data-theme="dark"] .admin-page .admin-panel,
+	html[data-theme="dark"] .admin-page .metric,
+	html[data-theme="dark"] .admin-page .mini-panel {
+		background: #131c2e !important;
+	}
+}

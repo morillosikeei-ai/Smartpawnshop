@@ -55,6 +55,10 @@ export type ApiTransaction = {
   ready_to_redeem_at: string | null;
   /** When staff accepted that request, if they have. */
   redemption_confirmed_at: string | null;
+  /** The staff member currently taking this payment, while a claim is held. */
+  locked_by?: number | null;
+  locked_at?: string | null;
+  lock_holder?: { users_id: number; name: string } | null;
   /** When a confirmed renewal last settled the renta, if one has. Interest accrues from here. */
   interest_paid_until?: string | null;
   /** Every GCash renewal raised against this pawn, oldest first. Absent from an older API. */
@@ -577,10 +581,44 @@ export async function rejectRenewalRequest(renewalRequestId: number, reason?: st
   });
 }
 
+/** The answer to a claim. A 409 carries the same shape, naming who holds it. */
+export type ApiTransactionLock = {
+  locked: boolean;
+  locked_by_you: boolean;
+  locked_by_name: string | null;
+  message?: string;
+};
+
+/**
+ * Claim a pawn so one staff member can take its payment.
+ *
+ * Rejects with the API's 409 when somebody else is already holding it, so the
+ * caller opens the payment screen only on success.
+ */
+export async function lockTransaction(transactionId: number) {
+  return request<ApiTransactionLock>(`/transactions/${transactionId}/lock`, { method: 'POST' });
+}
+
+/** Give up a claim. Releases only the caller's own. */
+export async function unlockTransaction(transactionId: number) {
+  return request<ApiTransactionLock>(`/transactions/${transactionId}/unlock`, { method: 'POST' });
+}
+
 export async function confirmRedemptionRequest(transactionId: number) { return request<ApiTransaction>(`/transactions/${transactionId}/confirm-redemption`, { method: 'POST' }); }
 export async function getAuditLogs(limit = 50) { return request<ApiAuditLog[]>(`/audit-logs?limit=${limit}`); }
 export async function getMe() { return request<ApiMe>('/me'); }
 export async function updateMe(payload: { name: string; contact_number?: string; address?: string }) { return request<ApiMe>('/me', { method: 'PUT', body: JSON.stringify(payload) }); }
+/**
+ * Set or change your own password.
+ *
+ * current_password is left out by a customer who has never had one: they
+ * reached the portal by scanning their pawn ticket, so there is nothing for
+ * them to state.
+ */
+export async function updateMyPassword(payload: { current_password?: string; password: string; password_confirmation: string }) {
+  return request<ApiMe>('/me/password', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
 export async function getReportSummary() { return request<ApiReportSummary>('/reports/summary'); }
 export async function getModelMetrics() { return request<ApiModelMetrics>('/model-metrics'); }
 

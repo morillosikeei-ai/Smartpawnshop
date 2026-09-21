@@ -54,7 +54,7 @@
 .staff-page .gold-price-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; }
 .staff-page .gold-price-line strong { color: #061028; font-size: var(--fs-28); }
 .staff-page .price-trend { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 10px; font-size: var(--fs-11); font-weight: 800; }
-.staff-page .price-trend.up { background: #e8f5e9; color: #237b35; }
+.staff-page .price-trend.up { background: #ecfdf3; color: #15803d; }
 .staff-page .sparkline { display: flex; align-items: end; justify-content: space-between; gap: 5px; height: 48px; margin-top: 14px; }
 .staff-page .sparkline span { display: block; width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #d4a72c 0%, #1d4ed8 100%); }
 .staff-page .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr); gap: 18px; }
@@ -65,9 +65,9 @@
 .staff-page .dashboard-table-row { padding: 12px 14px; border-top: 1px solid #e0e9e2; color: #061028; font-size: var(--fs-12); }
 .staff-page .dashboard-table-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .staff-page .risk-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 66px; padding: 5px 8px; border-radius: 999px; font-size: var(--fs-10); font-style: normal; font-weight: 800; }
-.staff-page .risk-pill.low { background: #e8f5e9; color: #237b35; }
-.staff-page .risk-pill.medium { background: #fff8df; color: #957000; }
-.staff-page .risk-pill.high { background: #fff0ee; color: #b34e42; }
+.staff-page .risk-pill.low { background: #ecfdf3; color: #15803d; }
+.staff-page .risk-pill.medium { background: #fffbeb; color: #a16207; }
+.staff-page .risk-pill.high { background: #fef3f2; color: #b42318; }
 .staff-page .compact-table .dashboard-table-head, .staff-page .compact-table .dashboard-table-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, .5fr); }
 @media (max-width: 900px) {
 	.staff-page .staff-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -118,7 +118,7 @@
 .staff-page .risk-summary-row strong { overflow: hidden; color: #061028 !important; font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
 .staff-page .risk-summary-row span { overflow: hidden; color: #52627b !important; font-size: var(--fs-12); text-overflow: ellipsis; white-space: nowrap; }
 .staff-page .risk-summary-row > strong { color: #061028 !important; }
-.staff-page .risk-summary-row em { width: fit-content; border-radius: 999px; padding: 5px 8px; background: #fff0ee; color: #b34e42; font-size: var(--fs-11); font-style: normal; font-weight: 800; }
+.staff-page .risk-summary-row em { width: fit-content; border-radius: 999px; padding: 5px 8px; background: #fef3f2; color: #b42318; font-size: var(--fs-11); font-style: normal; font-weight: 800; }
 .staff-page h1, .staff-page h2, .staff-page h3, .staff-page h4, .staff-page p, .staff-page small, .staff-page span, .staff-page strong, .staff-page button, .staff-login-page h1, .staff-login-page h2 { letter-spacing: 0; }
 .staff-page .intake-form { width: 100%; max-width: 1120px; box-sizing: border-box; }
 .staff-page .intake-form > h3 { display: none; }
@@ -246,7 +246,7 @@
 .staff-page .market-price-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 14px 0; padding: 13px 15px; border: 1px solid #b9d2c0; border-radius: 8px; background: #f4fbf5; }
 .staff-page .market-price-card div { display: grid; gap: 4px; }
 .staff-page .market-price-card span, .staff-page .market-price-card small { color: #52627b !important; font-size: var(--fs-11); }
-.staff-page .market-price-card strong { color: #237b35 !important; font-size: var(--fs-16); }
+.staff-page .market-price-card strong { color: #15803d !important; font-size: var(--fs-16); }
 .staff-page .manual-appraisal { display: grid; gap: 10px; }
 .staff-page .transaction-section-label { margin: 20px 0 10px; color: #1d4ed8; font-size: var(--fs-11); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .staff-page .customer-details-grid, .staff-page .item-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -271,9 +271,9 @@
 .staff-page .register-customer-panel small { color: #52627b !important; font-size: var(--fs-11); }
 .staff-page .register-customer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .staff-page .register-customer-actions { display: flex; align-items: center; gap: 10px; }
-.staff-page .registration-success { margin-top: 10px; padding: 10px 12px; border-radius: 7px; background: #e8f5e9; color: #237b35; font-size: var(--fs-12); font-weight: 700; }
+.staff-page .registration-success { margin-top: 10px; padding: 10px 12px; border-radius: 7px; background: #ecfdf3; color: #15803d; font-size: var(--fs-12); font-weight: 700; }
 .staff-page .selected-customer { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(150px, .7fr); gap: 12px; align-items: center; margin-top: 12px; padding: 13px 14px; border: 1px solid #b9d2c0; border-radius: 8px; background: #f4fbf5; }
-.staff-page .selected-customer-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #237b35; color: #fff; font-size: var(--fs-12); font-weight: 800; }
+.staff-page .selected-customer-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #15803d; color: #fff; font-size: var(--fs-12); font-weight: 800; }
 .staff-page .selected-customer > div:not(.selected-customer-check) { display: grid; gap: 3px; min-width: 0; }
 .staff-page .selected-customer strong { color: #061028 !important; font-size: var(--fs-13); }
 .staff-page .selected-customer span { color: #52627b !important; font-size: var(--fs-11); }
@@ -303,7 +303,7 @@
 .staff-page .review-grid span { display: grid; gap: 4px; color: #52627b !important; font-size: var(--fs-11); }
 .staff-page .review-grid strong { color: #061028 !important; font-size: var(--fs-12); }
 .staff-page .review-check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: #061028; font-size: var(--fs-12); font-weight: 600; }
-.staff-page .release-confirmation { margin-top: 16px; padding: 12px 14px; border-radius: 7px; background: #e8f5e9; color: #237b35; font-size: var(--fs-12); font-weight: 700; }
+.staff-page .release-confirmation { margin-top: 16px; padding: 12px 14px; border-radius: 7px; background: #ecfdf3; color: #15803d; font-size: var(--fs-12); font-weight: 700; }
 .staff-page .loan-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .staff-page .loan-summary-grid > div { display: grid; gap: 5px; padding: 16px 18px; border: 1px solid #d7e2da; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(19, 34, 63, .06); }
 .staff-page .loan-summary-grid span, .staff-page .loan-summary-grid small { color: #52627b !important; font-size: var(--fs-11); }
@@ -354,9 +354,9 @@
 .staff-page .redemption-row-actions { justify-content: center; }
 
 .staff-page .loan-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 70px; padding: 5px 8px; border-radius: 999px; font-size: var(--fs-11); font-style: normal; font-weight: 800; }
-.staff-page .loan-badge.low { background: #e8f5e9; color: #237b35; }
-.staff-page .loan-badge.medium { background: #fff8df; color: #957000; }
-.staff-page .loan-badge.high { background: #fff0ee; color: #b34e42; }
+.staff-page .loan-badge.low { background: #ecfdf3; color: #15803d; }
+.staff-page .loan-badge.medium { background: #fffbeb; color: #a16207; }
+.staff-page .loan-badge.high { background: #fef3f2; color: #b42318; }
 .staff-page .loan-pagination { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .staff-page .loan-pagination button { width: 34px; height: 34px; border: 1px solid #d7e2da; border-radius: 8px; background: #fff; color: #061028; font: inherit; font-weight: 700; cursor: pointer; }
 .staff-page .loan-pagination button.active { background: #061028; border-color: #061028; color: #fff; }
@@ -451,7 +451,7 @@
 .staff-page .admin-row strong { overflow: hidden; color: #061028 !important; font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
 .staff-page .admin-row span { overflow: hidden; color: #52627b !important; font-size: var(--fs-11); text-overflow: ellipsis; white-space: nowrap; }
 .staff-page .admin-row em { color: #52627b; font-size: var(--fs-12); font-style: normal; }
-.staff-page .admin-row b { width: fit-content; border-radius: 999px; padding: 5px 9px; background: #e8f5e9; color: #237b35; font-size: var(--fs-11); }
+.staff-page .admin-row b { width: fit-content; border-radius: 999px; padding: 5px 9px; background: #ecfdf3; color: #15803d; font-size: var(--fs-11); }
 .staff-page .admin-row button { border: 1px solid #c9d7eb; border-radius: 6px; padding: 7px 10px; background: #fff; color: #1d4ed8; font: inherit; font-size: var(--fs-11); font-weight: 700; cursor: pointer; }
 .staff-page .admin-row button:hover { border-color: #1d4ed8; background: #f4f7fb; }
 .staff-page .audit-table-head { display: grid; grid-template-columns: 84px minmax(0, 1.7fr) minmax(120px, .8fr) 120px; gap: 14px; align-items: center; margin-top: 8px; padding: 10px 0; border-top: 1px solid #d7e2da; border-bottom: 1px solid #d7e2da; color: #52627b; font-size: var(--fs-11); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
@@ -717,16 +717,16 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 	.staff-page .tx-customer-modal-actions button,
 	.staff-page .payment-actions-row button { width: 100%; }
 }
-.staff-page,.staff-login-page{--staff-ink:#061028;--staff-blue:#1d4ed8;--staff-gold:#d4a72c;--staff-muted:#000;color:var(--staff-ink)}
+.staff-page,.staff-login-page{--staff-ink:#061028;--staff-blue:#1d4ed8;--staff-gold:#d4a72c;--staff-muted:#64748b;color:var(--staff-ink)}
 .staff-login-form .password-item{display:flex;align-items:end}.staff-login-form .password-item ion-input{flex:1;min-width:0}.staff-login-form .password-toggle{display:flex;position:relative;z-index:10;width:42px;min-width:42px;height:42px;align-items:center;justify-content:center;pointer-events:auto;--background:transparent;--background-hover:rgba(29,78,216,.08);--color:var(--staff-blue);--padding-start:8px;--padding-end:8px;margin:0 0 4px;font-size:var(--fs-20)}.staff-login-form .password-toggle ion-icon{display:block;color:var(--staff-blue);font-size:1.2rem}.staff-login-form .password-toggle:hover{--color:var(--staff-blue)}
-.staff-page ion-content,.staff-login-page ion-content{--background:#eef2f8}.staff-shell{display:flex;min-height:100%}.staff-sidebar{width:270px;flex:0 0 270px;display:flex;flex-direction:column;padding:26px 16px 18px;background:var(--staff-ink);color:#fff}.staff-side-brand{display:flex;align-items:center;gap:11px;padding:0 10px 32px}.staff-side-brand img,.staff-login-art img{width:42px;height:42px;border-radius:50%;object-fit:contain;background:#fff}.staff-side-brand div{display:flex;flex-direction:column;gap:3px}.staff-side-brand strong{font-size:var(--fs-13);letter-spacing:.06em}.staff-side-brand span,.staff-user span{color:#adbad0;font-size:var(--fs-11)}.staff-menu-label,.staff-content small,.staff-topbar small{color:#8290a7;font-size:var(--fs-11);font-weight:800;letter-spacing:.12em}.staff-menu-label{padding:0 12px 10px}.staff-nav{display:grid;gap:4px}.staff-nav button,.staff-logout{display:flex;align-items:center;gap:11px;border:0;border-radius:8px;padding:12px;background:transparent;color:#adbad0;font:inherit;font-size:var(--fs-12);text-align:left;cursor:pointer}.staff-nav button:hover,.staff-nav button.active{background:#263653;color:#fff}.staff-nav button.active{box-shadow:inset 3px 0 var(--staff-gold)}.staff-nav button b{margin-left:auto;border-radius:20px;padding:2px 6px;background:var(--staff-gold);color:var(--staff-ink);font-size:var(--fs-10)}.staff-logout{margin-top:auto;border-top:1px solid #2b3b57;border-radius:0;padding-top:18px}.staff-user{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px;border-radius:8px;background:#1c2b46}.staff-user ion-icon{color:var(--staff-gold);font-size:1.7rem}.staff-user div{display:flex;flex-direction:column;gap:2px}.staff-user strong{font-size:var(--fs-12)}.staff-main{flex:1;min-width:0}.staff-topbar{display:flex;align-items:center;justify-content:space-between;min-height:88px;padding:20px clamp(22px,4vw,56px);border-bottom:1px solid #dbe2ee;background:rgba(255,255,255,.82);backdrop-filter:blur(18px)}.staff-title{display:flex;align-items:center;gap:12px}.staff-title h1{margin:5px 0 0;font-weight: 700; font-size: var(--fs-22); line-height: normal}.staff-top-user{display:flex;align-items:center;gap:7px;color:var(--staff-muted);font-size:var(--fs-12)}.staff-menu-toggle{display:none;width:38px;height:38px;border:1px solid #d6deea;border-radius:8px;background:#fff;color:var(--staff-ink);font-size:var(--fs-18)}.staff-content{max-width:1220px;margin:auto;padding:34px clamp(18px,4vw,56px) 60px}.staff-welcome,.staff-page-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}.staff-content h2{margin:7px 0 6px;font-weight: 700; font-size: clamp(var(--fs-24),3vw,var(--fs-32)); line-height: normal}.staff-content p{margin:0;color:var(--staff-muted);font-size:var(--fs-13)}.staff-page ion-button,.staff-login-page ion-button{--background:var(--staff-blue);--border-radius:7px;--box-shadow:none;text-transform:none;font-weight:700}.staff-stats,.staff-dashboard-grid,.intake-layout,.appraisal-layout,.payment-workspace,.report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.staff-stat,.staff-panel,.loans-table,.risk-card,.customer-table,.report-chart{border:1px solid rgba(255,255,255,.66);border-radius:10px;background:rgba(255,255,255,.78);box-shadow:0 12px 30px rgba(8,20,48,.1);backdrop-filter:blur(16px)}.staff-stat{display:flex;align-items:center;gap:13px;padding:20px}.staff-stat>ion-icon{display:grid;place-items:center;width:44px;height:44px;padding:11px;border-radius:9px;background:#eaf0ff;color:var(--staff-blue);font-size:1.2rem}.staff-stat div{display:grid;gap:4px}.staff-stat strong{font-size:var(--fs-22)}.staff-stat span,.staff-panel span,.staff-panel small{color:var(--staff-muted);font-size:var(--fs-12)}.staff-dashboard-grid{grid-template-columns:1.35fr .65fr;margin-top:16px}.staff-panel{padding:20px}.staff-panel h3{margin:0 0 14px;font-weight: 700; font-size: var(--fs-16); line-height: normal}.staff-panel-head{display:flex;justify-content:space-between;align-items:start}.staff-panel-head button{border:0;background:transparent;color:var(--staff-blue);font-weight:700;cursor:pointer}.loan-row,.customer-row,.risk-card{display:flex;align-items:center;gap:12px;border-top:1px solid #e1e6ed;padding:13px 0}.loan-row>div:nth-child(2),.customer-row>div{flex:1;display:grid;gap:3px}.loan-row strong,.customer-row strong,.risk-card strong{font-size:var(--fs-13)}.loan-row span,.customer-row span,.risk-card span{color:var(--staff-muted);font-size:var(--fs-11)}.loan-avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;background:#eaf0ff;color:var(--staff-blue);font-weight:800}.loan-pill{width:max-content;border-radius:20px;padding:5px 8px;font-size:var(--fs-11);font-style:normal;font-weight:800}.loan-pill.low,.loan-pill.active{background:#e8f5e9;color:#237b35}.loan-pill.medium,.loan-pill.due-soon{background:#fff8df;color:#957000}.loan-pill.high,.loan-pill.high-risk{background:#fff0ee;color:#b34e42}.risk-count{display:grid;gap:4px;margin:25px 0}.risk-count strong{font-size:var(--fs-36)}.risk-line{display:flex;gap:7px;align-items:center;color:var(--staff-muted);font-size:var(--fs-12)}.risk-line i{width:10px;height:10px;border-radius:50%;background:#d4a72c}.risk-line i:nth-of-type(2){background:#c85a4c}.intake-layout,.appraisal-layout,.payment-workspace{grid-template-columns:1.2fr .8fr}.staff-panel ion-item{--background:#f7f9fc;--padding-start:12px;--padding-end:12px;margin-bottom:10px;border:1px solid #dce3ee;border-radius:7px}.staff-panel ion-label{color:var(--staff-muted)!important;font-size:var(--fs-11)!important;font-weight:800}.staff-panel ion-input,.staff-panel ion-select{font-size:var(--fs-13)}.photo-upload{display:grid;gap:5px;margin:12px 0;padding:20px;border:1px dashed #a9b8d1;border-radius:8px;color:var(--staff-blue);text-align:center}.appraisal-result{display:grid;gap:4px;margin-top:15px;padding:16px;border-left:3px solid var(--staff-gold);background:#fff9e6}.appraisal-result strong{font-size:var(--fs-24)}.staff-tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid #d4ddea;overflow:auto}.staff-tabs button{border:0;border-bottom:2px solid transparent;padding:11px 14px;background:transparent;color:var(--staff-muted);font-weight:700;white-space:nowrap}.staff-tabs button.active{border-bottom-color:var(--staff-gold);color:var(--staff-ink)}.loans-table{overflow:hidden}.loans-head,.loans-tr{display:grid;grid-template-columns:1.5fr .8fr .8fr .6fr .8fr;gap:15px;align-items:center;padding:14px 18px}.loans-head{background:#eaf0ff;color:#52678a;font-size:var(--fs-10);font-weight:800;text-transform:uppercase}.loans-tr{border-top:1px solid #e1e6ed;font-size:var(--fs-12)}.loans-tr>div{display:grid;gap:3px}.loans-tr small{color:var(--staff-muted);font-size:var(--fs-11)}.risk-list,.customer-table{overflow:hidden;padding:0 20px}.risk-card{border-top:0;border-bottom:1px solid #e1e6ed}.risk-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#fff0ee;color:#b34e42}.risk-card>div:nth-child(2){flex:1;display:grid;gap:4px}.risk-card p{font-size:var(--fs-12)}.payment-total{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px;border-radius:10px;background:linear-gradient(110deg,var(--staff-ink),var(--staff-blue));color:#fff}.payment-total div{display:grid;gap:5px}.payment-total strong{font-size:var(--fs-32)}.payment-total ion-button{--background:var(--staff-gold);--color:var(--staff-ink)}.report-grid{grid-template-columns:repeat(3,1fr)}.report-card{display:grid;gap:8px}.report-card strong{font-size:var(--fs-24)}.report-chart{margin-top:16px}.chart-bars{height:160px;display:flex;align-items:end;gap:14px;padding-top:20px}.chart-bars i{position:relative;display:flex;justify-content:center;width:11%;border-radius:5px 5px 0 0;background:linear-gradient(var(--staff-blue),#87a9f4)}.chart-bars span{position:absolute;bottom:-22px;color:var(--staff-muted);font-size:var(--fs-10);font-style:normal}.settings-form{max-width:650px;display:grid;gap:10px}.staff-login-shell{display:grid;grid-template-columns:1fr 1fr;min-height:100%}.staff-login-art{position:relative;overflow:hidden;padding:clamp(35px,7vw,100px);background:linear-gradient(135deg,var(--staff-ink),var(--staff-blue));color:#fff}.staff-brand{display:flex;align-items:center;gap:11px}.staff-brand strong{font-size:var(--fs-18)}.staff-login-art p{max-width:330px;margin-top:40px;color:#dce6fa;line-height:1.6}.staff-art-shape{position:absolute;right:-18%;bottom:-15%;width:70%;height:70%;border:25px solid rgba(212,167,44,.5);border-radius:30%;transform:rotate(20deg)}.staff-login-form{display:flex;flex-direction:column;justify-content:center;max-width:480px;width:100%;padding:50px}.staff-login-form h1{margin:10px 0 8px;font-weight: 700; font-size: var(--fs-32); line-height: normal}.staff-login-form>p{margin:0 0 28px;color:var(--staff-muted);font-size:var(--fs-14)}.staff-login-form ion-item{--background:#fff;--padding-start:12px;--padding-end:12px;margin-bottom:12px;border:1px solid #dce3ee;border-radius:7px}.staff-login-form ion-label{color:var(--staff-muted)!important;font-size:var(--fs-11)!important;font-weight:800}.staff-error{margin:0 0 12px;color:#b34e42;font-size:var(--fs-12)}.staff-note{margin-top:16px;color:var(--staff-muted);text-align:center;font-size:var(--fs-12)}@media(max-width:800px){.staff-sidebar{position:fixed;z-index:20;inset:0 auto 0 0;width:270px;transform:translateX(-100%);transition:transform .25s;box-shadow:12px 0 30px rgba(16,26,47,.25)}.staff-sidebar.open{transform:translateX(0)}.staff-backdrop{position:fixed;z-index:19;inset:0;background:rgba(16,26,47,.5);opacity:0;pointer-events:none}.staff-backdrop.open{opacity:1;pointer-events:auto}.staff-menu-toggle{display:flex;align-items:center;justify-content:center}.staff-top-user{display:none}.staff-stats,.staff-dashboard-grid,.intake-layout,.appraisal-layout,.payment-workspace,.report-grid{grid-template-columns:1fr}.staff-welcome,.staff-page-intro{align-items:flex-start;flex-direction:column}.loans-head{display:none}.loans-tr{grid-template-columns:1fr auto}.loans-tr>span,.loans-tr>strong:nth-child(2){display:none}.risk-card{align-items:flex-start;flex-wrap:wrap}.risk-card ion-button{margin-left:50px}.staff-login-shell{grid-template-columns:1fr}.staff-login-art{min-height:220px;padding:35px}.staff-login-form{max-width:none;padding:32px 22px}}
+.staff-page ion-content,.staff-login-page ion-content{--background:#eef2f8}.staff-shell{display:flex;min-height:100%}.staff-sidebar{width:270px;flex:0 0 270px;display:flex;flex-direction:column;padding:26px 16px 18px;background:var(--staff-ink);color:#fff}.staff-side-brand{display:flex;align-items:center;gap:11px;padding:0 10px 32px}.staff-side-brand img,.staff-login-art img{width:42px;height:42px;border-radius:50%;object-fit:contain;background:#fff}.staff-side-brand div{display:flex;flex-direction:column;gap:3px}.staff-side-brand strong{font-size:var(--fs-13);letter-spacing:.06em}.staff-side-brand span,.staff-user span{color:#adbad0;font-size:var(--fs-11)}.staff-menu-label,.staff-content small,.staff-topbar small{color:#8290a7;font-size:var(--fs-11);font-weight:800;letter-spacing:.12em}.staff-menu-label{padding:0 12px 10px}.staff-nav{display:grid;gap:4px}.staff-nav button,.staff-logout{display:flex;align-items:center;gap:11px;border:0;border-radius:8px;padding:12px;background:transparent;color:#adbad0;font:inherit;font-size:var(--fs-12);text-align:left;cursor:pointer}.staff-nav button:hover,.staff-nav button.active{background:#263653;color:#fff}.staff-nav button.active{box-shadow:inset 3px 0 var(--staff-gold)}.staff-nav button b{margin-left:auto;border-radius:20px;padding:2px 6px;background:var(--staff-gold);color:var(--staff-ink);font-size:var(--fs-10)}.staff-logout{margin-top:auto;border-top:1px solid #2b3b57;border-radius:0;padding-top:18px}.staff-user{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px;border-radius:8px;background:#1c2b46}.staff-user ion-icon{color:var(--staff-gold);font-size:1.7rem}.staff-user div{display:flex;flex-direction:column;gap:2px}.staff-user strong{font-size:var(--fs-12)}.staff-main{flex:1;min-width:0}.staff-topbar{display:flex;align-items:center;justify-content:space-between;min-height:88px;padding:20px clamp(22px,4vw,56px);border-bottom:1px solid #dbe2ee;background:rgba(255,255,255,.82);backdrop-filter:blur(18px)}.staff-title{display:flex;align-items:center;gap:12px}.staff-title h1{margin:5px 0 0;font-weight: 700; font-size: var(--fs-22); line-height: normal}.staff-top-user{display:flex;align-items:center;gap:7px;color:var(--staff-muted);font-size:var(--fs-12)}.staff-menu-toggle{display:none;width:38px;height:38px;border:1px solid #d6deea;border-radius:8px;background:#fff;color:var(--staff-ink);font-size:var(--fs-18)}.staff-content{max-width:1220px;margin:auto;padding:34px clamp(18px,4vw,56px) 60px}.staff-welcome,.staff-page-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}.staff-content h2{margin:7px 0 6px;font-weight: 700; font-size: clamp(var(--fs-24),3vw,var(--fs-32)); line-height: normal}.staff-content p{margin:0;color:var(--staff-muted);font-size:var(--fs-13)}.staff-page ion-button,.staff-login-page ion-button{--background:var(--staff-blue);--border-radius:7px;--box-shadow:none;text-transform:none;font-weight:700}.staff-stats,.staff-dashboard-grid,.intake-layout,.appraisal-layout,.payment-workspace,.report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.staff-stat,.staff-panel,.loans-table,.risk-card,.customer-table,.report-chart{border:1px solid rgba(255,255,255,.66);border-radius:10px;background:rgba(255,255,255,.78);box-shadow:0 12px 30px rgba(8,20,48,.1);backdrop-filter:blur(16px)}.staff-stat{display:flex;align-items:center;gap:13px;padding:20px}.staff-stat>ion-icon{display:grid;place-items:center;width:44px;height:44px;padding:11px;border-radius:9px;background:#eaf0ff;color:var(--staff-blue);font-size:1.2rem}.staff-stat div{display:grid;gap:4px}.staff-stat strong{font-size:var(--fs-22)}.staff-stat span,.staff-panel span,.staff-panel small{color:var(--staff-muted);font-size:var(--fs-12)}.staff-dashboard-grid{grid-template-columns:1.35fr .65fr;margin-top:16px}.staff-panel{padding:20px}.staff-panel h3{margin:0 0 14px;font-weight: 700; font-size: var(--fs-16); line-height: normal}.staff-panel-head{display:flex;justify-content:space-between;align-items:start}.staff-panel-head button{border:0;background:transparent;color:var(--staff-blue);font-weight:700;cursor:pointer}.loan-row,.customer-row,.risk-card{display:flex;align-items:center;gap:12px;border-top:1px solid #e1e6ed;padding:13px 0}.loan-row>div:nth-child(2),.customer-row>div{flex:1;display:grid;gap:3px}.loan-row strong,.customer-row strong,.risk-card strong{font-size:var(--fs-13)}.loan-row span,.customer-row span,.risk-card span{color:var(--staff-muted);font-size:var(--fs-11)}.loan-avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;background:#eaf0ff;color:var(--staff-blue);font-weight:800}.loan-pill{width:max-content;border-radius:20px;padding:5px 8px;font-size:var(--fs-11);font-style:normal;font-weight:800}.loan-pill.low,.loan-pill.active{background:#ecfdf3;color:#15803d}.loan-pill.medium,.loan-pill.due-soon{background:#fffbeb;color:#a16207}.loan-pill.high,.loan-pill.high-risk{background:#fef3f2;color:#b42318}.risk-count{display:grid;gap:4px;margin:25px 0}.risk-count strong{font-size:var(--fs-36)}.risk-line{display:flex;gap:7px;align-items:center;color:var(--staff-muted);font-size:var(--fs-12)}.risk-line i{width:10px;height:10px;border-radius:50%;background:#d4a72c}.risk-line i:nth-of-type(2){background:#c85a4c}.intake-layout,.appraisal-layout,.payment-workspace{grid-template-columns:1.2fr .8fr}.staff-panel ion-item{--background:#f7f9fc;--padding-start:12px;--padding-end:12px;margin-bottom:10px;border:1px solid #dce3ee;border-radius:7px}.staff-panel ion-label{color:var(--staff-muted)!important;font-size:var(--fs-11)!important;font-weight:800}.staff-panel ion-input,.staff-panel ion-select{font-size:var(--fs-13)}.photo-upload{display:grid;gap:5px;margin:12px 0;padding:20px;border:1px dashed #a9b8d1;border-radius:8px;color:var(--staff-blue);text-align:center}.appraisal-result{display:grid;gap:4px;margin-top:15px;padding:16px;border-left:3px solid var(--staff-gold);background:#fff9e6}.appraisal-result strong{font-size:var(--fs-24)}.staff-tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid #d4ddea;overflow:auto}.staff-tabs button{border:0;border-bottom:2px solid transparent;padding:11px 14px;background:transparent;color:var(--staff-muted);font-weight:700;white-space:nowrap}.staff-tabs button.active{border-bottom-color:var(--staff-gold);color:var(--staff-ink)}.loans-table{overflow:hidden}.loans-head,.loans-tr{display:grid;grid-template-columns:1.5fr .8fr .8fr .6fr .8fr;gap:15px;align-items:center;padding:14px 18px}.loans-head{background:#eaf0ff;color:#52678a;font-size:var(--fs-10);font-weight:800;text-transform:uppercase}.loans-tr{border-top:1px solid #e1e6ed;font-size:var(--fs-12)}.loans-tr>div{display:grid;gap:3px}.loans-tr small{color:var(--staff-muted);font-size:var(--fs-11)}.risk-list,.customer-table{overflow:hidden;padding:0 20px}.risk-card{border-top:0;border-bottom:1px solid #e1e6ed}.risk-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#fef3f2;color:#b42318}.risk-card>div:nth-child(2){flex:1;display:grid;gap:4px}.risk-card p{font-size:var(--fs-12)}.payment-total{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px;border-radius:10px;background:linear-gradient(110deg,var(--staff-ink),var(--staff-blue));color:#fff}.payment-total div{display:grid;gap:5px}.payment-total strong{font-size:var(--fs-32)}.payment-total ion-button{--background:var(--staff-gold);--color:var(--staff-ink)}.report-grid{grid-template-columns:repeat(3,1fr)}.report-card{display:grid;gap:8px}.report-card strong{font-size:var(--fs-24)}.report-chart{margin-top:16px}.chart-bars{height:160px;display:flex;align-items:end;gap:14px;padding-top:20px}.chart-bars i{position:relative;display:flex;justify-content:center;width:11%;border-radius:5px 5px 0 0;background:linear-gradient(var(--staff-blue),#87a9f4)}.chart-bars span{position:absolute;bottom:-22px;color:var(--staff-muted);font-size:var(--fs-10);font-style:normal}.settings-form{max-width:650px;display:grid;gap:10px}.staff-login-shell{display:grid;grid-template-columns:1fr 1fr;min-height:100%}.staff-login-art{position:relative;overflow:hidden;padding:clamp(35px,7vw,100px);background:linear-gradient(135deg,var(--staff-ink),var(--staff-blue));color:#fff}.staff-brand{display:flex;align-items:center;gap:11px}.staff-brand strong{font-size:var(--fs-18)}.staff-login-art p{max-width:330px;margin-top:40px;color:#dce6fa;line-height:1.6}.staff-art-shape{position:absolute;right:-18%;bottom:-15%;width:70%;height:70%;border:25px solid rgba(212,167,44,.5);border-radius:30%;transform:rotate(20deg)}.staff-login-form{display:flex;flex-direction:column;justify-content:center;max-width:480px;width:100%;padding:50px}.staff-login-form h1{margin:10px 0 8px;font-weight: 700; font-size: var(--fs-32); line-height: normal}.staff-login-form>p{margin:0 0 28px;color:var(--staff-muted);font-size:var(--fs-14)}.staff-login-form ion-item{--background:#fff;--padding-start:12px;--padding-end:12px;margin-bottom:12px;border:1px solid #dce3ee;border-radius:7px}.staff-login-form ion-label{color:var(--staff-muted)!important;font-size:var(--fs-11)!important;font-weight:800}.staff-error{margin:0 0 12px;color:#b42318;font-size:var(--fs-12)}.staff-note{margin-top:16px;color:var(--staff-muted);text-align:center;font-size:var(--fs-12)}@media(max-width:800px){.staff-sidebar{position:fixed;z-index:20;inset:0 auto 0 0;width:270px;transform:translateX(-100%);transition:transform .25s;box-shadow:12px 0 30px rgba(16,26,47,.25)}.staff-sidebar.open{transform:translateX(0)}.staff-backdrop{position:fixed;z-index:19;inset:0;background:rgba(16,26,47,.5);opacity:0;pointer-events:none}.staff-backdrop.open{opacity:1;pointer-events:auto}.staff-menu-toggle{display:flex;align-items:center;justify-content:center}.staff-top-user{display:none}.staff-stats,.staff-dashboard-grid,.intake-layout,.appraisal-layout,.payment-workspace,.report-grid{grid-template-columns:1fr}.staff-welcome,.staff-page-intro{align-items:flex-start;flex-direction:column}.loans-head{display:none}.loans-tr{grid-template-columns:1fr auto}.loans-tr>span,.loans-tr>strong:nth-child(2){display:none}.risk-card{align-items:flex-start;flex-wrap:wrap}.risk-card ion-button{margin-left:50px}.staff-login-shell{grid-template-columns:1fr}.staff-login-art{min-height:220px;padding:35px}.staff-login-form{max-width:none;padding:32px 22px}}
 
 /* Risk alert legend and empty state. Colors match the .risk-pill badges. */
 .staff-page .risk-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 0 0 12px; }
 .staff-page .risk-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-11); color: #000; }
 .staff-page .risk-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.staff-page .risk-dot.high { background: #b34e42; }
-.staff-page .risk-dot.medium { background: #957000; }
+.staff-page .risk-dot.high { background: #b42318; }
+.staff-page .risk-dot.medium { background: #a16207; }
 .staff-page .risk-empty { margin: 12px 0 4px; font-size: var(--fs-12); color: #000; }
 
 
@@ -788,7 +788,7 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 	font-weight: 800;
 }
 .staff-page .redeem-request-badge.pending { background: #fff0d6; color: #8a6400; }
-.staff-page .redeem-request-badge.confirmed { background: #e8f5e9; color: #237b35; }
+.staff-page .redeem-request-badge.confirmed { background: #ecfdf3; color: #15803d; }
 
 .staff-page .redemption-row-actions { display: flex; align-items: center; gap: 8px; }
 .staff-page .confirm-request-button {
@@ -821,7 +821,7 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 	border-radius: 7px;
 	padding: 6px 11px;
 	background: #fdf6f5;
-	color: #b34e42;
+	color: #b42318;
 	font: inherit;
 	font-size: var(--fs-12);
 	font-weight: 700;
@@ -844,7 +844,7 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 .staff-page .renewal-scope button.active { border-color: var(--staff-gold); background: #fffaf0; color: #8a6400; }
 .staff-page .renewal-status { font-style: normal; font-size: var(--fs-12); font-weight: 700; }
 .staff-page .renewal-status.is-confirmed { color: #2f7d55; }
-.staff-page .renewal-status.is-rejected { color: #b34e42; }
+.staff-page .renewal-status.is-rejected { color: #b42318; }
 
 /* Item photo editor in the lifecycle panel. */
 .item-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
@@ -1049,7 +1049,7 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 	cursor: pointer;
 }
 .staff-page .renewal-reject-choices label.active { border-color: var(--staff-gold); background: #fffaf0; }
-.staff-page .renewal-reject-choices input { margin-top: 2px; accent-color: #b34e42; }
+.staff-page .renewal-reject-choices input { margin-top: 2px; accent-color: #b42318; }
 .staff-page .renewal-reject-custom {
 	width: 100%;
 	margin-top: 10px;
@@ -1153,12 +1153,12 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
    The checks that stand between a staff member and taking money: change owed,
    the customer's code, and the confirmation that the item and the ID were
    actually looked at. */
-.staff-page .payment-change { margin: 12px 0 0; font-size: var(--fs-13); font-weight: 700; color: #237b35; font-variant-numeric: tabular-nums; }
-.staff-page .payment-change.is-short { color: #b34e42; }
+.staff-page .payment-change { margin: 12px 0 0; font-size: var(--fs-13); font-weight: 700; color: #15803d; font-variant-numeric: tabular-nums; }
+.staff-page .payment-change.is-short { color: #b42318; }
 .staff-page .payment-code-check { margin: 10px 0 0; font-size: var(--fs-12); font-weight: 600; }
 .staff-page .payment-code-check.is-checking { color: var(--staff-muted); }
-.staff-page .payment-code-check.is-ok { color: #237b35; }
-.staff-page .payment-code-check.is-bad { color: #b34e42; }
+.staff-page .payment-code-check.is-ok { color: #15803d; }
+.staff-page .payment-code-check.is-bad { color: #b42318; }
 .staff-page .payment-verify {
 	display: flex;
 	align-items: flex-start;
@@ -1177,3 +1177,33 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 /* Armed: the next press takes the money, so the button says so in gold. */
 .staff-page .primary-button.is-armed { background: var(--staff-gold); border-color: var(--staff-gold); color: #061028; }
 .staff-page .primary-button:disabled { opacity: .5; cursor: default; }
+
+/* ---------- Redemption queue badges ----------
+   Two different things a row can be telling you: somebody is waiting at the
+   counter, and somebody is already serving them. */
+.staff-page .redeem-waiting-badge {
+	display: inline-block;
+	margin-left: 8px;
+	border-radius: 20px;
+	padding: 2px 8px;
+	background: #eef4ff;
+	color: #1d4ed8;
+	font-size: var(--fs-10);
+	font-style: normal;
+	font-weight: 800;
+	white-space: nowrap;
+}
+.staff-page .redeem-lock-badge {
+	display: inline-block;
+	margin-left: 8px;
+	border-radius: 20px;
+	padding: 2px 8px;
+	background: #fef3f2;
+	color: #b42318;
+	font-size: var(--fs-10);
+	font-style: normal;
+	font-weight: 800;
+	white-space: nowrap;
+}
+/* A row held by someone else keeps its place in the queue but not its button. */
+.staff-page .redemption-row-actions button:disabled { opacity: .45; cursor: not-allowed; }

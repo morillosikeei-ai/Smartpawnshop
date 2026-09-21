@@ -51,7 +51,7 @@
 .admin-page .rec-summary-card span { color: #52627b; font-size: var(--fs-10); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .admin-page .rec-summary-card strong { color: #061028; font-size: var(--fs-16, 1rem); font-variant-numeric: tabular-nums; }
 .admin-page .rec-summary-card.blue { border-left-color: #33578c; }
-.admin-page .rec-summary-card.green { border-left-color: #237b35; }
+.admin-page .rec-summary-card.green { border-left-color: #15803d; }
 .admin-page .rec-summary-card.gold { border-left-color: #d4a72c; }
 .admin-page .rec-summary-card.red { border-left-color: #b42318; }
 

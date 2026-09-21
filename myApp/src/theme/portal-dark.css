@@ -5963,16 +5963,6 @@ html[data-theme="dark"] .portal-page .renew-online-open {
 html[data-theme="dark"] .portal-page .renew-online-open:hover {
   background: #1a2437 !important;
 }
-html[data-theme="dark"] .portal-page .renew-online.is-open {
-  border-color: rgba(212, 167, 44, .28) !important;
-  background: #131c2e !important;
-}
-html[data-theme="dark"] .portal-page .renew-online-head h4 {
-  color: #e6ebf5 !important;
-}
-html[data-theme="dark"] .portal-page .renew-online-close {
-  color: #8b97ad !important;
-}
 html[data-theme="dark"] .portal-page .renew-online-note,
 html[data-theme="dark"] .portal-page .renew-online-amount span,
 html[data-theme="dark"] .portal-page .renew-online-amount small {
@@ -6211,10 +6201,6 @@ html[data-theme="dark"] .portal-page .pickup-code-button {
 html[data-theme="dark"] .portal-page .pickup-code-button:hover {
   background: #1a2437 !important;
 }
-html[data-theme="dark"] .portal-page .pickup-code-live {
-  border-color: #2a3650 !important;
-  background: #131c2e !important;
-}
 html[data-theme="dark"] .portal-page .pickup-code-live > span {
   color: #8b97ad !important;
 }
@@ -6244,4 +6230,40 @@ html[data-theme="dark"] .staff-page .payment-verify {
   border-color: #2a3650 !important;
   background: #0e1626 !important;
   color: #e6ebf5 !important;
+}
+
+/* Redemption queue badges (src/staff/StaffPortal.css) */
+html[data-theme="dark"] .staff-page .redeem-waiting-badge {
+  background: #16233c !important;
+  color: #8fb0ff !important;
+}
+html[data-theme="dark"] .staff-page .redeem-lock-badge {
+  background: #3a1c1a !important;
+  color: #f0928a !important;
+}
+
+/* Set a password (src/pages/CustomerPortal.css) */
+html[data-theme="dark"] .portal-page .password-lead {
+  color: #8b97ad !important;
+}
+html[data-theme="dark"] .portal-page .password-error {
+  color: #d59e97 !important;
+}
+
+/* Action dialog (src/pages/CustomerPortal.css) */
+html[data-theme="dark"] .portal-page .action-dialog {
+  background: #131c2e !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55) !important;
+}
+html[data-theme="dark"] .portal-page .action-dialog-head {
+  border-color: #2a3650 !important;
+}
+html[data-theme="dark"] .portal-page .action-dialog-head h4 {
+  color: #e6ebf5 !important;
+}
+html[data-theme="dark"] .portal-page .action-dialog-head button {
+  color: #8b97ad !important;
+}
+html[data-theme="dark"] .portal-page .pickup-code-lead {
+  color: #c2cbdb !important;
 }

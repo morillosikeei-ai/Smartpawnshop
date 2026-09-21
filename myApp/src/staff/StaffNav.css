@@ -208,9 +208,9 @@
   font-size: 1rem;
 }
 .staff-page .staff-notification-icon.info { background: #eaf0ff; color: #1d4ed8; }
-.staff-page .staff-notification-icon.warn { background: #fff8df; color: #957000; }
-.staff-page .staff-notification-icon.danger { background: #fff0ee; color: #b34e42; }
-.staff-page .staff-notification-icon.success { background: #e8f5e9; color: #237b35; }
+.staff-page .staff-notification-icon.warn { background: #fffbeb; color: #a16207; }
+.staff-page .staff-notification-icon.danger { background: #fef3f2; color: #b42318; }
+.staff-page .staff-notification-icon.success { background: #ecfdf3; color: #15803d; }
 .staff-page .staff-notification-icon.neutral { background: #eef2f8; color: #52627b; }
 
 .staff-page .staff-notification-text {

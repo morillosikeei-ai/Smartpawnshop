@@ -2,7 +2,7 @@
   --admin-ink: #061028;
   --admin-blue: #1d4ed8;
   --admin-gold: #d4a72c;
-  --admin-muted: #000;
+  --admin-muted: #64748b;
   --admin-soft: #f3f7fb;
   --admin-panel: #ffffff;
   --admin-surface: #0f1d38;
@@ -670,7 +670,7 @@
   --admin-ink: #061028;
   --admin-blue: #1d4ed8;
   --admin-gold: #d4a72c;
-  --admin-muted: #000;
+  --admin-muted: #64748b;
   --admin-soft: #f3f7fb;
 }
 .admin-user-modal::part(backdrop) { backdrop-filter: blur(2px); }
@@ -798,18 +798,18 @@
 }
 
 .activity-row em.low {
-  background: #e8f5e9;
-  color: #237b35;
+  background: #ecfdf3;
+  color: #15803d;
 }
 
 .activity-row em.medium {
-  background: #fff8df;
-  color: #957000;
+  background: #fffbeb;
+  color: #a16207;
 }
 
 .activity-row em.high {
-  background: #fff0ee;
-  color: #b34e42;
+  background: #fef3f2;
+  color: #b42318;
 }
 
 .export-row {
@@ -889,7 +889,7 @@
 .profile-saved {
   display: block;
   margin-top: 14px;
-  color: #237b35;
+  color: #15803d;
   font-size: var(--fs-12);
   font-weight: 700;
 }

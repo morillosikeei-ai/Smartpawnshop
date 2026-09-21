@@ -45,6 +45,9 @@ import './theme/portal-type.css';
 import './theme/portal-notifications-mobile.css';
 /* Dark mode for the portals (generated, see scripts/generate-dark-theme.mjs). Must load last. */
 import './theme/portal-dark.css';
+/* One glass card treatment across the three portals. After dark mode, whose
+   generated rules it has to override. */
+import './theme/glass.css';
 
 setupIonicReact();
 

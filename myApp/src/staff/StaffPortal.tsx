@@ -58,6 +58,7 @@ import {
   getRenewalRequests,
   getStaffReport,
   getStaffReportBreakdown,
+  lockTransaction,
   lookupPickupCode,
   getGoldPrices,
   getSilverPrices,
@@ -70,6 +71,7 @@ import {
   markItemForSale,
   markItemSold,
   redeemTransaction,
+  unlockTransaction,
   rejectRenewalRequest,
   updateItemPhotos,
   searchCustomers,
@@ -143,7 +145,7 @@ const toRiskRow = (alert: ApiRiskAlert): RiskRow => ({
   risk: (alert.risk_level.charAt(0).toUpperCase() + alert.risk_level.slice(1)) as RiskRow['risk'],
 });
 
-type StaffProfile = { name: string; role: string };
+type StaffProfile = { userId: number | null; name: string; role: string };
 type View = 'dashboard' | 'transaction' | 'loans' | 'reports' | 'profile';
 const menu: Array<{ id: View; label: string; icon: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: gridOutline },
@@ -151,6 +153,25 @@ const menu: Array<{ id: View; label: string; icon: string }> = [
   { id: 'loans', label: 'Pawns', icon: cashOutline },
   { id: 'reports', label: 'My Reports', icon: analyticsOutline },
 ];
+
+/**
+ * How often the Redemption tab reads the list again, in ms.
+ *
+ * Long enough to be invisible to the person working, short enough that a
+ * colleague's claim shows up before two people walk to the same counter.
+ */
+const REDEMPTION_POLL_MS = 15000;
+
+/**
+ * How long a processing claim is honoured, in minutes. Matches
+ * Transaction::LOCK_MINUTES on the API: both sides must read a stale claim the
+ * same way or a row greys out for one of them and not the other.
+ */
+const LOCK_MINUTES = 10;
+
+/** Whether a claim taken at this time is still worth honouring. */
+const isLockLive = (lockedAt?: string | null) =>
+  Boolean(lockedAt) && Date.now() - new Date(lockedAt as string).getTime() < LOCK_MINUTES * 60000;
 
 /** How many rows the bell shows before "View all notifications" is offered. */
 const NOTIFICATION_PREVIEW = 5;
@@ -200,13 +221,13 @@ const StaffPortal: React.FC = () => {
   const [loanRiskFilter, setLoanRiskFilter] = useState<'All' | 'Low' | 'Medium' | 'High'>('All');
   const [transactionFlash, setTransactionFlash] = useState('');
 
-  const [staffProfile, setStaffProfile] = useState<StaffProfile>({ name: '', role: 'staff' });
+  const [staffProfile, setStaffProfile] = useState<StaffProfile>({ userId: null, name: '', role: 'staff' });
 
   // The signed in account and the live notification list both come from the
   // API, so nothing on the shell is a stored or assumed value.
   useEffect(() => {
     let active = true;
-    getMe().then(me => { if (active) setStaffProfile({ name: me.user.name, role: me.user.role }); }).catch(() => undefined);
+    getMe().then(me => { if (active) setStaffProfile({ userId: me.user.users_id, name: me.user.name, role: me.user.role }); }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
@@ -419,6 +440,7 @@ const StaffPortal: React.FC = () => {
                 focusItemId={focusItemId}
                 setFocusItemId={setFocusItemId}
                 focusType={focusType}
+                staffUserId={staffProfile.userId}
               />
             )}
             {view === 'reports' && <StaffReport go={go} setLoanTab={setLoanTab} />}
@@ -2571,8 +2593,14 @@ type LoanRow = {
   valueHistory: Array<{ date: string; value: number }>;
   /** Set once the customer has asked to redeem this loan. */
   readyToRedeem: boolean;
+  /** When they asked, so the counter is worked first come first served. */
+  readyToRedeemAt: string | null;
   /** Set once staff has accepted that request. */
   redemptionConfirmed: boolean;
+  /** The staff member holding this pawn, when one is, and since when. */
+  lockedByName: string | null;
+  lockedById: number | null;
+  lockedAt: string | null;
 };
 
 /** An enum value as the API stores it, rendered for a person to read. */
@@ -2813,7 +2841,7 @@ const useLoanData = () => {
   const [error, setError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
 
-  const reload = () => setReloadToken(token => token + 1);
+  const reload = useCallback(() => setReloadToken(token => token + 1), []);
 
   useEffect(() => {
     let active = true;
@@ -2864,7 +2892,13 @@ const useLoanData = () => {
       status: (overdue ? 'Overdue' : statusLabel(transaction.status)) as LoanRow['status'],
       valueHistory: (item?.value_logs || []).map(log => ({ date: shortDate(log.log_date), value: Number(log.computed_value) })),
       readyToRedeem: Boolean(transaction.ready_to_redeem_at),
+      readyToRedeemAt: transaction.ready_to_redeem_at,
       redemptionConfirmed: Boolean(transaction.redemption_confirmed_at),
+      // A claim older than the timeout is read as no claim, the same way the
+      // API reads it, so a closed browser never holds a row on screen either.
+      lockedByName: isLockLive(transaction.locked_at) ? transaction.lock_holder?.name ?? 'another staff member' : null,
+      lockedById: isLockLive(transaction.locked_at) ? transaction.locked_by ?? null : null,
+      lockedAt: isLockLive(transaction.locked_at) ? transaction.locked_at ?? null : null,
     };
   });
 
@@ -3468,7 +3502,9 @@ const LoansPage: React.FC<{
   focusItemId: number | null;
   setFocusItemId: (value: number | null) => void;
   focusType?: ApiNotification['type'] | null;
-}> = ({ loanTab, setLoanTab, riskFilter, setRiskFilter, focusItemId, setFocusItemId, focusType = null }) => {
+  /** Whose claims count as your own, so a row can grey out only other people's. */
+  staffUserId: number | null;
+}> = ({ loanTab, setLoanTab, riskFilter, setRiskFilter, focusItemId, setFocusItemId, focusType = null, staffUserId }) => {
   const modal = useModal();
   const { items, loans, customers, loaded, error, reload } = useLoanData();
 
@@ -3497,6 +3533,8 @@ const LoansPage: React.FC<{
   const [paymentArmed, setPaymentArmed] = useState(false);
   // What the optional pickup code check came back with.
   const [codeCheck, setCodeCheck] = useState<'idle' | 'checking' | 'ok' | 'bad'>('idle');
+  // The row whose claim is being asked for, so only its own button waits.
+  const [claiming, setClaiming] = useState<number | null>(null);
   const [processing, setProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [confirmingRequest, setConfirmingRequest] = useState<number | null>(null);
@@ -3538,7 +3576,18 @@ const LoansPage: React.FC<{
       if (!pickupLookedUp) return false;
       return pickupMatch?.transactionId === loan.transactionId;
     })
-    .filter(loan => focusItemId === null || loan.itemId === focusItemId);
+    .filter(loan => focusItemId === null || loan.itemId === focusItemId)
+    /*
+      Queue order: somebody who said they are on their way is served before a
+      pawn that merely falls due soon, and among those the oldest request goes
+      first. Everything else follows by due date, soonest first.
+    */
+    .sort((left, right) => {
+      if (left.readyToRedeemAt && right.readyToRedeemAt) return left.readyToRedeemAt.localeCompare(right.readyToRedeemAt);
+      if (left.readyToRedeemAt) return -1;
+      if (right.readyToRedeemAt) return 1;
+      return new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime();
+    });
 
   const filteredCustomerRows = customers.filter((customer) =>
     `${customer.name} ${customer.contact_number || ''}`.toLowerCase().includes(customerSearch.toLowerCase())
@@ -3551,6 +3600,18 @@ const LoansPage: React.FC<{
   const activePage = usePagedRows(filteredActiveLoans);
   const redemptionPage = usePagedRows(filteredRedemptionRows);
   const customerPage = usePagedRows(filteredCustomerRows);
+
+  /*
+    The Redemption tab is the one screen two staff work at once, so it reads
+    the list again on a timer to pick up claims taken elsewhere. It pauses
+    while a payment screen is open: the list must not move under somebody
+    counting money, and their own claim is already theirs.
+  */
+  useEffect(() => {
+    if (loanTab !== 'payments' || selectedRedemption) return;
+    const timer = window.setInterval(reload, REDEMPTION_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [loanTab, selectedRedemption, reload]);
 
   // The pawn a notification pointed at, found once the loans have loaded.
   const focusedLoan = focusItemId === null ? null : loans.find(loan => loan.itemId === focusItemId) || null;
@@ -3566,8 +3627,30 @@ const LoansPage: React.FC<{
     return () => window.cancelAnimationFrame(frame);
   }, [loaded, focusedTransactionId, loanTab]);
 
-  const openPayment = (row: LoanRow) => {
+  /**
+   * Open the payment screen, but only after claiming the pawn.
+   *
+   * The claim is the API's to give: pressing Process at the same moment as a
+   * colleague has to end with one screen open, not two.
+   */
+  const openPayment = async (row: LoanRow) => {
     setLoanTab('payments');
+    setClaiming(row.transactionId);
+    try {
+      await lockTransaction(row.transactionId);
+    } catch (lockError) {
+      // Somebody else got there first. Their claim is on the row after a
+      // reload, so the list explains itself.
+      await modal.info({
+        title: 'Already being processed',
+        message: lockError instanceof Error ? lockError.message : 'Another staff member is processing this pawn.',
+      });
+      reload();
+      return;
+    } finally {
+      setClaiming(null);
+    }
+
     setSelectedRedemption(row);
     setPaymentDraft({ ...EMPTY_PAYMENT_DRAFT, amount: String(row.totalPayable), cashReceived: String(row.totalPayable) });
     setPaymentArmed(false);
@@ -3582,10 +3665,19 @@ const LoansPage: React.FC<{
     setPaymentError('');
   };
 
+  /**
+   * Leave the payment screen and give the pawn back.
+   *
+   * Cancel, the close button, Escape and a backdrop press all arrive here, so
+   * every way out of the screen releases the claim. A browser closed outright
+   * cannot, which is what the API's timeout is for.
+   */
   const closePayment = () => {
+    const held = selectedRedemption;
     setSelectedRedemption(null);
     setPaymentArmed(false);
     setCodeCheck('idle');
+    if (held) unlockTransaction(held.transactionId).then(reload).catch(() => reload());
   };
 
   /**
@@ -3646,7 +3738,10 @@ const LoansPage: React.FC<{
         title: 'Payment confirmed',
         message: <>Payment of <strong>{moneyExact(collected)}</strong> taken via {paymentDraft.method}. The receipt is generated and the item is marked redeemed.</>,
       });
-      closePayment();
+      // redeem() clears the claim itself, so the screen just closes.
+      setSelectedRedemption(null);
+      setPaymentArmed(false);
+      setCodeCheck('idle');
       setPaymentDraft(EMPTY_PAYMENT_DRAFT);
       reload();
     } catch (requestError) {
@@ -3856,6 +3951,10 @@ const LoansPage: React.FC<{
                 <span>
                   {row.item}
                   {row.readyToRedeem && <em className={`redeem-request-badge ${row.redemptionConfirmed ? 'confirmed' : 'pending'}`}>{row.redemptionConfirmed ? 'Confirmed' : 'Ready to pick up/pay'}</em>}
+                  {/* A walk-in waiting at the counter, told apart from a pawn
+                      that is only due soon. */}
+                  {row.readyToRedeemAt && <em className="redeem-waiting-badge">Requested {timeAgo(row.readyToRedeemAt)}</em>}
+                  {row.lockedByName && <em className="redeem-lock-badge">Being processed by {row.lockedById === staffUserId ? 'you' : row.lockedByName}</em>}
                 </span>
                 <span>{money(row.loanAmount)}</span>
                 <span>{moneyExact(row.interestDue)}</span>
@@ -3872,8 +3971,14 @@ const LoansPage: React.FC<{
                       {confirmingRequest === row.transactionId ? 'Confirming' : 'Confirm request'}
                     </button>
                   )}
-                  <button onClick={() => openPayment(row)}>
-                    Process
+                  {/* A pawn somebody else is holding cannot be opened; their
+                      claim runs out on its own if they never come back. */}
+                  <button
+                    onClick={() => openPayment(row)}
+                    disabled={claiming === row.transactionId || (row.lockedByName !== null && row.lockedById !== staffUserId)}
+                    title={row.lockedByName && row.lockedById !== staffUserId ? `Being processed by ${row.lockedByName}` : undefined}
+                  >
+                    {claiming === row.transactionId ? 'Opening' : 'Process'}
                   </button>
                 </div>
               </div>

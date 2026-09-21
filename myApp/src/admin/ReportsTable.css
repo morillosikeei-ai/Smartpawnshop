@@ -54,7 +54,7 @@
   font-size: var(--fs-10); font-style: normal; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
 }
 .admin-page .rpt-status.active, .admin-user-modal .rpt-status.active { background: #eef4fd; color: #33578c; }
-.admin-page .rpt-status.redeemed, .admin-user-modal .rpt-status.redeemed { background: #e8f5e9; color: #237b35; }
+.admin-page .rpt-status.redeemed, .admin-user-modal .rpt-status.redeemed { background: #ecfdf3; color: #15803d; }
 .admin-page .rpt-status.forfeited, .admin-user-modal .rpt-status.forfeited { background: #fdecec; color: #b42318; }
 
 /* Pagination */
