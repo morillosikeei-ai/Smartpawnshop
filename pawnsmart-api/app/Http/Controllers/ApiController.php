@@ -495,7 +495,7 @@ class ApiController extends Controller
 
     public function transactions(Request $request): JsonResponse
     {
-        $query = Transaction::with(['item', 'customer', 'renewalRequests'])->latest('transactions_id');
+        $query = Transaction::with(['item', 'customer', 'renewalRequests', 'lockHolder:users_id,name'])->latest('transactions_id');
         if ($request->user()->role === 'customer') $query->where('customer_id', optional($request->user()->customerProfile)->customers_id);
         return response()->json($query->get());
     }
@@ -699,6 +699,9 @@ class ApiController extends Controller
             'redeemed_by' => $request->user()->users_id,
             'pickup_code' => null,
             'pickup_code_expires_at' => null,
+            // The payment is done, so the claim on it ends here too.
+            'locked_by' => null,
+            'locked_at' => null,
             'payment_method' => $method,
             'payment_reference' => $reference ?: null,
             'amount_collected' => $collected,
@@ -1093,6 +1096,74 @@ class ApiController extends Controller
     }
 
     /**
+     * Claim a pawn so one staff member can take its payment.
+     *
+     * The claim is decided here rather than in the browser: two terminals can
+     * press Process at the same moment, and only the row update that lands
+     * first should win. A lock that is already the caller's own is renewed,
+     * and one that has timed out is taken over.
+     */
+    public function lockTransaction(Request $request, Transaction $transaction): JsonResponse
+    {
+        abort_unless($transaction->status === 'active', 422, 'Only an open pawn can be processed.');
+
+        $userId = $request->user()->users_id;
+
+        /*
+          The row is read and written inside one database transaction, holding
+          it for update, so two terminals asking at the same moment are decided
+          one after the other rather than both being told yes.
+
+          Whether the claim succeeded cannot be read from the number of rows
+          written: renewing a lock in the same second writes the same values,
+          which counts as no change while being a perfectly good claim.
+        */
+        $claimed = DB::transaction(function () use ($transaction, $userId) {
+            $row = Transaction::where('transactions_id', $transaction->transactions_id)->lockForUpdate()->first();
+
+            if ($row->isLocked() && $row->locked_by !== $userId) {
+                return false;
+            }
+
+            $row->update(['locked_by' => $userId, 'locked_at' => now()]);
+
+            return true;
+        });
+
+        $transaction->refresh()->load('lockHolder:users_id,name');
+
+        if (! $claimed) {
+            return response()->json([
+                'locked' => true,
+                'locked_by_you' => false,
+                'locked_by_name' => $transaction->lockHolder?->name,
+                'message' => 'This pawn is already being processed by '.($transaction->lockHolder?->name ?? 'another staff member').'.',
+            ], 409);
+        }
+
+        return response()->json([
+            'locked' => true,
+            'locked_by_you' => true,
+            'locked_by_name' => $transaction->lockHolder?->name,
+        ]);
+    }
+
+    /**
+     * Give up a claim.
+     *
+     * Only the holder releases their own lock: a staff member closing their own
+     * screen must not free a pawn somebody else has since taken over.
+     */
+    public function unlockTransaction(Request $request, Transaction $transaction): JsonResponse
+    {
+        Transaction::where('transactions_id', $transaction->transactions_id)
+            ->where('locked_by', $request->user()->users_id)
+            ->update(['locked_by' => null, 'locked_at' => null]);
+
+        return response()->json(['locked' => false]);
+    }
+
+    /**
      * The customer's own pickup code for this pawn, if one is still running.
      *
      * A code that has run out reads the same as no code at all, so the portal
@@ -1456,6 +1527,54 @@ class ApiController extends Controller
                 'address' => $data['address'] ?? null,
             ], fn ($value) => $value !== null));
         }
+
+        return $this->me($request);
+    }
+
+    /**
+     * Set or change the signed in account's own password.
+     *
+     * A customer who reached the portal by scanning their pawn ticket has no
+     * password at all: the shop created the account, the activation email was
+     * never opened, and the QR flow let them in on the registered email
+     * address instead. There is nothing for them to state as a current
+     * password, so none is asked for, and setting one finishes the activation
+     * the email would have.
+     *
+     * Everyone else states the password they already have, so a screen left
+     * open on a counter cannot be used to lock its owner out.
+     */
+    public function updateMyPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['nullable', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->is_activated) {
+            $current = $data['current_password'] ?? '';
+
+            if ($current === '' || ! Hash::check($current, $user->password)) {
+                throw ValidationException::withMessages([
+                    'current_password' => 'That is not your current password.',
+                ]);
+            }
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($data['password']),
+            'activation_token' => null,
+            'is_activated' => true,
+        ])->save();
+
+        // Every other session ends: a new password is how someone takes their
+        // account back, and it should not leave the old way in open.
+        $current = $request->user()->currentAccessToken();
+        $user->tokens()->when($current, fn ($query) => $query->where('id', '!=', $current->id))->delete();
+
+        AuditLog::create(['user_id' => $user->users_id, 'action' => 'Set own password']);
 
         return $this->me($request);
     }

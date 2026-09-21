@@ -11,8 +11,8 @@ class Transaction extends Model
     use HasFactory;
 
     protected $primaryKey = 'transactions_id';
-    protected $fillable = ['item_id', 'customer_id', 'ticket_number', 'loan_amount', 'interest_rate', 'loan_to_value_percent', 'due_date', 'grace_period_days', 'status', 'redeemed_at', 'redeemed_by', 'ready_to_redeem_at', 'redemption_confirmed_at', 'interest_paid_until', 'pickup_code', 'pickup_code_expires_at', 'payment_method', 'payment_reference', 'amount_collected', 'cash_received'];
-    protected $casts = ['loan_amount' => 'decimal:2', 'interest_rate' => 'decimal:4', 'loan_to_value_percent' => 'decimal:2', 'due_date' => 'date', 'redeemed_at' => 'datetime', 'ready_to_redeem_at' => 'datetime', 'redemption_confirmed_at' => 'datetime', 'interest_paid_until' => 'datetime', 'pickup_code_expires_at' => 'datetime', 'amount_collected' => 'decimal:2', 'cash_received' => 'decimal:2'];
+    protected $fillable = ['item_id', 'customer_id', 'ticket_number', 'loan_amount', 'interest_rate', 'loan_to_value_percent', 'due_date', 'grace_period_days', 'status', 'redeemed_at', 'redeemed_by', 'ready_to_redeem_at', 'redemption_confirmed_at', 'interest_paid_until', 'pickup_code', 'pickup_code_expires_at', 'payment_method', 'payment_reference', 'amount_collected', 'cash_received', 'locked_by', 'locked_at'];
+    protected $casts = ['loan_amount' => 'decimal:2', 'interest_rate' => 'decimal:4', 'loan_to_value_percent' => 'decimal:2', 'due_date' => 'date', 'redeemed_at' => 'datetime', 'ready_to_redeem_at' => 'datetime', 'redemption_confirmed_at' => 'datetime', 'interest_paid_until' => 'datetime', 'pickup_code_expires_at' => 'datetime', 'amount_collected' => 'decimal:2', 'cash_received' => 'decimal:2', 'locked_at' => 'datetime'];
 
     /**
      * The pickup code never leaves the model on its own.
@@ -126,6 +126,24 @@ class Transaction extends Model
      */
     public function renewalRequests() { return $this->hasMany(RenewalRequest::class, 'transaction_id', 'transactions_id')->orderBy('renewal_requests_id'); }
 
+    /**
+     * How long a processing lock is honoured, in minutes.
+     *
+     * A staff member who closes their browser mid payment cannot release
+     * the lock they took, so an old lock is read as no lock at all. Long
+     * enough to count money, short enough that nobody waits on a colleague
+     * who has gone home.
+     */
+    public const LOCK_MINUTES = 10;
+
+    /** Whether someone is holding this pawn right now. */
+    public function isLocked(): bool
+    {
+        return $this->locked_by !== null
+            && $this->locked_at !== null
+            && $this->locked_at->gt(now()->subMinutes(self::LOCK_MINUTES));
+    }
+
     /** How long a pickup code stays usable, in hours. */
     public const PICKUP_CODE_HOURS = 2;
 
@@ -136,6 +154,9 @@ class Transaction extends Model
             && $this->pickup_code_expires_at !== null
             && $this->pickup_code_expires_at->isFuture();
     }
+
+    /** The staff member currently taking this payment, while a lock is held. */
+    public function lockHolder() { return $this->belongsTo(User::class, 'locked_by', 'users_id'); }
 
     /** The staff member who took the redemption payment, when one has been taken. */
     public function redeemer() { return $this->belongsTo(User::class, 'redeemed_by', 'users_id'); }

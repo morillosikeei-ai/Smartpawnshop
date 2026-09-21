@@ -39,6 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{transaction}/ready-to-redeem', [ApiController::class, 'requestRedemption'])->middleware('role:customer');
     Route::post('/transactions/{transaction}/customer-request', [ApiController::class, 'customerRequest'])->middleware('role:customer');
     Route::post('/transactions/{transaction}/confirm-redemption', [ApiController::class, 'confirmRedemptionRequest'])->middleware('role:staff,admin');
+    // One staff member at a time takes a payment. The claim is decided by the
+    // API, so two terminals pressing Process together cannot both win.
+    Route::post('/transactions/{transaction}/lock', [ApiController::class, 'lockTransaction'])->middleware('role:staff,admin');
+    Route::post('/transactions/{transaction}/unlock', [ApiController::class, 'unlockTransaction'])->middleware('role:staff,admin');
     // Renewal paid through GCash. The customer pays in their own GCash app
     // and submits the reference number; staff check it against the shop's
     // account before the due date moves.
@@ -65,6 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/{notification}/read', [ApiController::class, 'markNotificationRead']);
     Route::get('/me', [ApiController::class, 'me']);
     Route::put('/me', [ApiController::class, 'updateMe']);
+    // Set or change your own password. A customer who came in by QR scan has
+    // none yet, so none is asked for.
+    Route::put('/me/password', [ApiController::class, 'updateMyPassword']);
     Route::get('/audit-logs', [ApiController::class, 'auditLogs'])->middleware('role:staff,admin');
     Route::get('/reports/summary', [ApiController::class, 'reportSummary'])->middleware('role:admin');
     // One staff member's own work. The caller is the subject: no user id is
