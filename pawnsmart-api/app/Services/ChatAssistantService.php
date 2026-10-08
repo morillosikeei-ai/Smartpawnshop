@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -28,7 +29,7 @@ Shop facts (the only facts you may quote):
 - To pawn: bring the item and one valid government ID (UMID, passport, driver's license, PhilSys, or postal ID). Staff appraise the item on the spot, quote a pawn amount, and issue a pawn ticket. Gold is weighed and karat-checked in front of the customer.
 - To redeem: bring the pawn ticket and a valid ID, pay the principal plus accrued interest. The item is released the same day.
 - Item status, appraised value, pawn amount, and due date: log in to the Customer Portal and open "My Items". Values update daily with the gold price.
-- Address: Poblacion, Pagasawa, Philippines. Open Monday to Saturday, 8:00 AM to 5:00 PM. Phone (02) 8123 4567. Email hello@pagasapawnshop.ph.
+- Address: Kauswagan, Cagayan de Oro City, Misamis Oriental. Open Monday to Saturday, 9:00 AM to 6:00 PM. Phone 0970 885 6182. Email renierjemorellorivas@gmail.com.
 
 Rules:
 - Never invent amounts, rates, dates, policies, or anything about a specific customer's items. You cannot see customer accounts. If you do not know, tell the customer to check My Items or contact the shop.
@@ -69,8 +70,10 @@ PROMPT;
         try {
             $response = Http::withHeaders(['x-goog-api-key' => $apiKey])
                 ->timeout(15)
-                // The free tier sometimes hangs on a request; one more try usually answers.
-                ->retry(2, 200, fn ($e) => $e instanceof ConnectionException, throw: false)
+                // The free tier sometimes hangs or answers 503 "high demand";
+                // another try a moment later usually answers.
+                ->retry(3, 700, fn ($e) => $e instanceof ConnectionException
+                    || ($e instanceof RequestException && $e->response->serverError()), throw: false)
                 ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
                     'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
                     'contents' => $contents,

@@ -67,7 +67,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'contact',
     keywords: ['contact', 'address', 'location', 'asa', 'number', 'phone', 'email', 'open', 'hours', 'schedule', 'oras'],
     answer:
-      'Naa mi sa Poblacion, Pagasawa, Philippines. Bukas Monday to Saturday, 8:00 AM to 5:00 PM. Call (02) 8123 4567 or email hello@pagasapawnshop.ph.',
+      'Naa mi sa Kauswagan, Cagayan de Oro City, Misamis Oriental. Bukas Monday to Saturday, 9:00 AM to 6:00 PM. Call 0970 885 6182 or email renierjemorellorivas@gmail.com.',
   },
 ];
 

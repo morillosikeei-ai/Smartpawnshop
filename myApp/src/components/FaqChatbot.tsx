@@ -115,11 +115,26 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
     };
   }, []);
 
-  const send = async (raw: string) => {
+  /**
+   * Post the customer's message and its answer. A quick question button
+   * (`quick`) is answered at once from the keyword table, since its answer is
+   * already known; only typed messages wait on the AI assistant.
+   */
+  const send = async (raw: string, quick = false) => {
     const text = raw.trim();
     if (!text || typing) return;
 
     const customerMessage: ChatMessage = { id: nextId.current++, from: 'customer', text, at: Date.now() };
+
+    if (quick) {
+      setMessages((current) => [
+        ...current,
+        customerMessage,
+        { id: nextId.current++, from: 'bot', text: answerFor(text), at: Date.now(), action: actionFor(text) || undefined },
+      ]);
+      return;
+    }
+
     // The greeting is left out: it is canned, and the model gets its own instructions.
     const history: ChatTurn[] = [...messages, customerMessage]
       .filter((message) => message.id !== 0)
@@ -194,7 +209,7 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
 
           <div className="faq-quick">
             {QUICK_QUESTIONS.map((question) => (
-              <button key={question} onClick={() => send(question)} disabled={typing}>{question}</button>
+              <button key={question} onClick={() => send(question, true)} disabled={typing}>{question}</button>
             ))}
           </div>
 
