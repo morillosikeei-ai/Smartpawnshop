@@ -1928,8 +1928,11 @@ ion-modal.auth-modal .auth-info-message p {
         will-change: transform;
     }
 
-    /* Hold still while a card is pointed at or its Inquire button has keyboard focus. */
-    .sale-marquee .sale-marquee-track:has(.product-card:hover),
+    /* Hold still while the pointer is anywhere over the row or an Inquire
+       button has keyboard focus. Hover is checked on the row, which stays put,
+       not on the moving cards: browsers do not update :hover when an element
+       slides under a still pointer, and the gaps between cards would resume it. */
+    .sale-marquee:hover .sale-marquee-track,
     .sale-marquee .sale-marquee-track:has(.product-action-btn:focus-within) {
         animation-play-state: paused;
     }
