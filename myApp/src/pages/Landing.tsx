@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getForSaleItems, login as apiLogin, requestPasswordReset, type SaleItem } from '../services/api';
 import {
@@ -53,9 +53,14 @@ interface ProductCardProps {
     badge?: string;
     image?: string;
     category?: string;
+    /**
+     * A repeated copy in the sale marquee. Hidden from screen readers and
+     * taken out of the tab order, so each item is announced and reached once.
+     */
+    clone?: boolean;
 }
 
-type LandingProduct = ProductCardProps;
+type LandingProduct = Omit<ProductCardProps, 'clone'>;
 
 const ProductCard: React.FC<ProductCardProps> = ({
     title,
@@ -63,9 +68,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
     badge,
     image = 'https://picsum.photos/seed/' + title + '/400/300',
     category = 'Jewelry',
+    clone = false,
 }) => {
     return (
-        <IonCard className="product-card glass-card">
+        // inert as well as aria-hidden: the Inquire link lives inside the
+        // button's shadow DOM, where the host's tabIndex does not reach.
+        <IonCard className={`product-card glass-card${clone ? ' is-clone' : ''}`} aria-hidden={clone ? 'true' : undefined} inert={clone || undefined}>
             <div className="product-image-wrapper">
                 <img src={image} alt={title} className="product-image" />
                 {badge && (
@@ -81,11 +89,71 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </IonCardHeader>
             <IonCardContent className="product-footer">
                 <span className="product-price-label">Selling price</span>
-                <IonButton fill="clear" size="small" className="product-action-btn" href="#contact">
+                <IonButton fill="clear" size="small" className="product-action-btn" href="#contact" tabIndex={clone ? -1 : undefined}>
                     Inquire <IonIcon icon={arrowForwardOutline} slot="end" />
                 </IonButton>
             </IonCardContent>
         </IonCard>
+    );
+};
+
+/**
+ * The items for sale as one row that scrolls right to left without end.
+ *
+ * The list is laid out twice (two equal halves) and the track slides by one
+ * half, so the end of the loop lines up with its start. Each half repeats the
+ * list as often as needed to be at least as wide as the row, so a short list
+ * never leaves a gap. The first copy is the real one; every other copy is
+ * hidden from screen readers and the keyboard.
+ *
+ * The motion itself lives in Landing.css: it runs unless the visitor has
+ * asked for reduced motion, and then the row is a plain horizontal scroller
+ * showing each item once.
+ */
+const SaleMarquee: React.FC<{ products: LandingProduct[] }> = ({ products }) => {
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const trackRef = useRef<HTMLDivElement>(null);
+    // How many times the list repeats inside one half of the track.
+    const [repeats, setRepeats] = useState(1);
+
+    useLayoutEffect(() => {
+        const viewport = viewportRef.current;
+        const track = trackRef.current;
+        if (!viewport || !track || products.length === 0) return;
+
+        const measure = () => {
+            const card = track.firstElementChild as HTMLElement | null;
+            if (!card) return;
+            const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+            const listWidth = products.length * (card.offsetWidth + gap);
+            if (listWidth <= 0) return;
+            setRepeats(Math.max(1, Math.ceil(viewport.clientWidth / listWidth)));
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(viewport);
+        return () => observer.disconnect();
+    }, [products]);
+
+    const copies = repeats * 2;
+
+    return (
+        <div className="sale-marquee" ref={viewportRef}>
+            <div className="sale-grid sale-marquee-track" ref={trackRef}>
+                {Array.from({ length: copies }, (_, copy) => products.map((product, index) => (
+                    <ProductCard
+                        key={`${copy}-${index}`}
+                        title={product.title}
+                        price={product.price}
+                        image={product.image}
+                        category={product.category}
+                        badge={product.badge}
+                        clone={copy > 0}
+                    />
+                )))}
+            </div>
+        </div>
     );
 };
 
@@ -463,7 +531,7 @@ const Landing: React.FC = () => {
 
                     <GoldEstimate onAskQuestion={() => setChatOpenSignal(signal => signal + 1)} />
 
-                    <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}<div className="sale-grid">{products.map(product => <ProductCard key={product.title} title={product.title} price={product.price} image={product.image} category={product.category} badge={product.badge} />)}</div></section>
+                    <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}{products.length > 0 && <SaleMarquee products={products} />}</section>
 
                     <section className="contact-section landing-section" id="contact"><div className="contact-copy"><div className="section-eyebrow">COME SEE US</div><h2>Let’s talk about what you need.</h2><p>Visit Pag-Asa Pawnshop or reach out to our team for help with pawning, renewals, redemption, or an item for sale.</p><div className="contact-details"><span><IonIcon icon={locationOutline} />Kauswagan, Cagayan de Oro City, Misamis Orienta
                     </span><span><IonIcon icon={callOutline} />0970 885 6182</span><span><IonIcon icon={mailOutline} />renierjemorellorivas@gmail.com</span><span><IonIcon icon={timeOutline} />Monday–Saturday · 9:00 AM–6:00 PM</span></div></div><BranchMap /></section>

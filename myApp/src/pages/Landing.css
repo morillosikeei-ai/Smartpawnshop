@@ -1872,3 +1872,65 @@ ion-modal.auth-modal .auth-info-message p {
         background: linear-gradient(180deg, rgba(6, 16, 40, .78) 0%, rgba(6, 16, 40, .6) 55%, rgba(6, 16, 40, .8) 100%);
     }
 }
+
+/* Items for sale: one row that scrolls right to left without end.
+   SaleMarquee in Landing.tsx lays the list out twice, so sliding the track by
+   half its width (plus half a gap, since the gap between the halves belongs to
+   neither) lands exactly where it started.
+   --sale-marquee-duration sets the speed: the time for one full loop. Larger
+   is slower. */
+.sale-marquee {
+    --sale-marquee-duration: 40s;
+    --sale-marquee-gap: 14px;
+    --sale-card-width: clamp(220px, 68vw, 260px);
+    /* Room for the card hover lift and shadow, which overflow would clip. */
+    padding: 8px 0 14px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+@media (min-width: 621px) { .sale-marquee { --sale-card-width: 250px; } }
+@media (min-width: 1025px) { .sale-marquee { --sale-card-width: 280px; } }
+
+.sale-marquee .sale-marquee-track.sale-grid {
+    display: flex;
+    gap: var(--sale-marquee-gap);
+    width: max-content;
+}
+
+.sale-marquee .sale-marquee-track > .product-card {
+    flex: 0 0 var(--sale-card-width);
+    width: var(--sale-card-width);
+    height: auto;
+}
+
+/* Still: a plain scrollable row with each item once. */
+.sale-marquee .sale-marquee-track > .product-card.is-clone { display: none; }
+
+@keyframes sale-marquee-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-50% - var(--sale-marquee-gap) / 2)); }
+}
+
+/* Moving, unless the visitor's device asks for reduced motion. It does not
+   follow the background motion toggle, which starts off. */
+@media (prefers-reduced-motion: no-preference) {
+    .sale-marquee {
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+        mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+    }
+
+    .sale-marquee .sale-marquee-track > .product-card.is-clone { display: flex; }
+
+    .sale-marquee .sale-marquee-track {
+        animation: sale-marquee-scroll var(--sale-marquee-duration) linear infinite;
+        will-change: transform;
+    }
+
+    /* Hold still while a card is pointed at or its Inquire button has keyboard focus. */
+    .sale-marquee .sale-marquee-track:has(.product-card:hover),
+    .sale-marquee .sale-marquee-track:has(.product-action-btn:focus-within) {
+        animation-play-state: paused;
+    }
+}
