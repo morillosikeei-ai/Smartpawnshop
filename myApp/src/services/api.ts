@@ -426,6 +426,14 @@ export async function updateUser(id: number, payload: { status: ApiUser['status'
 
 export async function createItem(payload: Record<string, unknown>) { return request<ApiItem>('/items', { method: 'POST', body: JSON.stringify(payload) }); }
 export async function getItems() { return request<ApiItemDetail[]>('/items'); }
+/** One line of the FAQ chat, in the shape the chat endpoint takes. */
+export type ChatTurn = { role: 'user' | 'assistant'; content: string };
+/**
+ * Ask the AI assistant to answer the FAQ chat. Resolves to null when the server
+ * has no answer (no API key, free quota used up), so the caller falls back to its
+ * offline keyword answer.
+ */
+export async function askChatAssistant(messages: ChatTurn[]) { return (await request<{ reply: string | null }>('/chat', { method: 'POST', body: JSON.stringify({ messages }) }, false)).reply; }
 /** A public gold value estimate. Computed from the latest gold price; nothing is saved. */
 export type MetalType = 'gold' | 'silver';
 export type ApiEstimate = { metal_type: MetalType; karat: string; weight_grams: number; purity: number; price_per_gram: number; price_date: string; estimate_date: string; estimated_value: number };

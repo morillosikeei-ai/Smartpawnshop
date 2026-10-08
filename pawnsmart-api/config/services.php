@@ -43,4 +43,11 @@ return [
         'key' => env('GOLD_PRICE_API_KEY'),
     ],
 
+    // Google Gemini, used by the FAQ chat (ChatAssistantService). Key from
+    // Google AI Studio. Without a key the chat keeps its offline keyword answers.
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.1-flash-lite'),
+    ],
+
 ];

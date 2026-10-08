@@ -8,6 +8,9 @@ Route::get('/items/for-sale', [ApiController::class, 'forSale']);
 // Public gold value estimate for the landing page. Read only: it computes a
 // figure from the latest gold price and never writes to the database.
 Route::post('/estimate', [ApiController::class, 'estimate'])->middleware('throttle:30,1');
+// FAQ chat answered by Google Gemini. Public, because the chat also runs on the
+// landing page; the throttle caps what one visitor can spend.
+Route::post('/chat', [ApiController::class, 'chat'])->middleware('throttle:10,1');
 Route::post('/activate', [ApiController::class, 'activate']);
 Route::post('/forgot-password', [ApiController::class, 'forgotPassword'])->middleware('throttle:6,1');
 Route::post('/reset-password', [ApiController::class, 'resetPassword'])->middleware('throttle:6,1');

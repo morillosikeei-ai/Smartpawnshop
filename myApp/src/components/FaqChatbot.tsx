@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import { arrowForwardOutline, chatbubbleEllipsesOutline, closeOutline, sendOutline } from 'ionicons/icons';
 import { actionFor, answerFor, FaqEntry } from './faqData';
+import { askChatAssistant, ChatTurn } from '../services/api';
 import './FaqChatbot.css';
 
-/** How long the typing indicator shows before the answer appears, in ms. */
+/** Shortest time the typing indicator shows, in ms, so a fast answer does not flash. */
 const TYPING_DELAY_MS = 500;
 
 /** Where the signed in customer's name is kept after login. */
@@ -68,8 +69,9 @@ const clockTime = (at: number) =>
 /**
  * Floating FAQ chat bubble.
  *
- * Rule based and fully offline: answers come from a local keyword table, so
- * the widget works the same signed in or signed out and never calls the API.
+ * Answers come from Google Gemini through the API's /chat endpoint. When that fails
+ * or returns no answer (no API key, offline, rate limited), the reply falls
+ * back to the local keyword table, so the chat always answers something.
  */
 const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, openSignal }) => {
   const [open, setOpen] = useState(false);
@@ -84,8 +86,8 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
   const [typing, setTyping] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
-  // Held so the delayed reply can be cancelled if the widget unmounts first.
-  const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cleared on unmount so a reply that lands late is dropped, not set on a gone widget.
+  const mounted = useRef(true);
 
   // The name arrives with the account data, which lands after the first render,
   // so the greeting is rewritten once it is known. Only the untouched greeting
@@ -106,26 +108,38 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, typing, open]);
 
-  useEffect(() => () => {
-    if (replyTimer.current) clearTimeout(replyTimer.current);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
-  const send = (raw: string) => {
+  const send = async (raw: string) => {
     const text = raw.trim();
     if (!text || typing) return;
 
-    setMessages((current) => [...current, { id: nextId.current++, from: 'customer', text, at: Date.now() }]);
+    const customerMessage: ChatMessage = { id: nextId.current++, from: 'customer', text, at: Date.now() };
+    // The greeting is left out: it is canned, and the model gets its own instructions.
+    const history: ChatTurn[] = [...messages, customerMessage]
+      .filter((message) => message.id !== 0)
+      .map((message) => ({ role: message.from === 'customer' ? 'user' : 'assistant', content: message.text }));
+
+    setMessages((current) => [...current, customerMessage]);
     setDraft('');
     setTyping(true);
 
-    // Purely cosmetic pause. No request is made; the answer is already known.
-    replyTimer.current = setTimeout(() => {
-      setMessages((current) => [
-        ...current,
-        { id: nextId.current++, from: 'bot', text: answerFor(text), at: Date.now(), action: actionFor(text) || undefined },
-      ]);
-      setTyping(false);
-    }, TYPING_DELAY_MS);
+    const [reply] = await Promise.all([
+      askChatAssistant(history).catch(() => null),
+      new Promise((resolve) => setTimeout(resolve, TYPING_DELAY_MS)),
+    ]);
+    if (!mounted.current) return;
+
+    setMessages((current) => [
+      ...current,
+      { id: nextId.current++, from: 'bot', text: reply || answerFor(text), at: Date.now(), action: actionFor(text) || undefined },
+    ]);
+    setTyping(false);
   };
 
   return (

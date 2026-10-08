@@ -15,6 +15,7 @@ use App\Models\SilverPrice;
 use App\Models\SystemSetting;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\ChatAssistantService;
 use App\Services\GoldPriceService;
 use App\Services\MailDelivery;
 use App\Services\NotificationService;
@@ -729,6 +730,21 @@ class ApiController extends Controller
      * only a karat are unchanged. Nothing is stored, so the reply is only ever
      * an estimate.
      */
+    public function chat(Request $request, ChatAssistantService $assistant): JsonResponse
+    {
+        $data = $request->validate([
+            'messages' => ['required', 'array', 'min:1', 'max:30'],
+            'messages.*.role' => ['required', Rule::in(['user', 'assistant'])],
+            'messages.*.content' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $messages = array_map(fn (array $m) => ['role' => $m['role'], 'content' => $m['content']], $data['messages']);
+        abort_unless(end($messages)['role'] === 'user', 422, 'The last message must be from the customer.');
+
+        // A null reply tells the chat to use its offline keyword answer.
+        return response()->json(['reply' => $assistant->reply($messages)]);
+    }
+
     public function estimate(Request $request): JsonResponse
     {
         $isSilver = $request->input('metal_type') === Item::METAL_SILVER;
