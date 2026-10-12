@@ -70,6 +70,11 @@ import {
   getTransactions,
   markItemForSale,
   markItemSold,
+  getReservations,
+  cancelReservation,
+  isHolding,
+  holdEnds,
+  type ApiReservation,
   redeemTransaction,
   unlockTransaction,
   rejectRenewalRequest,
@@ -199,6 +204,9 @@ const NOTIFICATION_ICONS: Record<string, { icon: string; tone: 'info' | 'warn' |
   forfeited: { icon: cubeOutline, tone: 'neutral' },
   renewal_confirmed: { icon: checkmarkCircle, tone: 'success' },
   renewal_rejected: { icon: alertCircleOutline, tone: 'warn' },
+  staff_item_reserved: { icon: cubeOutline, tone: 'info' },
+  reservation_expired: { icon: calendarOutline, tone: 'warn' },
+  reservation_cancelled: { icon: alertCircleOutline, tone: 'warn' },
 };
 
 const StaffPortal: React.FC = () => {
@@ -2921,6 +2929,24 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
   const [photoItem, setPhotoItem] = useState<ApiItemDetail | null>(null);
   const [draftPhotos, setDraftPhotos] = useState<string[]>([]);
   const [photoNote, setPhotoNote] = useState('');
+  // Customers' holds on items for sale, refetched whenever the item list is.
+  const [holds, setHolds] = useState<ApiReservation[]>([]);
+
+  useEffect(() => {
+    getReservations().then(setHolds).catch(() => setHolds([]));
+  }, [items]);
+
+  const holdFor = (itemId: number) => holds.find(hold => hold.item_id === itemId && isHolding(hold)) || null;
+
+  const cancelHold = async (hold: ApiReservation, itemName: string) => {
+    const confirmed = await modal.warning({
+      title: 'Cancel this reservation?',
+      message: <><strong>{hold.customer?.name || 'The customer'}</strong> will be told the shop cancelled their hold on <strong>{itemName}</strong>, and it goes back on sale.</>,
+      confirmLabel: 'Cancel reservation',
+    });
+    if (!confirmed) return;
+    await run(() => cancelReservation(hold.item_reservations_id));
+  };
 
   const openPhotoEditor = (item: ApiItemDetail) => {
     setPhotoItem(item);
@@ -3081,13 +3107,17 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
                   {group.items.map(item => {
                     const loan = openLoanFor(item.items_id);
                     const cells = rowCells(item, loan);
+                    const hold = item.status === 'for_sale' ? holdFor(item.items_id) : null;
 
                     return (
                       <tr key={item.items_id}>
                         <td><strong>{item.description}</strong><small>{loan?.ticketNumber || latestTransaction(item)?.ticket_number || savedItemTypeLabel(item)}</small></td>
                         <td>{savedItemTypeLabel(item)}</td>
                         <td>{item.customer?.name || 'Unknown customer'}</td>
-                        <td><span className={`loan-badge ${item.status.replace('_', '-')}`}>{statusLabel(item.status)}</span></td>
+                        <td>
+                          <span className={`loan-badge ${item.status.replace('_', '-')}`}>{statusLabel(item.status)}</span>
+                          {hold && <small className="workflow-hold">Reserved by {hold.customer?.name || 'a customer'}{hold.customer?.contact_number ? ` (${hold.customer.contact_number})` : ''} until {holdEnds(hold.expires_at)}</small>}
+                        </td>
                         <td><strong>{cells.value}</strong><small>{cells.valueLabel}</small></td>
                         <td>{cells.date}<small>{cells.dateLabel}</small></td>
                         {groupHasActions && <td>
@@ -3106,6 +3136,7 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
                               >For Sale</button>
                             </>}
                             {(item.status === 'forfeited' || item.status === 'for_sale') && <button onClick={() => openPhotoEditor(item)} disabled={busy}>Photos ({item.photo_urls?.length || 0})</button>}
+                            {hold && <button className="workflow-hold-cancel" onClick={() => cancelHold(hold, item.description)} disabled={busy}>Cancel hold</button>}
                             {item.status === 'for_sale' && <button onClick={() => run(() => markItemSold(item.items_id))} disabled={busy}>Mark Sold</button>}
                             {!loan && item.status !== 'forfeited' && item.status !== 'for_sale' && <span className="workflow-no-action">—</span>}
                           </div>

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Item;
+use App\Models\ItemReservation;
 use App\Models\Notification;
 use App\Models\SystemSetting;
 use App\Models\Transaction;
@@ -42,6 +43,15 @@ class NotificationService
 
     /** A loan passed its grace period and the item was forfeited. */
     public const TYPE_STAFF_FORFEITED = 'staff_forfeited';
+
+    /** A customer reserved an item for sale. */
+    public const TYPE_STAFF_ITEM_RESERVED = 'staff_item_reserved';
+
+    /** A customer's hold on an item for sale ran out. */
+    public const TYPE_CUSTOMER_RESERVATION_EXPIRED = 'reservation_expired';
+
+    /** Staff cancelled a customer's hold on an item for sale. */
+    public const TYPE_CUSTOMER_RESERVATION_CANCELLED = 'reservation_cancelled';
 
     /** An item and its loan were recorded for the customer. */
     public const TYPE_CUSTOMER_ITEM_CREATED = 'item_created';
@@ -452,5 +462,48 @@ class NotificationService
     private function date(Carbon|string|null $date): string
     {
         return $date ? Carbon::parse($date)->format('M j, Y') : 'the due date';
+    }
+
+    // Reservations of items for sale. Each hold is its own event, and the same
+    // customer may hold the same item again later, so none is suppressed as a
+    // repeat (a window of 0 days never matches an earlier row).
+
+    public function itemReserved(ItemReservation $reservation): void
+    {
+        $this->sendToStaff(
+            self::TYPE_STAFF_ITEM_RESERVED,
+            $this->customerName($reservation->customer).' reserved '.$this->itemName($reservation->item)
+                .' ('.$this->peso((float) $reservation->item->sale_price).') until '.$this->shopTime($reservation->expires_at).'.',
+            $reservation->item_id,
+            0
+        );
+    }
+
+    public function reservationExpired(ItemReservation $reservation): void
+    {
+        $this->sendToCustomer(
+            $reservation->customer,
+            self::TYPE_CUSTOMER_RESERVATION_EXPIRED,
+            'Your reservation for '.$this->itemName($reservation->item).' has expired. The item is back on sale.',
+            $reservation->item_id,
+            0
+        );
+    }
+
+    public function reservationCancelledByStaff(ItemReservation $reservation): void
+    {
+        $this->sendToCustomer(
+            $reservation->customer,
+            self::TYPE_CUSTOMER_RESERVATION_CANCELLED,
+            'The shop cancelled your reservation for '.$this->itemName($reservation->item).'. Please contact us if you have questions.',
+            $reservation->item_id,
+            0
+        );
+    }
+
+    /** A moment in the shop's local time, as a customer reads it: "Tue, Oct 13, 6:00 PM". */
+    private function shopTime(Carbon $at): string
+    {
+        return $at->copy()->setTimezone(ReservationService::SHOP_TIMEZONE)->format('D, M j, g:i A');
     }
 }

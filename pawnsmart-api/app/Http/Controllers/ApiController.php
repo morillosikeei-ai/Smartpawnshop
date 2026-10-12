@@ -8,6 +8,7 @@ use App\Models\CustomerAccessToken;
 use App\Models\AuditLog;
 use App\Models\GoldPrice;
 use App\Models\Item;
+use App\Models\ItemReservation;
 use App\Models\Notification;
 use App\Models\RenewalRequest;
 use App\Models\RiskAlert;
@@ -19,6 +20,7 @@ use App\Services\ChatAssistantService;
 use App\Services\GoldPriceService;
 use App\Services\MailDelivery;
 use App\Services\NotificationService;
+use App\Services\ReservationService;
 use App\Mail\ActivationMail;
 use App\Mail\PasswordResetMail;
 use App\Support\FrontendUrl;
@@ -491,7 +493,55 @@ class ApiController extends Controller
 
     public function forSale(): JsonResponse
     {
-        return response()->json(Item::where('status', 'for_sale')->get(['items_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'photo_path', 'sale_price']));
+        $holds = ItemReservation::holding()->get(['item_id', 'expires_at'])->keyBy('item_id');
+
+        // reserved_until is when a hold on the item runs out, or null when the
+        // item is free to reserve. Who holds it stays private.
+        return response()->json(
+            Item::where('status', 'for_sale')
+                ->get(['items_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'photo_path', 'sale_price'])
+                ->each(fn (Item $item) => $item->setAttribute('reserved_until', $holds->get($item->items_id)?->expires_at?->toIso8601String()))
+        );
+    }
+
+    /** A customer holds an item for sale until closing time on the second open day. */
+    public function reserveItem(Request $request, Item $item, ReservationService $reservations): JsonResponse
+    {
+        $customer = $request->user()->customerProfile;
+        abort_unless($customer, 403, 'Only customers with a profile can reserve items.');
+
+        return response()->json($reservations->reserve($item, $customer, $request->user()->users_id)->load('item'), 201);
+    }
+
+    /**
+     * Holds on items for sale. A customer sees their own from the last 30
+     * days, newest first; staff see every hold still in effect, soonest to run
+     * out first.
+     */
+    public function reservations(Request $request): JsonResponse
+    {
+        if ($request->user()->role === 'customer') {
+            $customerId = optional($request->user()->customerProfile)->customers_id;
+
+            return response()->json(
+                ItemReservation::with('item')
+                    ->where('customer_id', $customerId)
+                    ->where('created_at', '>=', now()->subDays(30))
+                    ->latest('item_reservations_id')
+                    ->get()
+            );
+        }
+
+        return response()->json(ItemReservation::with(['item', 'customer'])->holding()->orderBy('expires_at')->get());
+    }
+
+    public function cancelReservation(Request $request, ItemReservation $reservation, ReservationService $reservations): JsonResponse
+    {
+        $user = $request->user();
+        $byStaff = $user->role !== 'customer';
+        abort_unless($byStaff || $reservation->customer_id === optional($user->customerProfile)->customers_id, 403);
+
+        return response()->json($reservations->cancel($reservation, $user->users_id, $byStaff));
     }
 
     public function transactions(Request $request): JsonResponse
@@ -1757,6 +1807,7 @@ class ApiController extends Controller
     {
         abort_unless($item->status === 'for_sale', 422, 'Only listed items can be sold.');
         $item->update(['status' => 'sold']);
+        app(ReservationService::class)->claim($item);
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Marked resale item sold']);
         return response()->json($item->fresh());
     }

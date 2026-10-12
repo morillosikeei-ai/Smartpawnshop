@@ -1207,3 +1207,9 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 }
 /* A row held by someone else keeps its place in the queue but not its button. */
 .staff-page .redemption-row-actions button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* A customer's hold on an item for sale, under its status badge. */
+.staff-page .workflow-table td small.workflow-hold { margin-top: 6px; color: #1d4ed8; font-weight: 700; }
+html[data-theme="dark"] .staff-page .workflow-table td small.workflow-hold { color: #93b4ff; }
+.workflow-actions button.workflow-hold-cancel { background: transparent; border: 1px solid currentColor; color: #b42318; }
+html[data-theme="dark"] .workflow-actions button.workflow-hold-cancel { color: #f0928a; }

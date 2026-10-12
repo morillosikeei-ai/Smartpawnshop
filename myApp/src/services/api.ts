@@ -34,7 +34,7 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 export type ApiUser = { users_id: number; name: string; email: string; role: 'admin' | 'staff' | 'customer'; status: 'active' | 'inactive' };
 export type ItemGroup = 'jewelry' | 'watch_phone' | 'bulky';
-export type SaleItem = { items_id: number; group: ItemGroup; category: string; custom_item_type?: string | null; description: string; brand_model?: string | null; /** Stored item photos, first one first. Empty when none were taken. */ photo_urls?: string[]; sale_price: string | number };
+export type SaleItem = { items_id: number; group: ItemGroup; category: string; custom_item_type?: string | null; description: string; brand_model?: string | null; /** Stored item photos, first one first. Empty when none were taken. */ photo_urls?: string[]; sale_price: string | number; /** When a customer's hold on the item runs out, or null when it is free to reserve. */ reserved_until?: string | null };
 export type ApiTransaction = {
   transactions_id: number;
   ticket_number: string;
@@ -145,7 +145,10 @@ export type NotificationType =
   | 'redemption_complete'
   | 'forfeited'
   | 'renewal_confirmed'
-  | 'renewal_rejected';
+  | 'renewal_rejected'
+  | 'staff_item_reserved'
+  | 'reservation_expired'
+  | 'reservation_cancelled';
 
 export type ApiNotification = {
   notifications_id: number;
@@ -176,6 +179,9 @@ export const NOTIFICATION_TITLES: Record<NotificationType, string> = {
   forfeited: 'Item expired/unclaimed',
   renewal_confirmed: 'Renewal confirmed',
   renewal_rejected: 'Renewal not confirmed',
+  staff_item_reserved: 'Item reserved',
+  reservation_expired: 'Reservation expired',
+  reservation_cancelled: 'Reservation cancelled',
 };
 
 export type ApiAuditLog = {
@@ -444,6 +450,34 @@ export async function markItemForSale(itemId: number, salePrice: number) { retur
 /** Replace an item's photos with `photos`, in order. An empty list removes them all. */
 export async function updateItemPhotos(itemId: number, photos: string[]) { return request<ApiItemDetail>(`/items/${itemId}/photos`, { method: 'PUT', body: JSON.stringify({ photos }) }); }
 export async function markItemSold(itemId: number) { return request(`/items/${itemId}/sold`, { method: 'POST' }); }
+
+/**
+ * A customer's hold on an item for sale. It lasts until closing time on the
+ * shop's second open day; `status` stays 'active' until it is claimed (the
+ * item was sold), cancelled, or expired. An active row whose expires_at has
+ * passed no longer holds the item.
+ */
+export type ApiReservation = {
+  item_reservations_id: number;
+  item_id: number;
+  customer_id: number;
+  expires_at: string;
+  status: 'active' | 'claimed' | 'cancelled' | 'expired';
+  created_at: string;
+  item: (Pick<ApiItem, 'items_id' | 'description'> & { sale_price: string | number | null; photo_urls?: string[] }) | null;
+  /** Sent to staff only. */
+  customer?: { customers_id: number; name: string; contact_number: string | null } | null;
+};
+/** Most items one customer may hold at once. Matches ItemReservation::MAX_ACTIVE_PER_CUSTOMER. */
+export const MAX_RESERVATIONS = 2;
+export async function reserveItem(itemId: number) { return request<ApiReservation>(`/items/${itemId}/reserve`, { method: 'POST' }); }
+/** A customer's own holds from the last 30 days, or for staff every hold still in effect. */
+export async function getReservations() { return request<ApiReservation[]>('/reservations'); }
+export async function cancelReservation(reservationId: number) { return request<ApiReservation>(`/reservations/${reservationId}/cancel`, { method: 'POST' }); }
+/** Whether an active hold still holds its item: the hourly expiry job may not have run yet. */
+export const isHolding = (reservation: ApiReservation) => reservation.status === 'active' && new Date(reservation.expires_at).getTime() > Date.now();
+/** A hold's end in the shop's words, e.g. "Tue, Oct 13, 6:00 PM". */
+export const holdEnds = (iso: string) => new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 export async function getTransactions() { return request<ApiTransaction[]>('/transactions'); }
 export async function createTransaction(payload: Record<string, unknown>) { return request<ApiTransaction>('/transactions', { method: 'POST', body: JSON.stringify(payload) }); }

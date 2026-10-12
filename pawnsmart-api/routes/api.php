@@ -34,6 +34,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/items/{item}/for-sale', [ApiController::class, 'markForSale'])->middleware('role:staff,admin');
     Route::put('/items/{item}/photos', [ApiController::class, 'updateItemPhotos'])->middleware('role:staff,admin');
     Route::post('/items/{item}/sold', [ApiController::class, 'markSold'])->middleware('role:staff,admin');
+    // Customers hold an item for sale for two open days; staff see and cancel holds.
+    Route::post('/items/{item}/reserve', [ApiController::class, 'reserveItem'])->middleware(['role:customer', 'throttle:10,1']);
+    Route::get('/reservations', [ApiController::class, 'reservations']);
+    Route::post('/reservations/{reservation}/cancel', [ApiController::class, 'cancelReservation']);
     Route::get('/transactions', [ApiController::class, 'transactions']);
     Route::post('/transactions', [ApiController::class, 'storeTransaction'])->middleware('role:staff,admin');
     Route::post('/transactions/{transaction}/redeem', [ApiController::class, 'redeem'])->middleware('role:staff,admin');

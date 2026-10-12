@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IonButton, IonContent, IonIcon, IonInput, IonItem, IonLabel, IonPage } from '@ionic/react';
 import { alertCircleOutline, cashOutline, checkmarkCircleOutline, chevronDownOutline, chevronForwardOutline, chevronUpOutline, closeOutline, eyeOutline, homeOutline, logOutOutline, menuOutline, notificationsOutline, personCircleOutline, receiptOutline, timeOutline, walletOutline } from 'ionicons/icons';
-import { cloudUploadOutline, keyOutline, refreshOutline, removeOutline, trashOutline, trendingDownOutline, trendingUpOutline } from 'ionicons/icons';
+import { cloudUploadOutline, pricetagOutline, keyOutline, refreshOutline, removeOutline, trashOutline, trendingDownOutline, trendingUpOutline } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
 import { daysUntil, dueStatus, FORFEITED_LABEL, longDate, money, moneyExact, purityLabel, statusClass, statusLabel, timeAgo } from '../data/pawnshopStore';
 import {
@@ -42,11 +42,12 @@ import Pager, { usePagedRows } from '../components/Pager';
 import { useModal } from '../components/ModalProvider';
 import { ItemThumbViewer, PhotoLightbox, PhotoStrip } from '../components/ItemPhotos';
 import CustomerHistory from './CustomerHistory';
+import CustomerShop from './CustomerShop';
 import './CustomerPortal.css';
 import '../theme/portal-ui.css';
 
 type Status = 'Active' | 'Overdue' | 'Redeemed' | typeof FORFEITED_LABEL | 'For Sale' | 'Sold';
-type View = 'dashboard' | 'items' | 'payments' | 'history' | 'profile';
+type View = 'dashboard' | 'items' | 'payments' | 'shop' | 'history' | 'profile';
 
 /** One pawned item, flattened from the API for the customer screens. */
 type Item = {
@@ -366,6 +367,11 @@ const CustomerPortal: React.FC = () => {
 
         const item = items.find((row) => row.id === String(notice.related_item_id));
 
+        if (notice.type === 'reservation_expired' || notice.type === 'reservation_cancelled') {
+            go('shop');
+            return;
+        }
+
         if (notice.type === 'redemption_complete') {
             setFilter('Redeemed');
             go('items');
@@ -428,6 +434,7 @@ const CustomerPortal: React.FC = () => {
     const menu: Array<{ id: View; label: string; icon: string }> = [
         { id: 'dashboard', label: 'Home', icon: homeOutline }, { id: 'items', label: 'My Items', icon: walletOutline },
         { id: 'payments', label: 'Payments', icon: cashOutline },
+        { id: 'shop', label: 'Items for Sale', icon: pricetagOutline },
         { id: 'history', label: 'History', icon: receiptOutline },
     ];
     const go = (next: View) => { setView(next); setSelected(null); setMobileMenuOpen(false); };
@@ -451,6 +458,7 @@ const CustomerPortal: React.FC = () => {
                 // go() clears the open card, so the item is selected after it.
                 if (item) setSelected(item);
             }} />}
+            {view === 'shop' && <CustomerShop onFlash={showFlash} />}
             {view === 'profile' && <Profile me={me} logout={logout} onAccountChanged={loadAccount} onFlash={showFlash} />}
         </main>
         <FaqChatbot customerName={me?.user.name} onGoToItems={() => go('items')} />

@@ -1,0 +1,76 @@
+/* ============================================================
+   Customer > Items for Sale: the customer's holds, then a grid of
+   listed items with a Reserve button. Colors come from tokens so
+   dark mode is one block.
+   ============================================================ */
+.portal-page .cs-page {
+	--cs-card: #ffffff;
+	--cs-line: #e3e8ef;
+	--cs-text: #061028;
+	--cs-muted: #64748b;
+	--cs-photo: #eef2f7;
+	--cs-gold: #b8891c;
+	--cs-gold-soft: rgba(212, 167, 44, .14);
+	--cs-mine: #1d4ed8;
+}
+
+html[data-theme="dark"] .portal-page .cs-page {
+	--cs-card: #111b2e;
+	--cs-line: #243049;
+	--cs-text: #e6ecf5;
+	--cs-muted: #94a3b8;
+	--cs-photo: #16223a;
+	--cs-gold: #f5d979;
+	--cs-gold-soft: rgba(245, 217, 121, .12);
+	--cs-mine: #93b4ff;
+}
+
+.portal-page .cs-block { margin-bottom: 24px; }
+.portal-page .cs-block h3 { margin: 0 0 8px; color: var(--cs-muted); font-size: var(--fs-11); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+.portal-page .cs-reservations { margin: 0; padding: 0; list-style: none; overflow: hidden; border: 1px solid var(--cs-line); border-radius: 12px; background: var(--cs-card); }
+.portal-page .cs-reservation {
+	display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+	padding: 12px 16px; border-bottom: 1px solid var(--cs-line); color: var(--cs-text);
+}
+.portal-page .cs-reservation:last-child { border-bottom: 0; }
+.portal-page .cs-reservation-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--cs-gold-soft); color: var(--cs-gold); }
+.portal-page .cs-reservation:not(.active) .cs-reservation-icon { background: var(--cs-photo); color: var(--cs-muted); }
+.portal-page .cs-reservation-text { display: grid; min-width: 0; }
+.portal-page .cs-reservation-text strong { overflow: hidden; font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
+.portal-page .cs-reservation-text small { color: var(--cs-muted); font-size: var(--fs-12); }
+.portal-page .cs-cancel {
+	display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
+	border: 1px solid var(--cs-line); border-radius: 999px; background: transparent;
+	color: var(--cs-muted); font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+}
+.portal-page .cs-cancel:hover:not(:disabled) { border-color: #dc2626; color: #dc2626; }
+
+.portal-page .cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.portal-page .cs-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--cs-line); border-radius: 14px; background: var(--cs-card); color: var(--cs-text); }
+.portal-page .cs-card.is-mine { border-color: var(--cs-mine); box-shadow: 0 0 0 1px var(--cs-mine); }
+/* The photo is pinned to the box: portal image rules would otherwise let a tall
+   photo grow past it and cover the price and button. */
+.portal-page .cs-photo { position: relative; display: grid; place-items: center; flex: 0 0 170px; height: 170px; overflow: hidden; background: var(--cs-photo); color: var(--cs-muted); font-size: 2rem; }
+.portal-page .cs-photo img { position: absolute; inset: 0; width: 100%; height: 100% !important; max-height: none; object-fit: cover; }
+.portal-page .cs-photo em { z-index: 1; }
+.portal-page .cs-card.is-taken .cs-photo img { filter: grayscale(.7); opacity: .75; }
+.portal-page .cs-photo em {
+	position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 999px;
+	background: rgba(255, 255, 255, .9); color: #061028; font-size: var(--fs-11); font-style: normal; font-weight: 700;
+}
+.portal-page .cs-card.is-mine .cs-photo em { background: var(--cs-mine); color: #fff; }
+.portal-page .cs-card.is-taken .cs-photo em { background: #475569; color: #fff; }
+.portal-page .cs-body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
+.portal-page .cs-body h4 { margin: 0; font-size: var(--fs-14); }
+.portal-page .cs-price { color: var(--cs-gold); font-size: var(--fs-16); font-variant-numeric: tabular-nums; }
+.portal-page .cs-note { color: var(--cs-muted); font-size: var(--fs-12); }
+.portal-page .cs-reserve {
+	margin-top: auto; padding: 10px 14px; border: 0; border-radius: 10px;
+	background: linear-gradient(135deg, #d4a72c, #f5c842); color: #061028;
+	font: inherit; font-size: var(--fs-13); font-weight: 800; cursor: pointer;
+}
+.portal-page .cs-reserve:disabled { cursor: not-allowed; opacity: .5; }
+.portal-page .cs-reserve:focus-visible,
+.portal-page .cs-cancel:focus-visible { outline: 2px solid #d4a72c; outline-offset: 2px; }
+.portal-page .cs-limit { margin-top: 14px; color: var(--cs-muted); font-size: var(--fs-12); }

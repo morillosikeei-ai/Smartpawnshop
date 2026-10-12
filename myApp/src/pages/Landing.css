@@ -2002,3 +2002,32 @@ ion-modal.auth-modal .auth-info-message p {
     .service-flip:hover .service-face-front { opacity: 0; }
     .service-flip:hover .service-face-back { opacity: 1; }
 }
+
+/* Items for sale: the Reserve button under each card, and the look of an item
+   another customer is holding. */
+.sale-grid .product-card .product-reserve-btn {
+    margin: 0 16px 15px;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #d4a72c, #f5c842);
+    color: #061028;
+    font: inherit;
+    font-size: var(--fs-12);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.sale-grid .product-card .product-reserve-btn:hover:not(:disabled) { filter: brightness(1.05); }
+.sale-grid .product-card .product-reserve-btn:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+
+.sale-grid .product-card .product-reserve-btn:disabled {
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 700;
+    cursor: default;
+}
+
+.sale-grid .product-card.is-reserved .product-badge { background: #475569; }
+.sale-grid .product-card.is-reserved .product-badge span { color: #fff; }
+.sale-grid .product-card.is-reserved .product-image { filter: grayscale(.6); }

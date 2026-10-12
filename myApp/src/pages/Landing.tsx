@@ -1,6 +1,7 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getForSaleItems, login as apiLogin, requestPasswordReset, type SaleItem } from '../services/api';
+import { getForSaleItems, holdEnds, login as apiLogin, requestPasswordReset, reserveItem, type SaleItem } from '../services/api';
+import { useModal } from '../components/ModalProvider';
 import {
     IonContent,
     IonPage,
@@ -53,6 +54,10 @@ interface ProductCardProps {
     badge?: string;
     image?: string;
     category?: string;
+    /** When a customer's hold on the item runs out, or null when it is free. */
+    reservedUntil?: string | null;
+    /** Reserve the item. Left out where there is nothing to reserve. */
+    onReserve?: () => void;
     /**
      * A repeated copy in the sale marquee. Hidden from screen readers and
      * taken out of the tab order, so each item is announced and reached once.
@@ -60,7 +65,7 @@ interface ProductCardProps {
     clone?: boolean;
 }
 
-type LandingProduct = Omit<ProductCardProps, 'clone'>;
+type LandingProduct = Omit<ProductCardProps, 'clone' | 'onReserve'> & { itemId: number; onReserve?: () => void };
 
 const ProductCard: React.FC<ProductCardProps> = ({
     title,
@@ -68,17 +73,21 @@ const ProductCard: React.FC<ProductCardProps> = ({
     badge,
     image = 'https://picsum.photos/seed/' + title + '/400/300',
     category = 'Jewelry',
+    reservedUntil = null,
+    onReserve,
     clone = false,
 }) => {
+    const reserved = Boolean(reservedUntil && new Date(reservedUntil).getTime() > Date.now());
+
     return (
         // inert as well as aria-hidden: the Inquire link lives inside the
         // button's shadow DOM, where the host's tabIndex does not reach.
-        <IonCard className={`product-card glass-card${clone ? ' is-clone' : ''}`} aria-hidden={clone ? 'true' : undefined} inert={clone || undefined}>
+        <IonCard className={`product-card glass-card${clone ? ' is-clone' : ''}${reserved ? ' is-reserved' : ''}`} aria-hidden={clone ? 'true' : undefined} inert={clone || undefined}>
             <div className="product-image-wrapper">
                 <img src={image} alt={title} className="product-image" />
                 {badge && (
                     <div className="product-badge">
-                        <span>{badge}</span>
+                        <span>{reserved ? 'Reserved' : badge}</span>
                     </div>
                 )}
                 <div className="product-category">{category}</div>
@@ -93,6 +102,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     Inquire <IonIcon icon={arrowForwardOutline} slot="end" />
                 </IonButton>
             </IonCardContent>
+            {onReserve && (
+                <button type="button" className="product-reserve-btn" onClick={onReserve} disabled={reserved} tabIndex={clone ? -1 : undefined}>
+                    {reserved ? `Reserved until ${holdEnds(reservedUntil!)}` : 'Reserve for 2 days'}
+                </button>
+            )}
         </IonCard>
     );
 };
@@ -149,6 +163,8 @@ const SaleMarquee: React.FC<{ products: LandingProduct[] }> = ({ products }) => 
                         image={product.image}
                         category={product.category}
                         badge={product.badge}
+                        reservedUntil={product.reservedUntil}
+                        onReserve={product.onReserve}
                         clone={copy > 0}
                     />
                 )))}
@@ -521,12 +537,47 @@ const Landing: React.FC = () => {
     const [saleLoading, setSaleLoading] = useState(true);
     const [saleError, setSaleError] = useState('');
 
-    useEffect(() => {
-        getForSaleItems()
-            .then((items: SaleItem[]) => setProducts(items.map(item => ({ title: item.description, price: String(Math.round(Number(item.sale_price)).toLocaleString()), category: item.category.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '), badge: 'For Sale', image: item.photo_urls?.[0] || undefined }))))
-            .catch(error => setSaleError(error instanceof Error ? error.message : 'Unable to load sale items.'))
-            .finally(() => setSaleLoading(false));
-    }, []);
+    const modal = useModal();
+    // Reloads after a reservation so the card shows who holds what.
+    const loadProducts = useCallback(() => getForSaleItems()
+        .then((items: SaleItem[]) => setProducts(items.map(item => ({ itemId: item.items_id, title: item.description, price: String(Math.round(Number(item.sale_price)).toLocaleString()), category: item.category.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '), badge: 'For Sale', image: item.photo_urls?.[0] || undefined, reservedUntil: item.reserved_until ?? null }))))
+        .catch(error => setSaleError(error instanceof Error ? error.message : 'Unable to load sale items.'))
+        .finally(() => setSaleLoading(false)), []);
+
+    useEffect(() => { loadProducts(); }, [loadProducts]);
+
+    /**
+     * Reserve from the landing page. Only a signed in customer can hold an
+     * item; anyone else is offered the sign in dialog, and after signing in
+     * reserves from the Customer Portal's Items for Sale tab.
+     */
+    const reserveFromLanding = async (product: LandingProduct) => {
+        const signedInCustomer = Boolean(localStorage.getItem('smartpawn_api_token') && localStorage.getItem('smartpawn_customer'));
+        if (!signedInCustomer) {
+            const signIn = await modal.confirm({
+                title: 'Sign in to reserve',
+                message: 'Reserving holds an item for you for 2 shop days. Sign in to your customer account, then open Items for Sale in your portal.',
+                confirmLabel: 'Sign in',
+            });
+            if (signIn) openLogin();
+            return;
+        }
+
+        const confirmed = await modal.confirm({
+            title: 'Reserve this item?',
+            message: `We will hold ${product.title} (₱${product.price}) for you for 2 shop days. Pay and pick it up at the shop before the hold ends.`,
+            confirmLabel: 'Reserve',
+        });
+        if (!confirmed) return;
+
+        try {
+            const reservation = await reserveItem(product.itemId);
+            await modal.success({ title: 'Reserved', message: `${product.title} is held for you until ${holdEnds(reservation.expires_at)}. See it under Items for Sale in your portal.` });
+        } catch (error) {
+            await modal.error({ message: error instanceof Error ? error.message : 'Unable to reserve this item.' });
+        }
+        loadProducts();
+    };
 
     return (
         <IonPage>
@@ -610,7 +661,7 @@ const Landing: React.FC = () => {
 
                     <GoldEstimate onAskQuestion={() => setChatOpenSignal(signal => signal + 1)} />
 
-                    <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}{products.length > 0 && <SaleMarquee products={products} />}</section>
+                    <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}{products.length > 0 && <SaleMarquee products={products.map(product => ({ ...product, onReserve: () => reserveFromLanding(product) }))} />}</section>
 
                     <section className="contact-section landing-section" id="contact"><div className="contact-copy"><div className="section-eyebrow">COME SEE US</div><h2>Let’s talk about what you need.</h2><p>Visit Pag-Asa Pawnshop or reach out to our team for help with pawning, renewals, redemption, or an item for sale.</p><div className="contact-details"><span><IonIcon icon={locationOutline} />Kauswagan, Cagayan de Oro City, Misamis Orienta
                     </span><span><IonIcon icon={callOutline} />0970 885 6182</span><span><IonIcon icon={mailOutline} />renierjemorellorivas@gmail.com</span><span><IonIcon icon={timeOutline} />Monday–Saturday · 9:00 AM–6:00 PM</span></div></div><BranchMap /></section>
