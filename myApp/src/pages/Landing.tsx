@@ -157,6 +157,85 @@ const SaleMarquee: React.FC<{ products: LandingProduct[] }> = ({ products }) => 
     );
 };
 
+type Service = {
+    icon: string;
+    title: string;
+    /** The short line on the front of the card. */
+    summary: string;
+    /** The longer explanation on the back. */
+    details: string;
+};
+
+const SERVICES: Service[] = [
+    {
+        icon: cashOutline,
+        title: 'Gold Jewelry Pawning',
+        summary: 'Turn gold jewelry into a fair, transparent cash when you need it.',
+        details: 'We weigh your gold and check the karat in front of you, then quote on the spot. Bring one valid ID. 5% monthly interest, a 60 day term, plus a 7 day extension.',
+    },
+    {
+        icon: refreshOutline,
+        title: 'Pawn Renewal',
+        summary: 'Keep your active pawn moving with a simple renewal process.',
+        details: 'Pay the interest to extend your pawn for another 60 days, at the shop or online with GCash from the Customer Portal.',
+    },
+    {
+        icon: checkmarkCircleOutline,
+        title: 'Redemption Services',
+        summary: 'Review your balance and redeem your items with confidence.',
+        details: 'Bring your pawn ticket and a valid ID, pay the principal plus interest, and take your item home the same day. Tell us ahead in the Customer Portal so it is ready.',
+    },
+    {
+        icon: shieldCheckmarkOutline,
+        title: 'Secure Records',
+        summary: 'Stay informed with organized records for every pawn transaction.',
+        details: 'Every pawn, renewal, and redemption is logged under its ticket number. Log in to the Customer Portal to see your history anytime.',
+    },
+];
+
+/**
+ * A service card that turns over to show more detail.
+ *
+ * It flips on hover where there is a mouse, and on click, tap, Enter, or
+ * Space everywhere, so touch and keyboard users get the back too. Both faces
+ * stay in the document, so a screen reader reads the whole card either way.
+ */
+const ServiceFlipCard: React.FC<Service> = ({ icon, title, summary, details }) => {
+    const [flipped, setFlipped] = useState(false);
+    const toggle = () => setFlipped(current => !current);
+
+    return (
+        <div
+            className={`service-flip${flipped ? ' is-flipped' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-pressed={flipped}
+            aria-label={`${title}: ${flipped ? 'hide' : 'show'} details`}
+            onClick={toggle}
+            // A card clicked while hovered turns back once the mouse leaves.
+            onMouseLeave={() => setFlipped(false)}
+            onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggle();
+                }
+            }}
+        >
+            <div className="service-flip-inner">
+                <div className="service-card service-face service-face-front">
+                    <IonIcon icon={icon} />
+                    <h3>{title}</h3>
+                    <p>{summary}</p>
+                </div>
+                <div className="service-card service-face service-face-back">
+                    <h3>{title}</h3>
+                    <p>{details}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ---- Login & Signup Modals (unchanged) ----
 // (I'm omitting them here for brevity – you can copy them from the previous code)
 // They remain identical.
@@ -527,7 +606,7 @@ const Landing: React.FC = () => {
 
                     <section className="about-section landing-section" id="about"><div className="section-eyebrow">ABOUT PAG-ASA</div><div className="about-layout"><div><h2>Modern tools for a pawnshop people already trust.</h2></div><p>Pag-Asa Pawnshop serves our community with honest appraisals and practical financial support. SmartPawn brings that same purpose online, helping customers track pawns, renew pawns, and explore available items with clarity.</p></div></section>
 
-                    <section className="services-section landing-section" id="services"><div className="section-heading-block"><div className="section-eyebrow">WHAT WE DO</div><h2>Services built around your next step.</h2></div><div className="service-grid"><div className="service-card"><IonIcon icon={cashOutline} /><h3>Gold Jewelry Pawning</h3><p>Turn gold jewelry into a fair, transparent cash when you need it.</p></div><div className="service-card"><IonIcon icon={refreshOutline} /><h3>Pawn Renewal</h3><p>Keep your active pawn moving with a simple renewal process.</p></div><div className="service-card"><IonIcon icon={checkmarkCircleOutline} /><h3>Redemption Services</h3><p>Review your balance and redeem your items with confidence.</p></div><div className="service-card"><IonIcon icon={shieldCheckmarkOutline} /><h3>Secure Records</h3><p>Stay informed with organized records for every pawn transaction.</p></div></div></section>
+                    <section className="services-section landing-section" id="services"><div className="section-heading-block"><div className="section-eyebrow">WHAT WE DO</div><h2>Services built around your next step.</h2></div><div className="service-grid">{SERVICES.map(service => <ServiceFlipCard key={service.title} {...service} />)}</div></section>
 
                     <GoldEstimate onAskQuestion={() => setChatOpenSignal(signal => signal + 1)} />
 

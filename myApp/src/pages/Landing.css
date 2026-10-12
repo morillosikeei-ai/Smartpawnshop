@@ -1937,3 +1937,68 @@ ion-modal.auth-modal .auth-info-message p {
         animation-play-state: paused;
     }
 }
+
+/* Services: cards that turn over to show more detail (ServiceFlipCard in
+   Landing.tsx). Both faces sit in the same grid cell, so the card is as tall
+   as its taller face. The flip runs on hover where there is a mouse, and on
+   the is-flipped class that click, tap, and the keyboard toggle. */
+.service-flip {
+    perspective: 1100px;
+    cursor: pointer;
+    border-radius: 16px;
+    outline: none;
+}
+
+.service-flip:focus-visible { box-shadow: 0 0 0 3px rgba(212, 167, 44, .6); }
+
+.service-flip-inner {
+    display: grid;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .65s cubic-bezier(.2, .7, .2, 1);
+}
+
+.service-flip .service-face {
+    grid-area: 1 / 1;
+    margin: 0;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* The faces turn with the card, so the lift on hover is left out. */
+.service-flip .service-face-front,
+.service-flip .service-face-front:hover { transform: none; }
+
+.service-flip .service-face-back,
+.service-flip .service-face-back:hover {
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: linear-gradient(150deg, #0b1a3c, #061028);
+    border-color: rgba(212, 167, 44, .55);
+}
+
+.service-flip .service-face-back h3 { color: #f5d979; }
+.service-flip .service-face-back p { color: #dbe4f3; line-height: 1.55; }
+
+.service-flip.is-flipped .service-flip-inner { transform: rotateY(180deg); }
+
+@media (hover: hover) {
+    .service-flip:hover .service-flip-inner { transform: rotateY(180deg); }
+}
+
+/* Reduced motion: no turn, the faces swap with a short fade. */
+@media (prefers-reduced-motion: reduce) {
+    .service-flip-inner { transition: none; transform: none !important; }
+    .service-flip .service-face { transition: opacity .2s ease; }
+    .service-flip .service-face-back,
+    .service-flip .service-face-back:hover { transform: none; opacity: 0; }
+    .service-flip.is-flipped .service-face-front { opacity: 0; }
+    .service-flip.is-flipped .service-face-back { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) and (hover: hover) {
+    .service-flip:hover .service-face-front { opacity: 0; }
+    .service-flip:hover .service-face-back { opacity: 1; }
+}
