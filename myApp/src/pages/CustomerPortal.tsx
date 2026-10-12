@@ -32,6 +32,7 @@ import { ITEM_PHOTO_SCALE, readImageAsScaledDataUrl } from '../services/photoQua
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
 import FaqChatbot from '../components/FaqChatbot';
+import PullToRefresh from '../components/PullToRefresh';
 import TrendSuggestionCard from '../components/TrendSuggestionCard';
 import ValueSparkline, { ValuePoint } from '../components/ValueSparkline';
 import LoanTermBar, { loanTermProgress } from '../components/LoanTermBar';
@@ -216,7 +217,9 @@ const CustomerPortal: React.FC = () => {
     const [profileOpen, setProfileOpen] = useState(false);
 
     // Stored rows, polled so the badge stays current without a page reload.
-    const { notifications: notices, unreadCount, loaded: noticesLoaded, markRead, markAllRead } = useNotifications();
+    const { notifications: notices, unreadCount, loaded: noticesLoaded, reload: reloadNotices, markRead, markAllRead } = useNotifications();
+    // Bumped by pull-to-refresh: the open view remounts and fetches again.
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const [items, setItems] = useState<Item[]>([]);
     // The items as the API sent them, with every ticket, for the History page.
@@ -439,7 +442,12 @@ const CustomerPortal: React.FC = () => {
     ];
     const go = (next: View) => { setView(next); setSelected(null); setMobileMenuOpen(false); };
 
-    return <IonPage className="portal-page"><IonContent fullscreen><div className="portal-shell">
+    return <IonPage className="portal-page"><IonContent fullscreen><PullToRefresh onRefresh={() => {
+        loadAccount();
+        // A form the customer is filling in (Profile) is left as it is.
+        if (view !== 'profile') setRefreshKey(key => key + 1);
+        return reloadNotices();
+    }} /><div className="portal-shell">
         <div className={`portal-mobile-backdrop ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}></div><aside className={`portal-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}><div className="portal-brand"><img src="/logo.png" alt="SmartPawn" /></div><div className="portal-user"><IonIcon icon={personCircleOutline} /><div><strong>{displayName}</strong><span>Customer</span></div></div><span className="portal-menu-label">CUSTOMER MENU</span><nav className="portal-nav">{menu.map(item => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => go(item.id)}><IonIcon icon={item.icon} /><span>{item.label}</span></button>)}</nav></aside>
         <main className="portal-main"><header className="portal-topbar"><div className="portal-title-group"><button className="portal-mobile-menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? 'Hide navigation' : 'Show navigation'}><IonIcon icon={mobileMenuOpen ? closeOutline : menuOutline} /></button><div><small>CUSTOMER PORTAL</small></div></div><div className="portal-header-actions"><div className="portal-action-wrap"><ThemeToggle className="portal-notice-button" /></div><div className="portal-action-wrap"><button className="portal-notice-button" onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }} aria-label="Notifications" aria-expanded={notificationsOpen}><IonIcon icon={notificationsOutline} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notificationsOpen && <div className="portal-dropdown portal-notification-dropdown"><div className="portal-dropdown-head"><strong>Notifications</strong><button onClick={markAllRead}>Mark all read</button></div>{notices.map(notice => <button className={`portal-notification-item ${notice.is_read ? 'read' : 'unread'}`} key={notice.notifications_id} onClick={() => openNotification(notice)}><strong>{NOTIFICATION_TITLES[notice.type] || 'Notification'}</strong><small>{notice.message} · {timeAgo(notice.created_at)}</small></button>)}{!noticesLoaded && <SkeletonList rows={3} />}{noticesLoaded && notices.length === 0 && <p className="portal-notification-empty">Nothing needs your attention right now.</p>}</div>}{toast && !notificationsOpen && <div className="portal-toast" role="status" aria-live="polite"><button type="button" className="portal-toast-body" onClick={openToastInBell}><span className={`portal-toast-icon ${ALERT_NOTIFICATIONS.includes(toast.type) ? 'risk' : 'due'}`}><IonIcon icon={ALERT_NOTIFICATIONS.includes(toast.type) ? alertCircleOutline : timeOutline} aria-hidden="true" /></span><span className="portal-toast-copy"><strong>{NOTIFICATION_TITLES[toast.type] || 'Notification'}</strong><small>{toast.message}</small><em>{timeAgo(toast.created_at)}</em></span></button><button type="button" className="portal-toast-close" onClick={dismissToast} aria-label="Dismiss notification"><IonIcon icon={closeOutline} /></button></div>}</div><div className="portal-action-wrap"><button className="portal-profile-button" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }} aria-expanded={profileOpen}><IonIcon icon={personCircleOutline} /><span>{displayName}</span><IonIcon className="profile-chevron" icon={profileOpen ? chevronUpOutline : chevronDownOutline} aria-hidden="true" /></button>{profileOpen && <div className="portal-dropdown portal-profile-dropdown"><button onClick={() => { setProfileOpen(false); go('profile'); }}><IonIcon icon={personCircleOutline} />Profile</button><button onClick={logout}><IonIcon icon={logOutOutline} />Logout</button></div>}</div></div></header>
             {flash && <div className="portal-flash" role="status" aria-live="polite">
@@ -448,6 +456,7 @@ const CustomerPortal: React.FC = () => {
                 <button type="button" onClick={() => setFlash('')} aria-label="Dismiss message"><IonIcon icon={closeOutline} /></button>
             </div>}
             {apiError && <p className="portal-load-error">{apiError}</p>}
+            <React.Fragment key={refreshKey}>
             {view === 'dashboard' && <Dashboard active={active} items={items} dashboard={dashboard} name={displayName} loaded={loaded} go={go} openItems={(next) => { setFilter(next); go('items'); }} />}
             {view === 'items' && <Items items={items} visible={visible} filter={filter} setFilter={setFilter} selected={selected} setSelected={setSelected} loaded={loaded} onAskToRedeem={askToRedeem} onFlash={showFlash} />}
             {view === 'payments' && <Payments active={active} go={go} loaded={loaded} onFlash={showFlash} />}
@@ -459,6 +468,7 @@ const CustomerPortal: React.FC = () => {
                 if (item) setSelected(item);
             }} />}
             {view === 'shop' && <CustomerShop onFlash={showFlash} />}
+            </React.Fragment>
             {view === 'profile' && <Profile me={me} logout={logout} onAccountChanged={loadAccount} onFlash={showFlash} />}
         </main>
         <FaqChatbot customerName={me?.user.name} onGoToItems={() => go('items')} />

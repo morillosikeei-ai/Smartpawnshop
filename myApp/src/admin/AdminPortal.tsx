@@ -32,6 +32,7 @@ import RevenueTrendChart, { type RevenuePoint } from '../components/RevenueTrend
 import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
+import PullToRefresh from '../components/PullToRefresh';
 import GoldPriceTracking from './GoldPriceTracking';
 import ModelMonitoring from './ModelMonitoring';
 import RiskManagement from './RiskManagement';
@@ -162,7 +163,9 @@ const AdminPortal: React.FC = () => {
   const [recordsVisit, setRecordsVisit] = useState(0);
 
   // Stored rows, polled, so the badge stays current without a page reload.
-  const { notifications, unreadCount, loaded: noticesLoaded, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, loaded: noticesLoaded, reload: reloadNotices, markRead, markAllRead } = useNotifications();
+  // Bumped by pull-to-refresh: the open view remounts and fetches again.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const go = (next: AdminView) => {
     setView(next);
@@ -207,6 +210,11 @@ const AdminPortal: React.FC = () => {
   return (
     <IonPage className="admin-page">
       <IonContent fullscreen>
+        <PullToRefresh onRefresh={() => {
+          // Settings and profile forms being edited are left as they are.
+          if (view !== 'manage' && view !== 'profile') setRefreshKey(key => key + 1);
+          return reloadNotices();
+        }} />
         <div className="admin-shell">
           <div className={`admin-backdrop ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} />
           <aside className={`admin-sidebar ${menuOpen ? 'open' : ''}`}>
@@ -308,11 +316,13 @@ const AdminPortal: React.FC = () => {
               </div>
             </header>
 
+            <React.Fragment key={refreshKey}>
             {view === 'dashboard' && <Dashboard go={go} onOpenRecords={openRecords} onViewRiskAlerts={() => { setMonitoringTab('risk'); go('monitoring'); }} />}
             {view === 'manage' && <Manage />}
             {view === 'records' && <AdminRecords key={`${recordsTab}-${recordsVisit}`} initialTab={recordsTab} initialSearch={recordsSearch} />}
             {view === 'monitoring' && <Monitoring key={monitoringTab} initialTab={monitoringTab} />}
             {view === 'reports' && <Reports />}
+            </React.Fragment>
             {view === 'profile' && <AdminProfile />}
           </main>
         </div>

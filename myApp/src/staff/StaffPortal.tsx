@@ -96,6 +96,7 @@ import {
 } from '../services/api';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
+import PullToRefresh from '../components/PullToRefresh';
 import QRCode from 'qrcode';
 import { checkPhotoQuality, ITEM_PHOTO_SCALE, readImageAsScaledDataUrl, type PhotoQuality } from '../services/photoQuality';
 import TrendSuggestionCard from '../components/TrendSuggestionCard';
@@ -219,7 +220,9 @@ const StaffPortal: React.FC = () => {
   const [showAllNotices, setShowAllNotices] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { notifications: notices, unreadCount, loaded: noticesLoaded, markRead, markAllRead } = useNotifications();
+  const { notifications: notices, unreadCount, loaded: noticesLoaded, reload: reloadNotices, markRead, markAllRead } = useNotifications();
+  // Bumped by pull-to-refresh: the open view remounts and fetches again.
+  const [refreshKey, setRefreshKey] = useState(0);
   // The item a notification pointed at, so the Loans page can single it out.
   const [focusItemId, setFocusItemId] = useState<number | null>(null);
   // What that notification was about, so the Loans page can name the request.
@@ -317,6 +320,11 @@ const StaffPortal: React.FC = () => {
   return (
     <IonPage className="staff-page">
       <IonContent fullscreen>
+        <PullToRefresh onRefresh={() => {
+          // A half-filled new pawn or profile form is left as it is.
+          if (view !== 'transaction' && view !== 'profile') setRefreshKey(key => key + 1);
+          return reloadNotices();
+        }} />
         <div className="staff-shell">
           <div className={`staff-backdrop ${open ? 'open' : ''}`} onClick={() => setOpen(false)} />
 
@@ -427,6 +435,7 @@ const StaffPortal: React.FC = () => {
 
             {transactionFlash && <div className="staff-transaction-flash" role="status">{transactionFlash}</div>}
 
+            <React.Fragment key={refreshKey}>
             {view === 'dashboard' && (
               <Dashboard
                 go={go}
@@ -452,6 +461,7 @@ const StaffPortal: React.FC = () => {
               />
             )}
             {view === 'reports' && <StaffReport go={go} setLoanTab={setLoanTab} />}
+            </React.Fragment>
             {view === 'profile' && <Profile logout={logout} />}
           </main>
         </div>
