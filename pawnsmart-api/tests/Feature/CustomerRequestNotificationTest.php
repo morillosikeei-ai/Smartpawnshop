@@ -14,10 +14,11 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * The three requests the customer raises from the Payments screen.
+ * "I'm ready to pick up/pay": the one request a customer raises.
  *
- * Each one has to reach the staff bell. They were buttons that showed a message
- * and told nobody, so every test here drives the real endpoint.
+ * It has to reach the staff bell and leave staff something to act on, a stamp
+ * the Redemption tab confirms. The Payments screen's appointment and renewal
+ * requests did neither and were removed, so their endpoint is gone too.
  */
 class CustomerRequestNotificationTest extends TestCase
 {
@@ -75,57 +76,27 @@ class CustomerRequestNotificationTest extends TestCase
         ], $overrides));
     }
 
-    private function raise(Transaction $loan, string $type): \Illuminate\Testing\TestResponse
+    private function raise(Transaction $loan): \Illuminate\Testing\TestResponse
     {
         Sanctum::actingAs($this->customerUser);
 
-        return $this->postJson('/api/transactions/'.$loan->transactions_id.'/customer-request', ['type' => $type]);
+        return $this->postJson('/api/transactions/'.$loan->transactions_id.'/ready-to-redeem');
     }
 
-    public function test_an_appointment_request_notifies_every_active_staff_member(): void
+    public function test_a_redemption_request_stamps_the_loan_and_notifies_every_active_staff_member(): void
     {
         $loan = $this->loan();
 
-        $this->raise($loan, 'appointment')->assertOk();
+        $this->raise($loan)->assertOk();
 
-        $rows = Notification::where('type', NotificationService::TYPE_STAFF_APPOINTMENT_REQUEST)->get();
+        $this->assertNotNull($loan->fresh()->ready_to_redeem_at);
+
+        $rows = Notification::where('type', NotificationService::TYPE_STAFF_REDEEM_REQUEST)->get();
 
         // One row for the staff member and one for the admin.
         $this->assertCount(2, $rows);
-        $this->assertStringContainsString('Maria Cruz has asked for a redemption appointment for Gold ring', $rows->first()->message);
         $this->assertStringContainsString('Ticket #'.$loan->ticket_number, $rows->first()->message);
         $this->assertSame($loan->item_id, $rows->first()->related_item_id);
-    }
-
-    public function test_a_renewal_request_notifies_staff_and_names_the_due_date(): void
-    {
-        $loan = $this->loan(['due_date' => today()->addDays(12)]);
-
-        $this->raise($loan, 'renewal')->assertOk();
-
-        $row = Notification::where('user_id', $this->staff->users_id)
-            ->where('type', NotificationService::TYPE_STAFF_RENEWAL_REQUEST)
-            ->firstOrFail();
-
-        $this->assertStringContainsString('has asked to renew or extend the pawn on Gold ring', $row->message);
-        $this->assertStringContainsString(today()->addDays(12)->format('M j, Y'), $row->message);
-    }
-
-    /**
-     * A payment request is the same event as pressing "I'm ready to redeem" on
-     * the item, so it stamps the loan and sends that one staff message.
-     */
-    public function test_a_redemption_payment_request_stamps_the_loan_and_notifies_staff(): void
-    {
-        $loan = $this->loan();
-
-        $this->raise($loan, 'redemption_payment')->assertOk();
-
-        $this->assertNotNull($loan->fresh()->ready_to_redeem_at);
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $this->staff->users_id,
-            'type' => NotificationService::TYPE_STAFF_REDEEM_REQUEST,
-        ]);
     }
 
     public function test_a_request_against_someone_elses_loan_is_not_found(): void
@@ -143,9 +114,9 @@ class CustomerRequestNotificationTest extends TestCase
         ]);
 
         Sanctum::actingAs($other);
-        $this->postJson('/api/transactions/'.$loan->transactions_id.'/customer-request', ['type' => 'appointment'])
-            ->assertNotFound();
+        $this->postJson('/api/transactions/'.$loan->transactions_id.'/ready-to-redeem')->assertNotFound();
 
+        $this->assertNull($loan->fresh()->ready_to_redeem_at);
         $this->assertDatabaseCount('notifications', 0);
     }
 
@@ -153,15 +124,17 @@ class CustomerRequestNotificationTest extends TestCase
     {
         $loan = $this->loan(['status' => 'redeemed']);
 
-        $this->raise($loan, 'renewal')->assertStatus(422);
+        $this->raise($loan)->assertStatus(422);
         $this->assertDatabaseCount('notifications', 0);
     }
 
-    public function test_an_unknown_request_type_is_rejected(): void
+    public function test_the_removed_appointment_and_renewal_requests_are_gone(): void
     {
         $loan = $this->loan();
 
-        $this->raise($loan, 'free_money')->assertStatus(422);
+        Sanctum::actingAs($this->customerUser);
+        $this->postJson('/api/transactions/'.$loan->transactions_id.'/customer-request', ['type' => 'appointment'])->assertNotFound();
+
         $this->assertDatabaseCount('notifications', 0);
     }
 }

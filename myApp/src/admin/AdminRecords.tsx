@@ -446,8 +446,8 @@ const AdminRecords: React.FC<{ initialTab?: RecordsTab; initialSearch?: string }
   return (
     <section className="admin-content">
       <div className="admin-page-intro">
-        <small>SHOP RECORDS</small>
-        <h2>Records</h2>
+        <small>GENERATE RECORDS</small>
+        <h2>View list of all Records</h2>
         <p>Customers, pawn tickets, payments, overdue items and staff activity, one list per tab.</p>
       </div>
       <div className="admin-tabs" role="tablist">

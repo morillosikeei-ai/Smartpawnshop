@@ -24,17 +24,68 @@
   flex: 1;
 }
 
-.skeleton-stat {
+/* ---------- Loading card ----------
+   A blurred gold blob travels the card's edge (top left, top right, bottom
+   right, bottom left) and shows through the 3px ring left around the body. */
+.skeleton-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 3px;
+  border-radius: 16px;
+  background: #f4f6fa;
+  box-shadow: 0 8px 22px rgba(8, 20, 48, .08);
+}
+
+.skeleton-card-blob {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: var(--skeleton-blob, #d4a72c);
+  filter: blur(14px);
+  transform: translate(-50%, -50%);
+  animation: skeleton-blob-travel 5s ease infinite;
+}
+
+.skeleton-card-body {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .95);
+  backdrop-filter: blur(24px);
+  outline: 2px solid #fff;
+}
+
+@keyframes skeleton-blob-travel {
+  0%, 100% { top: 0; left: 0; }
+  25% { top: 0; left: 100%; }
+  50% { top: 100%; left: 100%; }
+  75% { top: 100%; left: 0; }
+}
+
+.skeleton-stat .skeleton-card-body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px;
-  border: 1px solid var(--ap-line, #e6ecf3);
-  border-radius: 16px;
-  background: #fff;
+  padding: 15px;
 }
 
-.skeleton-chart { display: grid; gap: 14px; }
+.skeleton-chart .skeleton-card-body { display: grid; gap: 14px; padding: 14px; }
+.skeleton-list .skeleton-card-body { padding: 2px 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-card-blob { animation: none; top: 0; left: 0; }
+}
+
+html[data-theme="dark"] .skeleton-card { background: #0f1727; box-shadow: 0 8px 22px rgba(0, 0, 0, .4); }
+html[data-theme="dark"] .skeleton-card-body { background: rgba(19, 28, 46, .95); outline-color: #1a2539; }
+html[data-theme="dark"] .skeleton-card-blob { background: var(--skeleton-blob, #f5c842); }
 
 .skeleton-chart-summary {
   display: flex;

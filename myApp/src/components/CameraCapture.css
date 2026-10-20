@@ -1,0 +1,140 @@
+/* ---------- ID camera ----------
+   Live camera with a card-shaped guide. The video keeps its own aspect ratio
+   (no object-fit crop), so the guide's position on screen is the same share
+   of the frame the capture crops to. */
+
+.camera-capture-modal { --width: min(640px, 100vw); --height: auto; --max-height: 100dvh; --border-radius: 16px; }
+
+/* Header, camera, hint and buttons always fit the screen: the camera takes
+   whatever height is left, so the Capture ID button is never pushed off. */
+.camera-capture {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 12px;
+  box-sizing: border-box;
+  max-height: 100dvh;
+  padding: 18px;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+}
+
+.camera-capture-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.camera-capture-head small { color: #52627b; font-size: var(--fs-10); font-weight: 800; letter-spacing: .14em; }
+.camera-capture-head h3 { margin: 2px 0 0; color: #061028; font-size: var(--fs-18); }
+.camera-capture-close { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #dce3ee; border-radius: 9px; background: #fff; color: #061028; font-size: 1.1rem; cursor: pointer; }
+
+.camera-capture-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 200px;
+  border-radius: 12px;
+  background: #0b1220;
+}
+.camera-capture-frame { position: relative; max-width: 100%; max-height: 100%; line-height: 0; }
+/* Scaled to fit both ways, never cropped. A phone's portrait camera would
+   otherwise be taller than the screen. */
+.camera-capture-stage video,
+.camera-capture-shot {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 230px);
+}
+.camera-capture-stage video.mirrored { transform: scaleX(-1); }
+
+/* Card guide: 82% of the width at the ID-1 card ratio, the rest dimmed. */
+.camera-capture-guide { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.camera-capture-guide span {
+  width: 82%;
+  aspect-ratio: 85.6 / 54;
+  border: 2px solid #f5c842;
+  border-radius: 12px;
+  box-shadow: 0 0 0 100vmax rgba(3, 8, 20, .45);
+}
+
+.camera-capture-status,
+.camera-capture-error { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; margin: 0; padding: 20px; color: #e2e8f0; font-size: var(--fs-13); text-align: center; }
+.camera-capture-error p { margin: 0; max-width: 380px; }
+.camera-capture-error button { justify-self: center; padding: 8px 14px; border: 1px solid #f5c842; border-radius: 8px; background: transparent; color: #f5c842; font: inherit; font-weight: 700; cursor: pointer; }
+
+.camera-capture-hint { margin: 0; color: #47597a; font-size: var(--fs-12); text-align: center; }
+
+.camera-capture-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.camera-capture-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.camera-capture-actions button:disabled { opacity: .5; cursor: not-allowed; }
+
+html[data-theme="dark"] .camera-capture { background: #131c2e; }
+html[data-theme="dark"] .camera-capture-head h3 { color: #e2e8f0; }
+html[data-theme="dark"] .camera-capture-head small,
+html[data-theme="dark"] .camera-capture-hint { color: #a3afc2; }
+html[data-theme="dark"] .camera-capture-close { border-color: #2a3650; background: #1a2539; color: #e2e8f0; }
+
+/* ---------- ID photo source buttons (customer forms) ---------- */
+.id-photo-source { display: flex; flex-wrap: wrap; gap: 8px; }
+.id-photo-source button,
+.id-photo-source label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #1d4ed8;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  cursor: pointer;
+}
+.id-photo-source button.primary { background: #1d4ed8; color: #fff; }
+.id-photo-source label input { display: none; }
+.id-photo-source button:disabled,
+.id-photo-source label.is-disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+html[data-theme="dark"] .id-photo-source button,
+html[data-theme="dark"] .id-photo-source label { border-color: #8fb0ff; background: transparent; color: #8fb0ff; }
+html[data-theme="dark"] .id-photo-source button.primary { background: #8fb0ff; color: #0b1220; }
+
+/* ---------- Shutter ----------
+   One large button, centred under the live view, so the capture is never
+   hunted for. Switch camera sits to its left when there is a second camera. */
+.camera-capture-actions.live { position: relative; justify-content: center; }
+.camera-capture-actions.live .secondary-button { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
+.camera-capture-shutter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 200px;
+  padding: 13px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  font: inherit;
+  font-size: var(--fs-15);
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(29, 78, 216, .35);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.camera-capture-shutter ion-icon { font-size: 1.25rem; }
+.camera-capture-shutter:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(29, 78, 216, .45); }
+.camera-capture-shutter:active:not(:disabled) { transform: scale(.97); }
+.camera-capture-shutter:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+html[data-theme="dark"] .camera-capture-shutter { background: #3b6cf0; }
+@media (max-width: 560px) {
+  /* Full screen on a phone, the stage filling the space between. */
+  .camera-capture-modal { --width: 100vw; --height: 100dvh; --max-height: 100dvh; --border-radius: 0; }
+  .camera-capture { height: 100dvh; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 10px; }
+  .camera-capture-stage { min-height: 0; }
+  .camera-capture-stage video,
+  .camera-capture-shot { max-height: calc(100dvh - 210px); }
+  /* One row: Switch camera beside a wide shutter, to save height. */
+  .camera-capture-actions.live { flex-wrap: nowrap; }
+  .camera-capture-actions.live .secondary-button { position: static; transform: none; flex: none; }
+  .camera-capture-shutter { flex: 1; min-width: 0; }
+}

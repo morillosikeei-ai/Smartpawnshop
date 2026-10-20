@@ -1,0 +1,198 @@
+/* ---------- Landing rain ----------
+   Every section between the hero and the footer sits on one black zone with
+   blue rain behind a vertical slot mesh, the same pattern as the portal
+   sidebars. It stands still unless the play button in the header turns the
+   animation on: a page-tall moving background makes scrolling lag on slower
+   machines. The hero and footer keep their own backgrounds.
+
+   The sections lose their pale fills so the rain shows through. Their cards
+   (services, estimate, items for sale) stay light, so card text is unchanged;
+   only the copy set straight on the section turns light. */
+
+.landing-content .landing-rain {
+	--landing-rain-c: #09f;
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	background: #000;
+}
+
+.landing-content .landing-rain::before,
+.landing-content .landing-rain::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+}
+
+.landing-content .landing-rain::before {
+	background-color: #000;
+	background-image:
+		radial-gradient(4px 100px at 0px 235px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 235px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 117.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 252px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 252px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 126px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 150px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 150px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 75px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 253px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 253px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 126.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 204px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 204px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 102px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 134px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 134px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 67px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 179px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 179px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 89.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 299px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 299px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 149.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 215px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 215px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 107.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 281px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 281px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 140.5px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 158px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 158px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 79px, var(--landing-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 210px, var(--landing-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 210px, var(--landing-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 105px, var(--landing-rain-c) 100%, #0000 150%);
+	background-size:
+		300px 235px,
+		300px 235px,
+		300px 235px,
+		300px 252px,
+		300px 252px,
+		300px 252px,
+		300px 150px,
+		300px 150px,
+		300px 150px,
+		300px 253px,
+		300px 253px,
+		300px 253px,
+		300px 204px,
+		300px 204px,
+		300px 204px,
+		300px 134px,
+		300px 134px,
+		300px 134px,
+		300px 179px,
+		300px 179px,
+		300px 179px,
+		300px 299px,
+		300px 299px,
+		300px 299px,
+		300px 215px,
+		300px 215px,
+		300px 215px,
+		300px 281px,
+		300px 281px,
+		300px 281px,
+		300px 158px,
+		300px 158px,
+		300px 158px,
+		300px 210px,
+		300px 210px,
+		300px 210px;
+	background-position:
+		0px 220px,
+		3px 220px,
+		151.5px 337.5px,
+		25px 24px,
+		28px 24px,
+		176.5px 150px,
+		50px 16px,
+		53px 16px,
+		201.5px 91px,
+		75px 224px,
+		78px 224px,
+		226.5px 350.5px,
+		100px 19px,
+		103px 19px,
+		251.5px 121px,
+		125px 120px,
+		128px 120px,
+		276.5px 187px,
+		150px 31px,
+		153px 31px,
+		301.5px 120.5px,
+		175px 235px,
+		178px 235px,
+		326.5px 384.5px,
+		200px 121px,
+		203px 121px,
+		351.5px 228.5px,
+		225px 224px,
+		228px 224px,
+		376.5px 364.5px,
+		250px 26px,
+		253px 26px,
+		401.5px 105px,
+		275px 75px,
+		278px 75px,
+		426.5px 180px;
+}
+
+html[data-motion="on"] .landing-content .landing-rain::before {
+	animation: portal-rain 150s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html[data-motion="on"] .landing-content .landing-rain::before { animation: none; }
+}
+
+.landing-content .landing-rain::after {
+	background-image: radial-gradient(ellipse 1.5px 2px at 1.5px 50%, #0000 0, #0000 90%, #000 100%);
+	background-size: 25px 8px;
+}
+
+/* Sections: no fill of their own, a faint divider between them. */
+.landing-content .landing-rain .about-section,
+.landing-content .landing-rain .services-section,
+.landing-content .landing-rain .estimate-section,
+.landing-content .landing-rain .sale-section,
+.landing-content .landing-rain .contact-section {
+	background: transparent !important;
+	border-top: 1px solid rgba(255, 255, 255, .08) !important;
+}
+.landing-content .landing-rain .about-section { border-top: 0 !important; }
+
+/* Copy set straight on the rain. */
+.landing-content .landing-rain .section-eyebrow { color: #f5d979 !important; }
+.landing-content .landing-rain .about-layout h2,
+.landing-content .landing-rain .section-heading-block h2,
+.landing-content .landing-rain .estimate-copy h2,
+.landing-content .landing-rain .contact-copy h2 { color: #ffffff !important; }
+.landing-content .landing-rain .about-layout p,
+.landing-content .landing-rain .sale-heading p,
+.landing-content .landing-rain .estimate-copy p,
+.landing-content .landing-rain .contact-copy p,
+.landing-content .landing-rain .sale-section > p { color: #c8d3e3 !important; }
+.landing-content .landing-rain .contact-details span { color: #e8eef8 !important; }
+.landing-content .landing-rain .sale-error { color: #fca5a5 !important; }
+
+/* Play/pause for the background animation, in the header beside Login. */
+.landing-motion-toggle {
+	display: inline-grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	margin-right: 4px;
+	border: 1px solid rgba(255, 255, 255, .28);
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .06);
+	color: #ffffff;
+	font-size: 1rem;
+	cursor: pointer;
+	transition: border-color .16s ease, background .16s ease;
+}
+.landing-motion-toggle:hover { border-color: #d4a72c; background: rgba(212, 167, 44, .14); }
+.landing-motion-toggle[aria-pressed="true"] { border-color: #d4a72c; color: #f5d979; }

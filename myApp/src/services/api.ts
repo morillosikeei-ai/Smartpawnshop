@@ -102,6 +102,8 @@ export type ApiCustomer = {
   valid_id_number?: string;
   /** Data URL of the scanned ID, stored as a string by the API. */
   valid_id_photo?: string | null;
+  /** Whether staff have a face reference on file for identity checks at redemption. */
+  has_face_reference?: boolean;
   is_activated?: boolean;
   activation_email_sent?: boolean;
   user?: { users_id: number; name: string; email: string } | null;
@@ -111,7 +113,7 @@ export type ApiCustomer = {
 };
 export type ApiGoldPrice = { gold_prices_id: number; price_date: string; price_per_gram: string | number; predicted_next_price: string | number | null; source: 'api' | 'manual' };
 export type ApiSilverPrice = Omit<ApiGoldPrice, 'gold_prices_id'> & { silver_prices_id: number };
-export type ApiItem = { items_id: number; group: ItemGroup; category: string; custom_item_type?: string | null; description: string; brand_model?: string | null; /** Gold karat ("18k"). Empty for silver. */ karat?: string | null; metal_type?: 'gold' | 'silver'; /** Silver fineness ("925"). Empty for gold. */ fineness?: string | null; weight_grams?: number | null; condition?: string; appraised_value: number; status: string;
+export type ApiItem = { items_id: number; group: ItemGroup; category: string; custom_item_type?: string | null; description: string; brand_model?: string | null; /** Watch or cellphone only: IMEI, movement, papers and the like. Null for other items. */ item_details?: Record<string, string | number | boolean | null> | null; /** Gold karat ("18k"). Empty for silver. */ karat?: string | null; metal_type?: 'gold' | 'silver'; /** Silver fineness ("925"). Empty for gold. */ fineness?: string | null; weight_grams?: number | null; condition?: string; appraised_value: number; status: string;
   /** Jewelry only: whether it carries a gemstone or diamond. */
   has_gemstone?: boolean | null;
   /** Staff estimate for the gemstone, entered once at intake. */
@@ -296,7 +298,19 @@ export type ApiItemDetail = ApiItem & {
 };
 
 /** Trend reading returned by /gold-prices/suggestion. */
+/** One recorded market day behind the suggestion. */
+export type ApiSuggestionDay = {
+  date: string;
+  price: number;
+  /** Move against the day before. Null on the oldest row, which has nothing to compare to. */
+  change_percent: number | null;
+  /** The dearest day in the window: when an item was worth the most. */
+  is_best: boolean;
+};
+
 export type ApiRedemptionSuggestion = {
+  /** What the suggestion was read from, newest first. Absent from an older API. */
+  history?: ApiSuggestionDay[];
   trend: 'up' | 'down' | 'stable';
   message: string;
   disclaimer: string;
@@ -338,7 +352,60 @@ export type ApiActivityFlag = {
 
 const token = () => localStorage.getItem('smartpawn_api_token');
 
-async function request<T>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> {
+/**
+ * How long a GET answer is reused, in ms. Moving between screens remounts
+ * them, and each one used to fetch everything again behind a loading
+ * skeleton; within this window the last answer shows at once instead.
+ */
+const GET_CACHE_MS = 30_000;
+
+/** Paths always fetched fresh: the bell polls them to stay live. */
+const NEVER_CACHED = ['/notifications'];
+
+const getCache = new Map<string, { at: number; promise: Promise<unknown> }>();
+
+/**
+ * Forget every cached answer, so the next screen fetches fresh data. Any
+ * change sent to the API does this itself; pull-to-refresh calls it too.
+ */
+export function clearApiCache() {
+  getCache.clear();
+}
+
+/**
+ * Every API call. GETs are shared and reused for GET_CACHE_MS: two screens
+ * asking for the same list at once send one request, and coming back to a
+ * screen shows its data without waiting. The key includes the sign in token,
+ * so one account never sees another's answers. Anything other than a GET
+ * changes data, so it clears the cache once it completes.
+ */
+function request<T>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> {
+  const method = (options.method || 'GET').toUpperCase();
+
+  if (method !== 'GET') {
+    return sendRequest<T>(path, options, authenticated).finally(clearApiCache);
+  }
+
+  if (NEVER_CACHED.some(prefix => path.startsWith(prefix))) {
+    return sendRequest<T>(path, options, authenticated);
+  }
+
+  const key = `${authenticated ? token() || '' : ''}|${path}`;
+  const cached = getCache.get(key);
+  if (cached && Date.now() - cached.at < GET_CACHE_MS) {
+    return cached.promise as Promise<T>;
+  }
+
+  const promise = sendRequest<T>(path, options, authenticated);
+  getCache.set(key, { at: Date.now(), promise });
+  // A failed request is not kept, so the next visit tries again.
+  promise.catch(() => {
+    if (getCache.get(key)?.promise === promise) getCache.delete(key);
+  });
+  return promise;
+}
+
+async function sendRequest<T>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
@@ -351,9 +418,23 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
     // the URL is wrong, or the browser blocked the response for CORS.
     throw new Error(`Cannot reach the SmartPawn API at ${API_BASE_URL}. Check that the backend is running and that this address is allowed by CORS.`);
   }
-  const body = await response.json().catch(() => ({}));
+  const body = await response.text().then(text => JSON.parse(withMediaBase(text))).catch(() => ({}));
   if (!response.ok) throw new Error(body.message || `The API request failed (HTTP ${response.status}).`);
   return body as T;
+}
+
+/**
+ * Photos arrive as links relative to the app ("/api/media/..."), which is
+ * where the API sits behind the dev proxy. When the API is reached at another
+ * address (VITE_API_URL, or VITE_API_MODE=direct), the links are pointed there.
+ * JSON from Laravel escapes the slashes, so both spellings are rewritten.
+ */
+function withMediaBase(text: string): string {
+  if (API_BASE_URL === '/api') return text;
+  const base = `${API_BASE_URL}/media/`;
+  return text
+    .replace(/"\/api\/media\//g, `"${base}`)
+    .replace(/"\\\/api\\\/media\\\//g, `"${base.replace(/\//g, '\\/')}`);
 }
 
 export async function login(email: string, password: string) {
@@ -426,6 +507,23 @@ export async function getCustomerAccessQr(customerId: number) {
 export async function searchCustomers(searchTerm: string) { return request<ApiCustomer[]>(`/customers?search=${encodeURIComponent(searchTerm)}`); }
 export async function getCustomers() { return request<ApiCustomer[]>('/customers'); }
 export async function createCustomer(payload: Record<string, unknown>) { return request<ApiCustomer>('/customers', { method: 'POST', body: JSON.stringify(payload) }); }
+/** Staff correcting a customer's details. The email is the sign-in and is not sent. */
+export async function updateCustomer(id: number, payload: { name: string; contact_number: string; address: string; valid_id_type: string; valid_id_number: string; valid_id_photo: string | null }) {
+  return request<ApiCustomer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+}
+/** A customer's face reference, with the ID photo as fallback. Staff only. */
+export type ApiCustomerFace = { customers_id: number; face_photo: string | null; face_descriptor: number[] | null; face_enrolled_at: string | null; valid_id_photo: string | null };
+export type FaceCheckResult = 'match' | 'unsure' | 'no_match' | 'no_reference' | 'skipped';
+export async function getCustomerFace(customerId: number) { return request<ApiCustomerFace>(`/customers/${customerId}/face`); }
+/** Save a face photo and its descriptor. `consent` must be true: the customer agreed to it being kept. */
+export async function saveCustomerFace(customerId: number, facePhoto: string, descriptor: number[], idMatch: FaceCheckResult | null) {
+  return request<ApiCustomer>(`/customers/${customerId}/face`, { method: 'PUT', body: JSON.stringify({ face_photo: facePhoto, face_descriptor: descriptor, consent: true, id_match: idMatch }) });
+}
+export async function deleteCustomerFace(customerId: number) { return request<ApiCustomer>(`/customers/${customerId}/face`, { method: 'DELETE' }); }
+/** Log how the claimant's face compared at redemption. Informational: it never blocks the payment. */
+export async function recordFaceCheck(transactionId: number, result: FaceCheckResult, distance: number | null) {
+  return request<{ recorded: boolean }>(`/transactions/${transactionId}/face-check`, { method: 'POST', body: JSON.stringify({ result, distance }) });
+}
 export async function getUsers() { return request<ApiUser[]>('/users'); }
 export async function createUser(payload: { name: string; email: string; password: string }) { return request<ApiUser>('/users', { method: 'POST', body: JSON.stringify(payload) }); }
 export async function updateUser(id: number, payload: { status: ApiUser['status']; password?: string }) { return request<ApiUser>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }); }
@@ -512,13 +610,6 @@ export async function getNotifications() { return request<ApiNotificationList>('
 export async function markNotificationRead(notificationId: number) { return request<{ notification: ApiNotification; unread_count: number }>(`/notifications/${notificationId}/read`, { method: 'POST' }); }
 export async function requestRedemption(transactionId: number) { return request<ApiTransaction>(`/transactions/${transactionId}/ready-to-redeem`, { method: 'POST' }); }
 
-/** The three requests a customer can raise from the Payments screen. */
-export type CustomerRequestType = 'redemption_payment' | 'appointment' | 'renewal';
-
-/** Raises one of those requests, which notifies every active staff member and admin. */
-export async function sendCustomerRequest(transactionId: number, type: CustomerRequestType) {
-  return request<ApiTransaction>(`/transactions/${transactionId}/customer-request`, { method: 'POST', body: JSON.stringify({ type }) });
-}
 /** One GCash renewal payment a customer has claimed, as both portals read it. */
 export type ApiRenewalRequest = {
   renewal_requests_id: number;
@@ -660,6 +751,109 @@ export async function updateMe(payload: { name: string; contact_number?: string;
 export async function updateMyPassword(payload: { current_password?: string; password: string; password_confirmation: string }) {
   return request<ApiMe>('/me/password', { method: 'PUT', body: JSON.stringify(payload) });
 }
+
+/** A redeemed pawn the customer has not rated yet. */
+export type ApiPendingFeedback = {
+  transaction: { transaction_id: number; ticket_number: string; item_name: string | null; redeemed_at: string | null } | null;
+};
+
+/** One rating, as both portals read it. */
+export type ApiFeedback = {
+  feedback_id: number;
+  transaction_id: number;
+  ticket_number: string | null;
+  item_name: string | null;
+  customer_name: string | null;
+  rating: number;
+  comment: string | null;
+  submitted_at: string | null;
+};
+
+export type ApiFeedbackList = {
+  feedback: ApiFeedback[];
+  total: number;
+  /** Null until somebody has rated something. */
+  average_rating: number | null;
+  rating_counts: Record<string, number>;
+};
+
+/** One announced exception to the shop's usual week. */
+export type ApiShopClosure = {
+  shop_closures_id: number;
+  closure_date: string;
+  label: string;
+  kind: 'closed' | 'half_day';
+  opens_at: string | null;
+  closes_at: string | null;
+};
+
+export type ApiShopSchedule = {
+  month: string;
+  /** ISO weekday numbers the branch opens on: 1 is Monday, 7 Sunday. */
+  open_days: number[];
+  opens_at: string;
+  closes_at: string;
+  closures: ApiShopClosure[];
+  /** The next shut day from today, whichever month it falls in. */
+  next_closure: ApiShopClosure | null;
+};
+
+export async function getShopSchedule(month?: string) {
+  return request<ApiShopSchedule>(`/shop-schedule${month ? `?month=${month}` : ''}`);
+}
+
+/** One active pawn on the staff due calendar. */
+export type ApiCalendarItem = {
+  transaction_id: number;
+  item_id: number;
+  ticket_number: string;
+  item: string;
+  customer: string;
+  loan_amount: number;
+  /** yyyy-mm-dd. */
+  due_date: string;
+  /** Whole days until due. Negative once overdue. */
+  days_left: number;
+  overdue: boolean;
+  /** The item's open risk alert, or "low" when it has none. */
+  risk: 'high' | 'medium' | 'low';
+};
+
+export type ApiCalendar = {
+  month: string;
+  today: string;
+  /** Only days with at least one active pawn due. */
+  days: Array<{ date: string; count: number; level: 'normal' | 'medium' | 'high' }>;
+  items: ApiCalendarItem[];
+  /** Due today, whichever month is requested. */
+  today_items: ApiCalendarItem[];
+  /** Every active pawn with an open high or medium alert, high first. */
+  at_risk: ApiCalendarItem[];
+};
+
+/** Active pawns by due date for one month (yyyy-mm). Staff and admin only. */
+export async function getCalendar(month?: string) {
+  return request<ApiCalendar>(`/calendar${month ? `?month=${month}` : ''}`);
+}
+
+export async function saveShopClosure(payload: { closure_date: string; label: string; kind: 'closed' | 'half_day'; opens_at?: string; closes_at?: string }) {
+  return request<ApiShopClosure>('/shop-closures', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function deleteShopClosure(closureId: number) {
+  return request<{ deleted: boolean }>(`/shop-closures/${closureId}`, { method: 'DELETE' });
+}
+
+export async function getPendingFeedback() { return request<ApiPendingFeedback>('/feedback/pending'); }
+
+export async function submitFeedback(transactionId: number, rating: number, comment?: string) {
+  return request<ApiFeedback>(`/transactions/${transactionId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, comment: comment?.trim() || null }),
+  });
+}
+
+export async function getFeedbackList() { return request<ApiFeedbackList>('/feedback'); }
 
 export async function getReportSummary() { return request<ApiReportSummary>('/reports/summary'); }
 export async function getModelMetrics() { return request<ApiModelMetrics>('/model-metrics'); }

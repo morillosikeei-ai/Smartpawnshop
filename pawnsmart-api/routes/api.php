@@ -1,9 +1,18 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\MediaController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [ApiController::class, 'login']);
+// Stored photos, served one by one from the signed links in API responses
+// (see App\Support\MediaUrl). The signature is the access check, so an
+// <img> tag can load them without the sign in token.
+Route::middleware('signed:relative')->group(function () {
+    Route::get('/media/items/{item}/{index}', [MediaController::class, 'itemPhoto'])->whereNumber('index')->name('media.item');
+    Route::get('/media/customers/{customer}/id', [MediaController::class, 'customerIdPhoto'])->name('media.customer-id');
+    Route::get('/media/renewals/{renewalRequest}/receipt', [MediaController::class, 'renewalReceipt'])->name('media.receipt');
+});
 Route::get('/items/for-sale', [ApiController::class, 'forSale']);
 // Public gold value estimate for the landing page. Read only: it computes a
 // figure from the latest gold price and never writes to the database.
@@ -28,6 +37,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{user}', [ApiController::class, 'updateUser'])->middleware('role:admin');
     Route::get('/customers', [ApiController::class, 'customers']);
     Route::post('/customers', [ApiController::class, 'storeCustomer'])->middleware('role:staff,admin');
+    // Staff correcting a walk-in's details at the counter. The email is the
+    // customer's sign-in and is not changed here.
+    Route::put('/customers/{customer}', [ApiController::class, 'updateCustomer'])->middleware('role:staff,admin');
+    // Face reference for identity checks at redemption. Staff only: it is biometric data.
+    Route::get('/customers/{customer}/face', [ApiController::class, 'customerFace'])->middleware('role:staff,admin');
+    Route::put('/customers/{customer}/face', [ApiController::class, 'storeCustomerFace'])->middleware('role:staff,admin');
+    Route::delete('/customers/{customer}/face', [ApiController::class, 'deleteCustomerFace'])->middleware('role:staff,admin');
+    Route::post('/transactions/{transaction}/face-check', [ApiController::class, 'faceCheck'])->middleware('role:staff,admin');
     // The pawn ticket QR code. Staff print it; it carries a random token only.
     Route::post('/customers/{customer}/access-qr', [ApiController::class, 'customerAccessQr'])->middleware('role:staff,admin');
     Route::get('/items', [ApiController::class, 'items']);
@@ -44,7 +61,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // The customer raises a redemption request; staff accepts it. The payment
     // itself still runs through /redeem above.
     Route::post('/transactions/{transaction}/ready-to-redeem', [ApiController::class, 'requestRedemption'])->middleware('role:customer');
-    Route::post('/transactions/{transaction}/customer-request', [ApiController::class, 'customerRequest'])->middleware('role:customer');
     Route::post('/transactions/{transaction}/confirm-redemption', [ApiController::class, 'confirmRedemptionRequest'])->middleware('role:staff,admin');
     // One staff member at a time takes a payment. The claim is decided by the
     // API, so two terminals pressing Process together cannot both win.
@@ -55,11 +71,21 @@ Route::middleware('auth:sanctum')->group(function () {
     // account before the due date moves.
     Route::get('/transactions/{transaction}/renew-online', [ApiController::class, 'onlineRenewalInfo'])->middleware('role:customer');
     Route::post('/transactions/{transaction}/renew-online', [ApiController::class, 'submitOnlineRenewal'])->middleware('role:customer');
-    // The code a customer shows at the counter. They make and read their own;
+    // The code a customer shows at the countspder. They make and read their own;
     // staff can only look one up by typing it, never list them.
     Route::get('/transactions/{transaction}/pickup-code', [ApiController::class, 'pickupCode'])->middleware('role:customer');
     Route::post('/transactions/{transaction}/pickup-code', [ApiController::class, 'generatePickupCode'])->middleware('role:customer');
     Route::get('/pickup-code/lookup', [ApiController::class, 'lookupPickupCode'])->middleware('role:staff,admin');
+    // When the branch is open, and the days it is not. Read by every role:
+    // a customer planning a visit and staff answering the phone want the
+    // same answer. Only an admin announces a closure.
+    Route::get('/shop-schedule', [ApiController::class, 'shopSchedule']);
+    Route::post('/shop-closures', [ApiController::class, 'storeShopClosure'])->middleware('role:admin');
+    Route::delete('/shop-closures/{shopClosure}', [ApiController::class, 'deleteShopClosure'])->middleware('role:admin');
+    // How the redemption went, asked once per pawn and answered by choice.
+    Route::get('/feedback/pending', [ApiController::class, 'pendingFeedback'])->middleware('role:customer');
+    Route::post('/transactions/{transaction}/feedback', [ApiController::class, 'storeFeedback'])->middleware('role:customer');
+    Route::get('/feedback', [ApiController::class, 'feedbackList'])->middleware('role:staff,admin');
     Route::get('/renewal-requests', [ApiController::class, 'renewalRequests'])->middleware('role:staff,admin');
     Route::post('/renewal-requests/{renewalRequest}/confirm', [ApiController::class, 'confirmRenewal'])->middleware('role:staff,admin');
     Route::post('/renewal-requests/{renewalRequest}/reject', [ApiController::class, 'rejectRenewal'])->middleware('role:staff,admin');
@@ -68,6 +94,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/gold-prices', [ApiController::class, 'storeGoldPrice'])->middleware('role:admin');
     Route::get('/silver-prices', [ApiController::class, 'silverPrices']);
     Route::get('/risk-alerts', [ApiController::class, 'riskAlerts']);
+    // Read only. The staff dashboard calendar: active pawns by due date, with
+    // their open risk level.
+    Route::get('/calendar', [ApiController::class, 'calendar'])->middleware('role:staff,admin');
     Route::get('/activity-flags', [ApiController::class, 'activityFlags'])->middleware('role:staff,admin');
     Route::post('/activity-flags/{activityFlag}/resolve', [ApiController::class, 'resolveActivityFlag'])->middleware('role:admin');
     Route::get('/dashboard/{role}', [ApiController::class, 'dashboard'])->whereIn('role', ['admin', 'staff', 'customer']);

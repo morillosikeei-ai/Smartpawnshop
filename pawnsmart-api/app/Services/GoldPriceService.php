@@ -26,6 +26,13 @@ class GoldPriceService
     public const WINDOW_SIZE = 7;
 
     /**
+     * How many recorded days the suggestion shows behind itself. Wider than the
+     * forecast window: a fortnight is enough to see a direction, and still
+     * short enough to read without scrolling.
+     */
+    public const HISTORY_SIZE = 14;
+
+    /**
      * Fallback price used when no historical data exists yet, so a brand new
      * installation can still compute item values instead of failing.
      */
@@ -151,10 +158,13 @@ class GoldPriceService
      */
     public function getRedemptionSuggestion(): array
     {
-        $prices = GoldPrice::orderByDesc('price_date')
-            ->limit(self::WINDOW_SIZE)
-            ->pluck('price_per_gram')
-            ->map(fn ($price) => (float) $price);
+        // The window the forecast reads, newest first, with the dates kept so
+        // the customer can be shown what it was built from.
+        $recorded = GoldPrice::orderByDesc('price_date')
+            ->limit(self::HISTORY_SIZE)
+            ->get(['price_date', 'price_per_gram']);
+
+        $prices = $recorded->take(self::WINDOW_SIZE)->pluck('price_per_gram')->map(fn ($price) => (float) $price);
 
         $currentPrice = $prices->first() ?? self::DEFAULT_PRICE;
         $predictedPrice = $this->predictNextPrice();
@@ -185,6 +195,14 @@ class GoldPriceService
         return [
             'trend' => $trend,
             'message' => $message,
+            /*
+              What the suggestion was read from, day by day, newest first. An
+              observation about the market is worth little without the market
+              beside it: the customer can see whether today is dear or cheap
+              against the days around it rather than taking the sentence on
+              trust.
+            */
+            'history' => $this->priceHistory($recorded),
             'disclaimer' => 'This is a general trend observation, not a guarantee or financial advice.',
             'current_price' => $currentPrice,
             'predicted_price' => $predictedPrice,
@@ -194,6 +212,37 @@ class GoldPriceService
             'confidence' => $confidence,
             'confidence_label' => $this->confidenceLabel($confidence),
         ];
+    }
+
+    /**
+     * The recorded days behind the suggestion, newest first.
+     *
+     * Each day carries its move against the day before it, and the dearest day
+     * in the window is marked: that is the one on which an item was worth the
+     * most, which is what "best time" means to somebody holding gold.
+     */
+    private function priceHistory(\Illuminate\Support\Collection $recorded): array
+    {
+        if ($recorded->isEmpty()) {
+            return [];
+        }
+
+        $best = (float) $recorded->max('price_per_gram');
+        $rows = $recorded->values();
+
+        return $rows->map(function ($row, int $index) use ($rows, $best) {
+            $price = (float) $row->price_per_gram;
+            // The next row is the day before, because the list runs newest
+            // first.
+            $previous = isset($rows[$index + 1]) ? (float) $rows[$index + 1]->price_per_gram : null;
+
+            return [
+                'date' => $row->price_date->toDateString(),
+                'price' => round($price, 2),
+                'change_percent' => $previous && $previous > 0 ? round((($price - $previous) / $previous) * 100, 2) : null,
+                'is_best' => abs($price - $best) < 0.005,
+            ];
+        })->all();
     }
 
     /**

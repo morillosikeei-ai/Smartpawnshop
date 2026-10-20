@@ -25,6 +25,7 @@ import {
     warningOutline,
 } from 'ionicons/icons';
 import './SetPassword.css';
+import '../theme/ridge-button.css';
 
 /** How long the success card stays up before the login screen takes over. */
 const REDIRECT_SECONDS = 3;
@@ -234,7 +235,7 @@ const SetPassword: React.FC = () => {
                             </div>
 
                             {success && (
-                                <IonButton expand="block" className="auth-btn primary-btn" onClick={() => navigate('/')}>
+                                <IonButton expand="block" className="auth-btn primary-btn ridge-btn" onClick={() => navigate('/')}>
                                     Go to login now
                                 </IonButton>
                             )}
@@ -348,7 +349,7 @@ const SetPassword: React.FC = () => {
 
                                     <IonButton
                                         expand="block"
-                                        className="auth-btn primary-btn"
+                                        className="auth-btn primary-btn ridge-btn"
                                         onClick={handleSubmit}
                                         disabled={!canSubmit}
                                     >

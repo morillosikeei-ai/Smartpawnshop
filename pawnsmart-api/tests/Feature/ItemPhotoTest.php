@@ -58,19 +58,60 @@ class ItemPhotoTest extends TestCase
 
     private function photo(string $marker, int $padding = 20): string
     {
-        return 'data:image/jpeg;base64,'.$marker.str_repeat('A', $padding);
+        return 'data:image/jpeg;base64,'.base64_encode($marker.str_repeat('A', $padding));
     }
 
     public function test_intake_photos_are_stored_in_order_and_returned_as_photo_urls(): void
     {
         $photos = [$this->photo('front'), $this->photo('back')];
 
-        $this->postJson('/api/transactions', $this->payload(['photos' => $photos]))
+        $response = $this->postJson('/api/transactions', $this->payload(['photos' => $photos]))
             ->assertCreated()
-            ->assertJsonPath('item.photo_urls', $photos)
             ->assertJsonMissingPath('item.photo_path');
 
-        $this->assertSame($photos, Item::firstOrFail()->photo_urls);
+        $this->assertSame($photos, Item::firstOrFail()->storedPhotos());
+
+        // Each photo comes back as a link that serves that photo, in order.
+        $links = $response->json('item.photo_urls');
+        $this->assertCount(2, $links);
+        foreach ($photos as $index => $photo) {
+            $this->assertStringStartsWith('/api/media/items/', $links[$index]);
+            $served = $this->get($links[$index])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+            $this->assertSame(base64_decode(substr($photo, strlen('data:image/jpeg;base64,'))), $served->getContent());
+        }
+    }
+
+    public function test_a_photo_link_without_its_signature_is_refused(): void
+    {
+        $this->postJson('/api/transactions', $this->payload(['photos' => [$this->photo('front')]]))->assertCreated();
+        $item = Item::firstOrFail();
+
+        $this->get("/api/media/items/{$item->items_id}/0")->assertForbidden();
+        $tampered = str_replace('/0?', '/1?', $item->photo_urls[0]);
+        $this->get($tampered)->assertForbidden();
+    }
+
+    public function test_saving_photos_keeps_existing_links_and_adds_new_images(): void
+    {
+        $this->postJson('/api/transactions', $this->payload(['photos' => [$this->photo('front'), $this->photo('back')]]))->assertCreated();
+        $item = Item::firstOrFail();
+        $links = $item->photo_urls;
+
+        // Reorder the two existing photos and add a new one, as the photo editor does.
+        $this->putJson("/api/items/{$item->items_id}/photos", ['photos' => [$links[1], $links[0], $this->photo('side')]])->assertOk();
+
+        $this->assertSame([$this->photo('back'), $this->photo('front'), $this->photo('side')], $item->fresh()->storedPhotos());
+    }
+
+    public function test_a_link_to_another_items_photo_is_refused(): void
+    {
+        $this->postJson('/api/transactions', $this->payload(['photos' => [$this->photo('front')]]))->assertCreated();
+        $this->postJson('/api/transactions', $this->payload())->assertCreated();
+        [$first, $second] = Item::orderBy('items_id')->get()->all();
+
+        $this->putJson("/api/items/{$second->items_id}/photos", ['photos' => [$first->photo_urls[0]]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('photos.0');
     }
 
     public function test_an_item_without_photos_has_an_empty_list(): void
@@ -105,7 +146,7 @@ class ItemPhotoTest extends TestCase
 
     public function test_photos_too_large_together_are_refused_with_a_clear_message(): void
     {
-        $photos = array_map(fn ($index) => $this->photo("p{$index}", 250000), range(1, 4));
+        $photos = array_map(fn ($index) => $this->photo("p{$index}", 187500), range(1, 4));
 
         $this->postJson('/api/transactions', $this->payload(['photos' => $photos]))
             ->assertUnprocessable()

@@ -141,7 +141,7 @@ const CustomerHistory: React.FC<{ items: ApiItemDetail[]; loaded: boolean; onOpe
             <div className="portal-intro">
                 <div>
                     <small>YOUR RECORDS</small>
-                    <h2>History</h2>
+                    <h2>View History</h2>
                     <p>{loaded ? `${ticketCount} ${ticketCount === 1 ? 'pawn' : 'pawns'} · ${moneyExact(paidTotal)} paid in total` : 'Every pawn and payment on your account.'}</p>
                 </div>
             </div>

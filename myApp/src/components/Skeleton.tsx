@@ -37,15 +37,27 @@ export const SkeletonText: React.FC<{ lines?: number; width?: string }> = ({ lin
   </span>
 );
 
+/**
+ * Frame for a loading card: a soft coloured blob drifts around the edge,
+ * showing through a thin ring around the card's body. Used only by the
+ * card-shaped placeholders below, never by spinners or table rows.
+ */
+const SkeletonCard: React.FC<{ className?: string; children: React.ReactNode }> = ({ className = '', children }) => (
+  <div className={`skeleton-card ${className}`} aria-hidden="true">
+    <span className="skeleton-card-blob" />
+    <div className="skeleton-card-body">{children}</div>
+  </div>
+);
+
 /** Stand-in for one figure above its caption, as the stat tiles are laid out. */
 export const SkeletonStat: React.FC = () => (
-  <div className="skeleton-stat" aria-hidden="true">
+  <SkeletonCard className="skeleton-stat">
     <Skeleton width="38px" height="38px" radius="12px" />
     <span className="skeleton-stack">
       <Skeleton width="54%" height="1.25rem" />
       <Skeleton width="82%" height="0.72rem" />
     </span>
-  </div>
+  </SkeletonCard>
 );
 
 /**
@@ -53,13 +65,13 @@ export const SkeletonStat: React.FC = () => (
  * plot area at the height the real chart will occupy.
  */
 export const SkeletonChart: React.FC<{ height: number }> = ({ height }) => (
-  <div className="skeleton-chart" aria-hidden="true">
+  <SkeletonCard className="skeleton-chart">
     <div className="skeleton-chart-summary">
       <Skeleton width="42%" height="1.6rem" radius="8px" />
       <Skeleton width="74px" height="1.1rem" radius="999px" />
     </div>
     <Skeleton className="skeleton-chart-plot" width="100%" height={`${height}px`} radius="12px" />
-  </div>
+  </SkeletonCard>
 );
 
 /** Stand-in for table rows, sized to the columns the real table renders. */
@@ -77,7 +89,7 @@ export const SkeletonRows: React.FC<{ rows?: number; columns: string[] }> = ({ r
 
 /** Stand-in for an icon-and-two-lines list, as the activity feed is laid out. */
 export const SkeletonList: React.FC<{ rows?: number }> = ({ rows = 4 }) => (
-  <div aria-hidden="true">
+  <SkeletonCard className="skeleton-list">
     {Array.from({ length: rows }, (_, row) => (
       <div className="skeleton-list-item" key={row}>
         <Skeleton width="20px" height="20px" radius="7px" />
@@ -87,7 +99,7 @@ export const SkeletonList: React.FC<{ rows?: number }> = ({ rows = 4 }) => (
         </span>
       </div>
     ))}
-  </div>
+  </SkeletonCard>
 );
 
 /**

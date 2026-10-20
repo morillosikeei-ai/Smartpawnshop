@@ -10,8 +10,6 @@ import {
     IonButton,
     IonIcon,
     IonInput,
-    IonItem,
-    IonLabel,
     IonModal,
     IonCard,
     IonCardContent,
@@ -46,6 +44,9 @@ import ItemsSlider from '../components/ItemsSlider';
 import GoldEstimate from '../components/GoldEstimate';
 import './Landing.css';
 import './LandingPolish.css';
+import '../theme/ridge-button.css';
+import './LandingRain.css';
+import MotionToggle from '../components/MotionToggle';
 
 // ---- ProductCard (same as before) ----
 interface ProductCardProps {
@@ -319,7 +320,7 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void; onSwitchToSig
                                 <button type="button" className="forgot-link" onClick={onForgotPassword}>Forgot password?</button>
                             </div>
                         )}
-                        <IonButton expand="block" className={`auth-btn primary-btn${signingIn ? ' is-busy' : ''}`} onClick={handleLogin} aria-busy={signingIn}>
+                        <IonButton expand="block" className={`auth-btn primary-btn ridge-btn${signingIn ? ' is-busy' : ''}`} onClick={handleLogin} aria-busy={signingIn}>
                             {signingIn
                                 ? <><IonSpinner name="crescent" className="auth-btn-spinner" slot="start" />Signing in...</>
                                 : <><IonIcon icon={logInOutline} slot="start" />Sign In</>}
@@ -383,10 +384,16 @@ const ForgotPasswordModal: React.FC<{ isOpen: boolean; onClose: () => void; onBa
                         </div>
                         <h2 className="modal-title">Reset Password</h2>
                         <p className="modal-subtitle">Enter your account email. We will send you a link to set a new password.</p>
-                        <IonItem lines="none" className="auth-input-item">
-                            <IonLabel position="stacked">EMAIL ADDRESS</IonLabel>
-                            <IonInput type="email" value={email} onIonInput={event => { setEmail(event.detail.value || ''); setSuccess(''); setConfirmClose(false); }} placeholder="you@example.com" className="auth-input" />
-                        </IonItem>
+                        {/* Same field structure as the login form, so the box lines up
+                            with the title and the button the same way it does there. */}
+                        <div className="login-form">
+                            <div className="login-field">
+                                <label className="login-label" htmlFor="reset-email">Email Address</label>
+                                <div className="login-input-wrap">
+                                    <IonInput id="reset-email" type="email" value={email} onIonInput={event => { setEmail(event.detail.value || ''); setSuccess(''); setConfirmClose(false); }} placeholder="you@example.com" className="login-input" aria-label="Email address" />
+                                </div>
+                            </div>
+                        </div>
                         {confirmClose && (
                             <div className="auth-warning" role="alert">
                                 <p>The reset link has not been sent yet. Close without sending it?</p>
@@ -398,7 +405,7 @@ const ForgotPasswordModal: React.FC<{ isOpen: boolean; onClose: () => void; onBa
                         )}
                         {error && <p className="auth-error">{error}</p>}
                         {success && <div className="auth-info-message"><p>{success}</p></div>}
-                        <IonButton expand="block" className="auth-btn primary-btn" onClick={handleSendLink} disabled={loading || !email.trim()}>
+                        <IonButton expand="block" className="auth-btn primary-btn ridge-btn" onClick={handleSendLink} disabled={loading || !email.trim()}>
                             {loading ? 'Sending link...' : 'Send Reset Link'}
                         </IonButton>
                         <div className="auth-switch"><IonRouterLink onClick={onBackToLogin}>Return to Login</IonRouterLink></div>
@@ -438,23 +445,33 @@ const SignupModal: React.FC<{ isOpen: boolean; onClose: () => void; onSwitchToLo
                         </div>
                         <h2 className="modal-title">Create Account</h2>
                         <p className="modal-subtitle">Register for your SmartPawn account</p>
-                        <IonItem lines="none" className="auth-input-item">
-                            <IonLabel position="stacked">FULL NAME</IonLabel>
-                            <IonInput type="text" value={name} onIonChange={e => setName(e.detail.value || '')} placeholder="John Doe" className="auth-input" />
-                        </IonItem>
-                        <IonItem lines="none" className="auth-input-item">
-                            <IonLabel position="stacked">EMAIL ADDRESS</IonLabel>
-                            <IonInput type="email" value={email} onIonChange={e => setEmail(e.detail.value || '')} placeholder="you@example.com" className="auth-input" />
-                        </IonItem>
-                        <IonItem lines="none" className="auth-input-item">
-                            <IonLabel position="stacked">PASSWORD</IonLabel>
-                            <IonInput type="password" value={password} onIonChange={e => setPassword(e.detail.value || '')} placeholder="Create a strong password" className="auth-input" />
-                        </IonItem>
-                        <IonItem lines="none" className="auth-input-item">
-                            <IonLabel position="stacked">CONFIRM PASSWORD</IonLabel>
-                            <IonInput type="password" value={confirmPassword} onIonChange={e => setConfirmPassword(e.detail.value || '')} placeholder="Confirm your password" className="auth-input" />
-                        </IonItem>
-                        <IonButton expand="block" className="auth-btn primary-btn" onClick={handleSignup}><IonIcon icon={personAddOutline} slot="start" />Create Account</IonButton>
+                        <div className="login-form">
+                            <div className="login-field">
+                                <label className="login-label" htmlFor="signup-name">Full Name</label>
+                                <div className="login-input-wrap">
+                                    <IonInput id="signup-name" type="text" value={name} onIonChange={e => setName(e.detail.value || '')} placeholder="John Doe" className="login-input" aria-label="Full Name" />
+                                </div>
+                            </div>
+                            <div className="login-field">
+                                <label className="login-label" htmlFor="signup-email">Email Address</label>
+                                <div className="login-input-wrap">
+                                    <IonInput id="signup-email" type="email" value={email} onIonChange={e => setEmail(e.detail.value || '')} placeholder="you@example.com" className="login-input" aria-label="Email Address" />
+                                </div>
+                            </div>
+                            <div className="login-field">
+                                <label className="login-label" htmlFor="signup-password">Password</label>
+                                <div className="login-input-wrap">
+                                    <IonInput id="signup-password" type="password" value={password} onIonChange={e => setPassword(e.detail.value || '')} placeholder="Create a strong password" className="login-input" aria-label="Password" />
+                                </div>
+                            </div>
+                            <div className="login-field">
+                                <label className="login-label" htmlFor="signup-confirm">Confirm Password</label>
+                                <div className="login-input-wrap">
+                                    <IonInput id="signup-confirm" type="password" value={confirmPassword} onIonChange={e => setConfirmPassword(e.detail.value || '')} placeholder="Confirm your password" className="login-input" aria-label="Confirm Password" />
+                                </div>
+                            </div>
+                        </div>
+                        <IonButton expand="block" className="auth-btn primary-btn ridge-btn" onClick={handleSignup}><IonIcon icon={personAddOutline} slot="start" />Create Account</IonButton>
                         {error && <p className="auth-error">{error}</p>}
                         <div className="auth-switch">
                             <span>Already have an account?</span>
@@ -604,6 +621,7 @@ const Landing: React.FC = () => {
                         </div>
 
                         <div className="nav-actions">
+                            <MotionToggle className="landing-motion-toggle" />
                             <IonButton fill="clear" className="nav-btn" onClick={openLogin}>
                                 <IonIcon icon={personOutline} slot="start" />
                                 Login
@@ -655,16 +673,20 @@ const Landing: React.FC = () => {
                         <div className="hero-visual-col"><ItemsSlider /></div>
                     </section>
 
-                    <section className="about-section landing-section" id="about"><div className="section-eyebrow">ABOUT PAG-ASA</div><div className="about-layout"><div><h2>Modern tools for a pawnshop people already trust.</h2></div><p>Pag-Asa Pawnshop serves our community with honest appraisals and practical financial support. SmartPawn brings that same purpose online, helping customers track pawns, renew pawns, and explore available items with clarity.</p></div></section>
+                    {/* Rain behind every section between the hero and the footer.
+                        The hero and footer keep their own backgrounds. */}
+                    <div className="landing-rain">
+                        <section className="about-section landing-section" id="about"><div className="section-eyebrow">ABOUT PAG-ASA</div><div className="about-layout"><div><h2>Modern tools for a pawnshop people already trust.</h2></div><p>Pag-Asa Pawnshop serves our community with honest appraisals and practical financial support. SmartPawn brings that same purpose online, helping customers track pawns, renew pawns, and explore available items with clarity.</p></div></section>
 
-                    <section className="services-section landing-section" id="services"><div className="section-heading-block"><div className="section-eyebrow">WHAT WE DO</div><h2>Services built around your next step.</h2></div><div className="service-grid">{SERVICES.map(service => <ServiceFlipCard key={service.title} {...service} />)}</div></section>
+                        <section className="services-section landing-section" id="services"><div className="section-heading-block"><div className="section-eyebrow">WHAT WE DO</div><h2>Services built around your next step.</h2></div><div className="service-grid">{SERVICES.map(service => <ServiceFlipCard key={service.title} {...service} />)}</div></section>
 
-                    <GoldEstimate onAskQuestion={() => setChatOpenSignal(signal => signal + 1)} />
+                        <GoldEstimate onAskQuestion={() => setChatOpenSignal(signal => signal + 1)} />
 
-                    <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}{products.length > 0 && <SaleMarquee products={products.map(product => ({ ...product, onReserve: () => reserveFromLanding(product) }))} />}</section>
+                        <section className="sale-section landing-section" id="items-for-sale"><div className="section-heading-block sale-heading"><div><div className="section-eyebrow">AVAILABLE NOW</div><h2>Items for sale</h2></div><p>Quality expired/unclaimed items, presented with the details you need.</p></div>{saleLoading && <p>Loading available items...</p>}{saleError && <p className="sale-error">{saleError}</p>}{!saleLoading && !saleError && products.length === 0 && <p>No items are listed for sale right now.</p>}{products.length > 0 && <SaleMarquee products={products.map(product => ({ ...product, onReserve: () => reserveFromLanding(product) }))} />}</section>
 
-                    <section className="contact-section landing-section" id="contact"><div className="contact-copy"><div className="section-eyebrow">COME SEE US</div><h2>Let’s talk about what you need.</h2><p>Visit Pag-Asa Pawnshop or reach out to our team for help with pawning, renewals, redemption, or an item for sale.</p><div className="contact-details"><span><IonIcon icon={locationOutline} />Kauswagan, Cagayan de Oro City, Misamis Orienta
-                    </span><span><IonIcon icon={callOutline} />0970 885 6182</span><span><IonIcon icon={mailOutline} />renierjemorellorivas@gmail.com</span><span><IonIcon icon={timeOutline} />Monday–Saturday · 9:00 AM–6:00 PM</span></div></div><BranchMap /></section>
+                        <section className="contact-section landing-section" id="contact"><div className="contact-copy"><div className="section-eyebrow">COME SEE US</div><h2>Let’s talk about what you need.</h2><p>Visit Pag-Asa Pawnshop or reach out to our team for help with pawning, renewals, redemption, or an item for sale.</p><div className="contact-details"><span><IonIcon icon={locationOutline} />Kauswagan, Cagayan de Oro City, Misamis Orienta
+                        </span><span><IonIcon icon={callOutline} />0970 885 6182</span><span><IonIcon icon={mailOutline} />renierjemorellorivas@gmail.com</span><span><IonIcon icon={timeOutline} />Monday–Saturday · 9:00 AM–6:00 PM</span></div></div><BranchMap /></section>
+                    </div>
 
                     <footer className="landing-footer"><div className="footer-container"><div className="footer-brand"><img src="/pagasa.png" alt="Pag-Asa Pawnshop logo" /><div><strong>PAG-ASA PAWNSHOP</strong><p className="footer-desc">Fair value. Every day.</p></div></div><div className="footer-links"><a href="#about">About</a><a href="#services">Services</a><a href="#estimate">Get an Estimate</a><a href="#items-for-sale">Items for Sale</a><a href="#contact">Contact</a></div><div className="footer-copy">&copy; 2026 Pag-Asa Pawnshop. All rights reserved.</div></div></footer>
                 </div>

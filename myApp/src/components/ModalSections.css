@@ -1,0 +1,128 @@
+/* Side menu plus one section at a time (ModalSections.tsx). The modal that
+   holds it gives it a height; the section on show scrolls on its own if it is
+   long, and the menu stays put. Colors are tokens so dark mode is one block. */
+.modal-sections {
+  --ms-ink: #061028;
+  --ms-muted: #52627b;
+  --ms-line: #dfe7f0;
+  --ms-hover: #eef3fa;
+  --ms-active-bg: #ffffff;
+  --ms-accent: #1d4ed8;
+  --ms-gold: #d4a72c;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html[data-theme="dark"] .modal-sections {
+  --ms-ink: #e6ecf5;
+  --ms-muted: #94a3b8;
+  --ms-line: #243049;
+  --ms-hover: #16223a;
+  --ms-active-bg: #111b2e;
+  --ms-accent: #93b4ff;
+}
+
+.ms-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: start;
+}
+
+.ms-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ms-muted);
+  font: inherit;
+  font-size: var(--fs-13, 13px);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.ms-tab ion-icon { flex: none; font-size: 1.1rem; }
+.ms-tab span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-tab:hover { background: var(--ms-hover); color: var(--ms-ink); }
+.ms-tab.is-active { border-color: var(--ms-line); background: var(--ms-active-bg); color: var(--ms-ink); box-shadow: 0 2px 8px rgba(6, 16, 40, .06); }
+/* A gold bar marks the open section, like the portal sidebars. */
+.ms-tab.is-active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--ms-gold);
+}
+.ms-tab.is-active ion-icon { color: var(--ms-accent); }
+.ms-tab:focus-visible { outline: 2px solid var(--ms-accent); outline-offset: 2px; }
+
+.ms-count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ms-hover);
+  color: var(--ms-muted);
+  font-size: var(--fs-11, 11px);
+  font-style: normal;
+  font-weight: 800;
+  text-align: center;
+}
+.ms-tab.is-active .ms-count { background: var(--ms-accent); color: #fff; }
+
+.ms-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border-radius: 12px;
+  animation: ms-fade .18s ease;
+}
+.ms-panel:focus-visible { outline: 2px solid var(--ms-accent); outline-offset: 2px; }
+
+@keyframes ms-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Phones and narrow tablets: tabs across the top that scroll sideways, and the
+   section below grows with its content (the modal body scrolls instead). */
+@media (max-width: 720px) {
+  /* Full height here: the modal body scrolls, so the section must not shrink
+     into the space below it. */
+  .modal-sections { grid-template-columns: 1fr; gap: 12px; flex: none; }
+  .ms-nav {
+    position: sticky;
+    top: -1px;
+    z-index: 2;
+    flex-direction: row;
+    gap: 6px;
+    margin: 0 -4px;
+    padding: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: inherit;
+  }
+  .ms-nav::-webkit-scrollbar { display: none; }
+  .ms-tab { flex: none; width: auto; padding: 8px 12px; border-color: var(--ms-line); border-radius: 999px; background: var(--ms-active-bg); }
+  .ms-tab span { overflow: visible; }
+  .ms-tab.is-active { border-color: var(--ms-accent); background: var(--ms-accent); color: #fff; }
+  .ms-tab.is-active ion-icon { color: #fff; }
+  .ms-tab.is-active::before { display: none; }
+  .ms-tab.is-active .ms-count { background: rgba(255, 255, 255, .25); }
+  .ms-panel { overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-panel { animation: none; }
+  .ms-tab { transition: none; }
+}

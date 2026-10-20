@@ -1,0 +1,77 @@
+/* ---------- Ridge button ----------
+   Primary action on the pages outside the portals: Sign In, Send Reset Link,
+   Create Account, set password and portal access. The portals keep their own
+   buttons.
+
+   At rest only the two sides and the corners of the ridge border show, like
+   brackets. On hover the top and bottom edges grow out from the centre and an
+   inner glow comes up. The edges are revealed with a mask instead of covered
+   with a block of page colour, so the button reads the same on any
+   background, translucent cards included. */
+ion-button.auth-btn.primary-btn.ridge-btn {
+  --background: transparent;
+  --background-hover: transparent;
+  --background-hover-opacity: 0;
+  --background-focused: transparent;
+  --background-activated: rgba(20, 156, 234, 0.14);
+  --box-shadow: none;
+  --border-radius: 6px;
+  --color: #ffffff;
+  position: relative;
+  /* Same left and right edges as the fields above it. Ionic gives every
+     button a 2px side margin, which would leave it 4px narrower. */
+  display: block;
+  width: 100%;
+  margin-inline: 0;
+  height: 3.25em;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: none;
+  transition: box-shadow 1s ease, opacity 0.2s ease;
+}
+
+ion-button.ridge-btn::before {
+  --ridge-edges:
+    linear-gradient(#000 0 0) left / 10px 100% no-repeat,
+    linear-gradient(#000 0 0) right / 10px 100% no-repeat,
+    linear-gradient(#000 0 0) center / 0% 100% no-repeat;
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px ridge #149cea;
+  border-radius: inherit;
+  pointer-events: none;
+  -webkit-mask: var(--ridge-edges);
+  mask: var(--ridge-edges);
+  transition: -webkit-mask-size 0.5s ease, mask-size 0.5s ease;
+}
+
+@media (hover: hover) {
+  ion-button.auth-btn.primary-btn.ridge-btn:not(.button-disabled):hover {
+    box-shadow: inset 0 0 25px #1479ea;
+  }
+  ion-button.ridge-btn:not(.button-disabled):hover::before {
+    -webkit-mask-size: 10px 100%, 10px 100%, 100% 100%;
+    mask-size: 10px 100%, 10px 100%, 100% 100%;
+  }
+}
+
+/* Keyboard focus gets the full border too, so the focused button is plain to see. */
+ion-button.auth-btn.primary-btn.ridge-btn.ion-focused { box-shadow: inset 0 0 25px #1479ea; }
+ion-button.ridge-btn.ion-focused::before {
+  -webkit-mask-size: 10px 100%, 10px 100%, 100% 100%;
+  mask-size: 10px 100%, 10px 100%, 100% 100%;
+}
+
+ion-button.auth-btn.primary-btn.ridge-btn.button-disabled {
+  --color: rgba(255, 255, 255, 0.55);
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ion-button.auth-btn.primary-btn.ridge-btn,
+  ion-button.ridge-btn::before { transition: none; }
+}

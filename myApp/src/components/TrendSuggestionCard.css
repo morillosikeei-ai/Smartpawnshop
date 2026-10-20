@@ -112,3 +112,89 @@
 @media (max-width: 560px) {
   .trend-suggestion-figures span { display: block; }
 }
+
+/* ---------- Recorded prices ----------
+   The market the suggestion was read from. Folded away by default: most
+   customers want the verdict, and the working is here for the ones who do not
+   take it on trust. */
+.trend-history { display: grid; gap: 8px; }
+
+.trend-history-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-self: start;
+	gap: 5px;
+	border: 0;
+	padding: 0;
+	background: none;
+	color: #1d4ed8;
+	font: inherit;
+	font-size: var(--fs-11);
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.trend-history-table {
+	border: 1px solid #e6ebf3;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #fff;
+	/* Two weeks of rows would push the card past the calendar beside it. */
+	max-height: 208px;
+	overflow-y: auto;
+}
+
+.trend-history-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 62px;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 10px;
+	border-top: 1px solid #f1f5f9;
+	font-size: var(--fs-11);
+	font-variant-numeric: tabular-nums;
+}
+.trend-history-row:first-child { border-top: 0; }
+
+.trend-history-row.is-head {
+	position: sticky;
+	top: 0;
+	background: #f8fafc;
+	color: #64748b;
+	font-size: var(--fs-10);
+	font-weight: 800;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+.trend-history-row span:first-child { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Today anchors the list; the dearest day is the one the card is about. */
+.trend-history-row.is-today { background: #eef3ff; font-weight: 700; }
+.trend-history-row.is-best { background: #fff9e6; }
+.trend-history-row.is-today.is-best { background: #fff4d6; }
+
+.trend-history-row em {
+	font-style: normal;
+	border-radius: 999px;
+	padding: 1px 6px;
+	background: #1d4ed8;
+	color: #fff;
+	font-size: var(--fs-9);
+	font-weight: 800;
+	letter-spacing: .04em;
+}
+.trend-history-row em.is-best { background: #d4a72c; color: #3d2c00; }
+
+.trend-history-row .is-up { color: #15803d; }
+.trend-history-row .is-down { color: #b42318; }
+
+html[data-theme="dark"] .trend-history-table { border-color: #2a3650; background: #0e1626; }
+html[data-theme="dark"] .trend-history-row { border-color: #1b2540; color: #e6ebf5; }
+html[data-theme="dark"] .trend-history-row.is-head { background: #131c2e; color: #8b97ad; }
+html[data-theme="dark"] .trend-history-row.is-today { background: #16233c; }
+html[data-theme="dark"] .trend-history-row.is-best { background: #2a2416; }
+html[data-theme="dark"] .trend-history-row.is-today.is-best { background: #2e2a1c; }
+html[data-theme="dark"] .trend-history-row .is-up { color: #7bc0a2; }
+html[data-theme="dark"] .trend-history-row .is-down { color: #f0928a; }
+html[data-theme="dark"] .trend-history-toggle { color: #8fb0ff; }

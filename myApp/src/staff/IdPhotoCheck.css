@@ -10,3 +10,39 @@
 .id-photo-quality-warning p { margin: 0 0 8px; font-size: var(--fs-12); font-weight: 600; color: #8a5a06; }
 .id-photo-quality-warning > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .id-photo-keep { border: none; border-radius: 7px; padding: 8px 12px; background: transparent; color: #47597a; font: inherit; font-size: var(--fs-11); font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* Suggestions read off the ID. Staff pick each value; nothing fills itself. */
+/* Full row in both the customer step and the Add New Customer modal, which
+   renders outside .staff-page and so misses its .span-2 rule. */
+.id-autofill.span-2 { grid-column: 1 / -1; }
+.id-autofill { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid #bcd0f2; border-radius: 12px; background: #f4f8ff; }
+.id-autofill.reading { display: flex; align-items: center; gap: 8px; color: #47597a; font-size: var(--fs-12); font-weight: 600; }
+.id-autofill-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.id-autofill-head div { display: grid; gap: 2px; }
+.id-autofill-head strong { color: #061028; font-size: var(--fs-13); }
+.id-autofill-head span { color: #47597a; font-size: var(--fs-11); }
+.id-autofill-dismiss { border: 0; background: transparent; color: #47597a; font: inherit; font-size: var(--fs-11); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.id-autofill ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.id-autofill li { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px; background: #fff; }
+.id-autofill li span { color: #47597a; font-size: var(--fs-11); font-weight: 700; }
+.id-autofill li strong { overflow: hidden; color: #061028; font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
+.id-autofill li button,
+.id-autofill-all { padding: 5px 12px; border: 1px solid #1d4ed8; border-radius: 7px; background: #fff; color: #1d4ed8; font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+.id-autofill li button:hover { background: #1d4ed8; color: #fff; }
+.id-autofill-all { justify-self: end; background: #1d4ed8; color: #fff; }
+@media (max-width: 560px) {
+  .id-autofill li { grid-template-columns: minmax(0, 1fr) auto; }
+  .id-autofill li span { grid-column: 1 / -1; }
+}
+
+/* Dark mode */
+html[data-theme="dark"] .id-autofill { border-color: #2f4a7a; background: #16223a; }
+html[data-theme="dark"] .id-autofill li { background: #1a2539; }
+html[data-theme="dark"] .id-autofill-head strong,
+html[data-theme="dark"] .id-autofill li strong { color: #e2e8f0; }
+html[data-theme="dark"] .id-autofill-head span,
+html[data-theme="dark"] .id-autofill li span,
+html[data-theme="dark"] .id-autofill-dismiss,
+html[data-theme="dark"] .id-autofill.reading { color: #a3afc2; }
+html[data-theme="dark"] .id-autofill li button { border-color: #8fb0ff; background: transparent; color: #8fb0ff; }
+html[data-theme="dark"] .id-autofill-all { border-color: #8fb0ff; background: #8fb0ff; color: #0b1220; }

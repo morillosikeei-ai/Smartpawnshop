@@ -1,0 +1,182 @@
+/* ---------- Sidebar rain ----------
+   Light mode only: the three portal sidebars get a black rail with blue rain
+   streaks behind a vertical slot mesh. Dark mode keeps its own sidebar.
+
+   ::before is the rain, the same twelve columns as the page background,
+   falling on the portal-rain animation from rain-background.css when the
+   play button beside the theme toggle is on, and still otherwise. ::after is the mesh: black everywhere
+   except narrow upright slots every 25px by 8px, so the rain reads as lit
+   slits. Both sit behind the sidebar's own content through isolation and a
+   negative z-index. Based on
+   shenanigans.shoghisimon.ca/collection/css-rain-bg/ */
+
+html:not([data-theme="dark"]) .admin-page .admin-sidebar,
+html:not([data-theme="dark"]) .staff-page .staff-sidebar,
+html:not([data-theme="dark"]) .portal-page .portal-sidebar {
+	--side-rain-c: #09f;
+	isolation: isolate;
+	overflow: hidden;
+	background: #000 !important;
+}
+
+/* Desktop rails are static, so they need a positioning context. On narrow
+   screens they are already position: fixed, which is one, and must stay so. */
+@media (min-width: 801px) {
+	html:not([data-theme="dark"]) .admin-page .admin-sidebar,
+	html:not([data-theme="dark"]) .staff-page .staff-sidebar,
+	html:not([data-theme="dark"]) .portal-page .portal-sidebar {
+		position: relative;
+	}
+}
+
+html:not([data-theme="dark"]) .admin-page .admin-sidebar::before,
+html:not([data-theme="dark"]) .staff-page .staff-sidebar::before,
+html:not([data-theme="dark"]) .portal-page .portal-sidebar::before,
+html:not([data-theme="dark"]) .admin-page .admin-sidebar::after,
+html:not([data-theme="dark"]) .staff-page .staff-sidebar::after,
+html:not([data-theme="dark"]) .portal-page .portal-sidebar::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+}
+
+html:not([data-theme="dark"]) .admin-page .admin-sidebar::before,
+html:not([data-theme="dark"]) .staff-page .staff-sidebar::before,
+html:not([data-theme="dark"]) .portal-page .portal-sidebar::before {
+	background-color: #000;
+	background-image:
+		radial-gradient(4px 100px at 0px 235px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 235px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 117.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 252px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 252px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 126px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 150px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 150px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 75px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 253px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 253px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 126.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 204px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 204px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 102px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 134px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 134px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 67px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 179px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 179px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 89.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 299px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 299px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 149.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 215px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 215px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 107.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 281px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 281px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 140.5px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 158px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 158px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 79px, var(--side-rain-c) 100%, #0000 150%),
+		radial-gradient(4px 100px at 0px 210px, var(--side-rain-c), #0000),
+		radial-gradient(4px 100px at 300px 210px, var(--side-rain-c), #0000),
+		radial-gradient(1.5px 1.5px at 150px 105px, var(--side-rain-c) 100%, #0000 150%);
+	background-size:
+		300px 235px,
+		300px 235px,
+		300px 235px,
+		300px 252px,
+		300px 252px,
+		300px 252px,
+		300px 150px,
+		300px 150px,
+		300px 150px,
+		300px 253px,
+		300px 253px,
+		300px 253px,
+		300px 204px,
+		300px 204px,
+		300px 204px,
+		300px 134px,
+		300px 134px,
+		300px 134px,
+		300px 179px,
+		300px 179px,
+		300px 179px,
+		300px 299px,
+		300px 299px,
+		300px 299px,
+		300px 215px,
+		300px 215px,
+		300px 215px,
+		300px 281px,
+		300px 281px,
+		300px 281px,
+		300px 158px,
+		300px 158px,
+		300px 158px,
+		300px 210px,
+		300px 210px,
+		300px 210px;
+	background-position:
+		0px 220px,
+		3px 220px,
+		151.5px 337.5px,
+		25px 24px,
+		28px 24px,
+		176.5px 150px,
+		50px 16px,
+		53px 16px,
+		201.5px 91px,
+		75px 224px,
+		78px 224px,
+		226.5px 350.5px,
+		100px 19px,
+		103px 19px,
+		251.5px 121px,
+		125px 120px,
+		128px 120px,
+		276.5px 187px,
+		150px 31px,
+		153px 31px,
+		301.5px 120.5px,
+		175px 235px,
+		178px 235px,
+		326.5px 384.5px,
+		200px 121px,
+		203px 121px,
+		351.5px 228.5px,
+		225px 224px,
+		228px 224px,
+		376.5px 364.5px,
+		250px 26px,
+		253px 26px,
+		401.5px 105px,
+		275px 75px,
+		278px 75px,
+		426.5px 180px;
+}
+
+html:not([data-theme="dark"])[data-motion="on"] .admin-page .admin-sidebar::before,
+html:not([data-theme="dark"])[data-motion="on"] .staff-page .staff-sidebar::before,
+html:not([data-theme="dark"])[data-motion="on"] .portal-page .portal-sidebar::before {
+	animation: portal-rain 150s linear infinite;
+}
+
+/* Still rain for anyone who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+	html:not([data-theme="dark"])[data-motion="on"] .admin-page .admin-sidebar::before,
+	html:not([data-theme="dark"])[data-motion="on"] .staff-page .staff-sidebar::before,
+	html:not([data-theme="dark"])[data-motion="on"] .portal-page .portal-sidebar::before {
+		animation: none;
+	}
+}
+
+html:not([data-theme="dark"]) .admin-page .admin-sidebar::after,
+html:not([data-theme="dark"]) .staff-page .staff-sidebar::after,
+html:not([data-theme="dark"]) .portal-page .portal-sidebar::after {
+	background-image: radial-gradient(ellipse 1.5px 2px at 1.5px 50%, #0000 0, #0000 90%, #000 100%);
+	background-size: 25px 8px;
+}

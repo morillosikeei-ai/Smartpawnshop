@@ -48,6 +48,12 @@ import './theme/portal-dark.css';
 /* One glass card treatment across the three portals. After dark mode, whose
    generated rules it has to override. */
 import './theme/glass.css';
+/* Field outlines, after dark mode and glass, which both restyle fields. */
+import './theme/field-borders.css';
+/* Rain behind the portals, on the layer glass.css used for its ambient wash. */
+import './theme/rain-background.css';
+/* Rain behind the portal sidebars, light mode only. */
+import './theme/rain-sidebar.css';
 
 setupIonicReact();
 

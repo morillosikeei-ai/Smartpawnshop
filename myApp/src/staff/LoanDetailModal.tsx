@@ -16,7 +16,9 @@ import {
 } from 'ionicons/icons';
 import type { ApiCustomer, ApiItemDetail } from '../services/api';
 import { FORFEITED_LABEL, money, moneyExact, shortDate, statusClass } from '../data/pawnshopStore';
+import ModalSections from '../components/ModalSections';
 import ItemValueChart from '../components/ItemValueChart';
+import { deviceDetailRows } from './DeviceDetailsFields';
 import './LoanDetailModal.css';
 
 /** The loan row fields this modal reads. The row itself is built by the Loans screen. */
@@ -205,132 +207,147 @@ const LoanDetailModal: React.FC<Props> = ({ loan, item, customer, itemTypeLabel,
                 </div>
               </div>
 
-              <Section title="Photos & Documents" icon={imageOutline}>
-                <div className="ldm-previews">
-                  {previews.map(preview => <PreviewTile key={preview.key} preview={preview} onOpen={setEnlarged} />)}
-                </div>
-              </Section>
-
-              <div className="ldm-columns">
-                <Section title="Item Information" icon={cubeOutline}>
-                  <dl className="ldm-fields">
-                    <Field label="Description" value={loan.item} wide />
-                    <Field label="Item type" value={orDash(itemTypeLabel)} />
-                    <Field label="Category" value={orDash(GROUP_LABELS[item?.group || ''] || readable(item?.group))} />
-                    <Field label={isJewelry ? 'Karat / Weight' : 'Brand / Model'} value={orDash(loan.specs)} />
-                    <Field label="Condition" value={orDash(readable(item?.condition) || item?.condition)} />
-                    <Field label="Appraised value" value={item ? money(Number(item.appraised_value)) : '-'} />
-                    {item?.adjusted_value != null && <Field label="Adjusted value" value={money(Number(item.adjusted_value))} />}
-                    {item?.has_gemstone && <Field label="Gemstone" value={`${money(Number(item.gemstone_value || 0))}${item.gemstone_details ? ` · ${item.gemstone_details}` : ''}`} wide />}
-                    {item?.adjustment_reason && <Field label="Adjustment note" value={item.adjustment_reason} wide />}
-                  </dl>
-                </Section>
-
-                <Section title="Customer Information" icon={personOutline}>
-                  <dl className="ldm-fields">
-                    <Field label="Name" value={orDash(owner?.name || loan.customer)} wide />
-                    <Field label="Contact number" value={orDash(owner?.contact_number)} />
-                    <Field label="Email" value={orDash(owner?.email || owner?.user?.email)} />
-                    <Field label="Address" value={orDash(owner?.address)} wide />
-                    <Field label="Valid ID type" value={orDash(readable(owner?.valid_id_type) || owner?.valid_id_type)} />
-                    <Field label="Valid ID number" value={orDash(owner?.valid_id_number)} />
-                  </dl>
-                </Section>
-              </div>
-
-              <Section title="Pawn Information" icon={cashOutline}>
-                <dl className="ldm-fields three">
-                  <Field label="Ticket number" value={loan.ticketNumber} />
-                  <Field label="Date pawned" value={transaction ? shortDate(transaction.created_at) : '-'} />
-                  <Field label="Due date" value={<>{loan.dueDate} <em className="ldm-muted">({dueLabel(loan.daysUntilDue, loan.status)})</em></>} />
-                  <Field label="Interest (Renta)"value={transaction ? `${(Number(transaction.interest_rate) * 100).toFixed(2)}% monthly` : '-'} />
-                  <Field label="Pawn-to-value" value={transaction ? `${Number(transaction.loan_to_value_percent).toFixed(0)}%` : '-'} />
-                  <Field label="Extension Period"value={transaction ? `${transaction.grace_period_days} days` : '-'} />
-                  <Field label="Principal" value={moneyExact(loan.loanAmount)} />
-                  <Field label="Interest due" value={moneyExact(loan.interestDue)} />
-                  <Field label="Total payable" value={<strong>{moneyExact(loan.totalPayable)}</strong>} />
-                </dl>
-              </Section>
-
-              <Section title="Renewal History" icon={refreshOutline}>
-                {/* A renewal is renta paid to move the due date, so it never
-                    shows up in the redemption record. This is the only place
-                    the pawn's renewals are accounted for. */}
-                <div className="ldm-table ldm-renewals" role="table" aria-label="Renewal history">
-                  <div className="ldm-table-row ldm-table-head" role="row">
-                    <span role="columnheader">Submitted</span>
-                    <span role="columnheader">GCash Ref.</span>
-                    <span role="columnheader">Amount</span>
-                    <span role="columnheader">Result</span>
-                  </div>
-                  {renewals.map(renewal => (
-                    <div className="ldm-table-row" role="row" key={renewal.renewal_requests_id}>
-                      <span role="cell" data-label="Submitted">{renewal.submitted_at ? shortDate(renewal.submitted_at) : '-'}</span>
-                      <span role="cell" data-label="GCash Ref.">
-                        {renewal.gcash_reference_number}
-                        {renewal.receipt_url && <a className="ldm-receipt" href={renewal.receipt_url} target="_blank" rel="noreferrer">View receipt</a>}
-                      </span>
-                      <span role="cell" data-label="Amount">{moneyExact(renewal.amount)}</span>
-                      <span role="cell" data-label="Result">
-                        <em className={`ldm-renewal-status is-${renewal.status}`}>{RENEWAL_RESULT[renewal.status]}</em>
-                        {renewal.reviewed_at && <small className="ldm-muted"> {shortDate(renewal.reviewed_at)}</small>}
-                        {renewal.review_note && <small className="ldm-muted"> · {renewal.review_note}</small>}
-                      </span>
-                    </div>
-                  ))}
-                  {renewals.length === 0 && (
-                    <div className="ldm-empty">
-                      <IonIcon icon={refreshOutline} />
-                      <div>
-                        <strong>No renewals on this pawn</strong>
-                        <p>The customer has not paid a renta to extend the due date.</p>
+              {/* One section at a time, picked from the side menu, so the
+                  record no longer stacks into one long scroll. */}
+              <ModalSections
+                label="Item detail sections"
+                resetKey={loan.transactionId}
+                sections={[
+                  { id: 'pawn', label: 'Pawn', icon: cashOutline, content: (
+                    <Section title="Pawn Information" icon={cashOutline}>
+                      <dl className="ldm-fields three">
+                        <Field label="Ticket number" value={loan.ticketNumber} />
+                        <Field label="Date pawned" value={transaction ? shortDate(transaction.created_at) : '-'} />
+                        <Field label="Due date" value={<>{loan.dueDate} <em className="ldm-muted">({dueLabel(loan.daysUntilDue, loan.status)})</em></>} />
+                        <Field label="Interest (Renta)"value={transaction ? `${(Number(transaction.interest_rate) * 100).toFixed(2)}% monthly` : '-'} />
+                        <Field label="Pawn-to-value" value={transaction ? `${Number(transaction.loan_to_value_percent).toFixed(0)}%` : '-'} />
+                        <Field label="Extension Period"value={transaction ? `${transaction.grace_period_days} days` : '-'} />
+                        <Field label="Principal" value={moneyExact(loan.loanAmount)} />
+                        <Field label="Interest due" value={moneyExact(loan.interestDue)} />
+                        <Field label="Total payable" value={<strong>{moneyExact(loan.totalPayable)}</strong>} />
+                      </dl>
+                    </Section>
+                  ) },
+                  { id: 'item', label: 'Item', icon: cubeOutline, content: (
+                    <Section title="Item Information" icon={cubeOutline}>
+                      <dl className="ldm-fields">
+                        <Field label="Description" value={loan.item} wide />
+                        <Field label="Item type" value={orDash(itemTypeLabel)} />
+                        <Field label="Category" value={orDash(GROUP_LABELS[item?.group || ''] || readable(item?.group))} />
+                        <Field label={isJewelry ? 'Karat / Weight (g)' : 'Brand / Model'} value={orDash(loan.specs)} />
+                        <Field label="Condition" value={orDash(readable(item?.condition) || item?.condition)} />
+                        <Field label="Appraised value" value={item ? money(Number(item.appraised_value)) : '-'} />
+                        {item?.adjusted_value != null && <Field label="Adjusted value" value={money(Number(item.adjusted_value))} />}
+                        {item?.has_gemstone && <Field label="Diamond" value={`${money(Number(item.gemstone_value || 0))}${item.gemstone_details ? ` · ${item.gemstone_details}` : ''}`} wide />}
+                        {/* A watch or cellphone's IMEI, movement, papers and the like. */}
+                        {deviceDetailRows(item?.item_details).map(([label, value]) => <Field key={label} label={label} value={value} />)}
+                        {item?.adjustment_reason && <Field label="Adjustment note" value={item.adjustment_reason} wide />}
+                      </dl>
+                    </Section>
+                  ) },
+                  { id: 'customer', label: 'Customer', icon: personOutline, content: (
+                    <Section title="Customer Information" icon={personOutline}>
+                      <dl className="ldm-fields">
+                        <Field label="Name" value={orDash(owner?.name || loan.customer)} wide />
+                        <Field label="Contact number" value={orDash(owner?.contact_number)} />
+                        <Field label="Email" value={orDash(owner?.email || owner?.user?.email)} />
+                        <Field label="Address" value={orDash(owner?.address)} wide />
+                        <Field label="Valid ID type" value={orDash(readable(owner?.valid_id_type) || owner?.valid_id_type)} />
+                        <Field label="Valid ID number" value={orDash(owner?.valid_id_number)} />
+                      </dl>
+                    </Section>
+                  ) },
+                  { id: 'photos', label: 'Photos & ID', icon: imageOutline, count: previews.filter(preview => preview.src).length, content: (
+                    <Section title="Photos & Documents" icon={imageOutline}>
+                      <div className="ldm-previews">
+                        {previews.map(preview => <PreviewTile key={preview.key} preview={preview} onOpen={setEnlarged} />)}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </Section>
-
-              <Section title="Value History" icon={calendarOutline}>
-                {/* Jewelry is revalued daily against the gold price, so only
-                    jewelry has a recorded value history to chart. */}
-                {history.length > 1 && <ItemValueChart points={history} loanAmount={loan.loanAmount} />}
-
-                <div className="ldm-table" role="table" aria-label="Value history">
-                  <div className="ldm-table-row ldm-table-head" role="row">
-                    <span role="columnheader">Date</span>
-                    <span role="columnheader">Event</span>
-                    <span role="columnheader">Value</span>
-                  </div>
-                  {history.map((row, index) => {
-                    const previous = index > 0 ? history[index - 1].value : null;
-                    const change = previous === null ? 0 : row.value - previous;
-                    return (
-                      <div className="ldm-table-row" role="row" key={row.date}>
-                        <span role="cell" data-label="Date">{row.date}</span>
-                        <span role="cell" data-label="Event">Daily gold price revaluation</span>
-                        <span role="cell" data-label="Value" className="ldm-value">
-                          {money(row.value)}
-                          {change !== 0 && (
-                            <em className={change > 0 ? 'up' : 'down'}>
-                              <IonIcon icon={change > 0 ? trendingUpOutline : trendingDownOutline} />
-                              {money(Math.abs(change))}
-                            </em>
-                          )}
-                        </span>
+                    </Section>
+                  ) },
+                  { id: 'renewals', label: 'Renewals', icon: refreshOutline, count: renewals.length, content: (
+                    <Section title="Renewal History" icon={refreshOutline}>
+                      {/* A renewal is renta paid to move the due date, so it never
+                          shows up in the redemption record. This is the only place
+                          the pawn's renewals are accounted for. */}
+                      <div className="ldm-table ldm-renewals" role="table" aria-label="Renewal history">
+                        <div className="ldm-table-row ldm-table-head" role="row">
+                          <span role="columnheader">Submitted</span>
+                          <span role="columnheader">GCash Ref.</span>
+                          <span role="columnheader">Amount</span>
+                          <span role="columnheader">Result</span>
+                        </div>
+                        {renewals.map(renewal => (
+                          <div className="ldm-table-row" role="row" key={renewal.renewal_requests_id}>
+                            <span role="cell" data-label="Submitted">{renewal.submitted_at ? shortDate(renewal.submitted_at) : '-'}</span>
+                            <span role="cell" data-label="GCash Ref.">
+                              {renewal.gcash_reference_number}
+                              {renewal.receipt_url && <a className="ldm-receipt" href={renewal.receipt_url} target="_blank" rel="noreferrer">View receipt</a>}
+                            </span>
+                            <span role="cell" data-label="Amount">{moneyExact(renewal.amount)}</span>
+                            <span role="cell" data-label="Result">
+                              <em className={`ldm-renewal-status is-${renewal.status}`}>{RENEWAL_RESULT[renewal.status]}</em>
+                              {renewal.reviewed_at && <small className="ldm-muted"> {shortDate(renewal.reviewed_at)}</small>}
+                              {renewal.review_note && <small className="ldm-muted"> · {renewal.review_note}</small>}
+                            </span>
+                          </div>
+                        ))}
+                        {renewals.length === 0 && (
+                          <div className="ldm-empty">
+                            <IonIcon icon={refreshOutline} />
+                            <div>
+                              <strong>No renewals on this pawn</strong>
+                              <p>The customer has not paid a renta to extend the due date.</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                  {history.length === 0 && (
-                    <div className="ldm-empty">
-                      <IonIcon icon={alertCircleOutline} />
-                      <div>
-                        <strong>No recorded value history</strong>
-                        <p>This item is not revalued from the gold price.</p>
+                    </Section>
+                  ) },
+                  { id: 'value', label: 'Value History', icon: calendarOutline, content: (
+                    <Section title="Value History" icon={calendarOutline}>
+                      {/* Jewelry is revalued daily against the gold price, so only
+                          jewelry has a recorded value history to chart. */}
+                      {history.length > 1 && <ItemValueChart points={history} loanAmount={loan.loanAmount} />}
+
+                      <div className="ldm-table" role="table" aria-label="Value history">
+                        <div className="ldm-table-row ldm-table-head" role="row">
+                          <span role="columnheader">Date</span>
+                          <span role="columnheader">Event</span>
+                          <span role="columnheader">Value</span>
+                        </div>
+                        {history.map((row, index) => {
+                          const previous = index > 0 ? history[index - 1].value : null;
+                          const change = previous === null ? 0 : row.value - previous;
+                          return (
+                            <div className="ldm-table-row" role="row" key={row.date}>
+                              <span role="cell" data-label="Date">{row.date}</span>
+                              <span role="cell" data-label="Event">Daily gold price revaluation</span>
+                              <span role="cell" data-label="Value" className="ldm-value">
+                                {money(row.value)}
+                                {change !== 0 && (
+                                  <em className={change > 0 ? 'up' : 'down'}>
+                                    <IonIcon icon={change > 0 ? trendingUpOutline : trendingDownOutline} />
+                                    {money(Math.abs(change))}
+                                  </em>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {history.length === 0 && (
+                          <div className="ldm-empty">
+                            <IonIcon icon={alertCircleOutline} />
+                            <div>
+                              <strong>No recorded value history</strong>
+                              <p>This item is not revalued from the gold price.</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </Section>
+                    </Section>
+                  ) },
+                ]}
+              />
 
               <p className="ldm-footnote"><IonIcon icon={shieldCheckmarkOutline} />Read-only view. Values come from the shop's latest records.</p>
             </>

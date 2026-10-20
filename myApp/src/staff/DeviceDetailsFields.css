@@ -1,0 +1,42 @@
+/* ---------- Step 2: watch and cellphone details ----------
+   Three short sections under the Item Description: the device itself, its
+   condition and paperwork, then the appraised value. Fields sit three across
+   on a wide screen, two on a tablet, one on a phone, so the form stays short. */
+.staff-page .tx-device-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #e6ebf3;
+}
+.staff-page .tx-device-section h4 {
+  margin: 0;
+  color: #52627b;
+  font-size: var(--fs-10);
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.staff-page .tx-device-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.staff-page .tx-device-flags {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.staff-page .tx-yesno .tx-material-picker { grid-template-columns: repeat(2, minmax(56px, auto)); }
+
+@media (max-width: 1100px) {
+  .staff-page .tx-device-grid,
+  .staff-page .tx-device-flags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .staff-page .tx-device-grid,
+  .staff-page .tx-device-flags { grid-template-columns: 1fr; }
+}
+
+html[data-theme="dark"] .staff-page .tx-device-section { border-top-color: #2a3650; }
+html[data-theme="dark"] .staff-page .tx-device-section h4 { color: #8b97ad; }

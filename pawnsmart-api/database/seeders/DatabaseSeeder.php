@@ -31,8 +31,8 @@ class DatabaseSeeder extends Seeder
         // a due date; it is separate from loan_term_days because staff still
         // set a new pawn's due date by hand. gcash_payment_info is the GCash
         // number or account name shown to the customer on the Renew Online
-        // panel, left empty until the shop fills it in from Admin settings.
-        foreach (['current_gold_price' => '3560', 'risk_threshold_percent' => '10', 'jewelry_watch_phone_rate' => '5', 'bulky_item_rate' => '6', 'default_loan_to_value' => '70', 'loan_term_days' => '60', 'grace_period_days' => '7', 'due_soon_notice_days' => '5', 'value_change_notice_percent' => '5', 'redemption_visit_days' => '3', 'renewal_term_days' => '60', 'gcash_payment_info' => ''] as $key => $value) {
+        // panel; the admin can change it from Admin settings.
+        foreach (['current_gold_price' => '3560', 'risk_threshold_percent' => '10', 'jewelry_watch_phone_rate' => '5', 'bulky_item_rate' => '6', 'default_loan_to_value' => '70', 'loan_term_days' => '60', 'grace_period_days' => '7', 'due_soon_notice_days' => '5', 'value_change_notice_percent' => '5', 'redemption_visit_days' => '3', 'renewal_term_days' => '60', 'gcash_payment_info' => 'GCash 0970 885 6182', 'shop_open_days' => '1,2,3,4,5,6', 'shop_opens_at' => '09:00', 'shop_closes_at' => '18:00'] as $key => $value) {
             SystemSetting::updateOrCreate(['setting_key' => $key], ['setting_value' => $value]);
         }
     }

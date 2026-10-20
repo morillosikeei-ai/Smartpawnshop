@@ -1315,9 +1315,11 @@ button.forgot-link {
     text-align: center;
 }
 
+/* Sized to the modal: wide enough to read the name on the logo, capped so
+   the form below still fits without scrolling. */
 .auth-brand img {
-    width: 150px;
-    height: 100px;
+    width: min(230px, 70%);
+    height: 140px;
     border-radius: 0;
     background: transparent;
     object-fit: contain;

@@ -423,3 +423,16 @@ ion-modal.ldm-modal .ldm-renewal-status.is-pending { color: #8a6400; }
 
 /* Link to the receipt attached to a renewal. */
 ion-modal.ldm-modal .ldm-receipt { display: block; margin-top: 4px; color: #1d4ed8; font-size: var(--fs-11); font-weight: 700; }
+
+/* ---- Sections with a side menu (ModalSections) ----
+   On wide screens the modal keeps one height whichever section is open, so
+   it does not jump while staff click through; only a long section (value
+   history) scrolls, inside its own panel, and the menu and summary stay put.
+   Phones keep the body scrolling, with the section tabs stuck at its top. */
+@media (min-width: 721px) {
+  ion-modal.ldm-modal .ldm-panel { height: min(720px, calc(100vh - 32px)); height: min(720px, calc(100dvh - 32px)); }
+  ion-modal.ldm-modal .ldm-body { overflow: hidden; }
+  ion-modal.ldm-modal .ldm-stats { flex: none; }
+}
+ion-modal.ldm-modal .modal-sections { background: #f7f9fc; }
+html[data-theme="dark"] ion-modal.ldm-modal .modal-sections { background: #131c2e; }

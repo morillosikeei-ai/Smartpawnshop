@@ -40,6 +40,8 @@ import {
   sparklesOutline,
   trendingDownOutline,
   trendingUpOutline,
+  cameraOutline,
+  cloudUploadOutline,
 } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
 import { calculateAppraisal, DEFAULT_SILVER_FINENESS, FORFEITED_LABEL, money, moneyExact, purityForKarat, purityForSilver, riskLabel, shortDate, SILVER_PURITIES, statusLabel, timeAgo, purityLabel } from '../data/pawnshopStore';
@@ -52,6 +54,7 @@ import {
   confirmRedemptionRequest,
   confirmRenewalRequest,
   createCustomer,
+  updateCustomer,
   createTransaction,
   getCustomers,
   getDashboard,
@@ -70,6 +73,7 @@ import {
   getTransactions,
   markItemForSale,
   markItemSold,
+  clearApiCache,
   getReservations,
   cancelReservation,
   isHolding,
@@ -96,18 +100,27 @@ import {
 } from '../services/api';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
+import MotionToggle from '../components/MotionToggle';
 import PullToRefresh from '../components/PullToRefresh';
 import QRCode from 'qrcode';
 import { checkPhotoQuality, ITEM_PHOTO_SCALE, readImageAsScaledDataUrl, type PhotoQuality } from '../services/photoQuality';
-import TrendSuggestionCard from '../components/TrendSuggestionCard';
+import StaffDueCalendar from './StaffDueCalendar';
+import CameraCapture from '../components/CameraCapture';
+import FaceCheck from '../components/FaceCheck';
+import type { FaceCheckResult } from '../services/api';
 import Combobox, { ComboOption, resolveComboValue } from '../components/Combobox';
 import TypeSelect from '../components/TypeSelect';
 import './StaffPortal.css';
+import './RedeemBreakdown.css';
+import DeviceDetailsFields, { deviceDetailErrors, deviceDetailRows, deviceDetailsPayload, deviceKindFor, type DeviceDetails } from './DeviceDetailsFields';
+import { interestBasis, printRedemptionReceipt, type RedemptionReceipt } from './redemptionReceipt';
 import './NewTransaction.css';
+import { cleanDecimal, readDecimal } from '../utils/decimalInput';
 import './StaffDashboard.css';
 import './GoldPanel.css';
 import './IdPhoto.css';
-import { IdNameBadge, IdPhotoQualityWarning, useIdPhotoCheck } from './useIdPhotoCheck';
+import { IdAutofillCard, IdNameBadge, IdPhotoQualityWarning, useIdPhotoCheck } from './useIdPhotoCheck';
+import type { IdFields } from '../services/idOcr';
 import './StaffNav.css';
 import '../theme/portal-ui.css';
 
@@ -129,6 +142,8 @@ const METALS: Array<{ value: MetalType; label: string }> = [
 
 /** Most photos one item keeps. Matches Item::MAX_PHOTOS in the API. */
 const MAX_ITEM_PHOTOS = 4;
+// Matches the API limit on weight_grams (10 kg).
+const MAX_WEIGHT_GRAMS = 10000;
 
 /**
  * Shape an address must have before a customer is registered with it.
@@ -227,6 +242,9 @@ const StaffPortal: React.FC = () => {
   const [focusItemId, setFocusItemId] = useState<number | null>(null);
   // What that notification was about, so the Loans page can name the request.
   const [focusType, setFocusType] = useState<ApiNotification['type'] | null>(null);
+  // Set when the dashboard calendar's View button opens a pawn, so the Loans
+  // page shows its detail as soon as the rows load.
+  const [openFocusedDetail, setOpenFocusedDetail] = useState(false);
   const [appraised, setAppraised] = useState(false);
   const [loanTab, setLoanTab] = useState<'active' | 'payments' | 'renewals' | 'customers' | 'lifecycle'>('active');
   const [loanRiskFilter, setLoanRiskFilter] = useState<'All' | 'Low' | 'Medium' | 'High'>('All');
@@ -304,6 +322,16 @@ const StaffPortal: React.FC = () => {
     go('loans');
   };
 
+  /** Open one pawn's detail from the dashboard calendar. */
+  const openPawnDetail = (itemId: number) => {
+    setFocusItemId(itemId);
+    setFocusType(null);
+    setOpenFocusedDetail(true);
+    setLoanTab('active');
+    setLoanRiskFilter('All');
+    go('loans');
+  };
+
   const logout = async () => {
     const confirmed = await modal.confirm({
       title: 'Sign out of the staff portal?',
@@ -373,6 +401,7 @@ const StaffPortal: React.FC = () => {
 
               <div className="staff-header-actions">
                 <div className="staff-action-wrap">
+                  <MotionToggle className="staff-notification" />
                   <ThemeToggle className="staff-notification" />
                 </div>
                 <div className="staff-action-wrap" ref={notificationsRef}>
@@ -442,6 +471,7 @@ const StaffPortal: React.FC = () => {
                 staffName={staffProfile.name}
                 setLoanTab={setLoanTab}
                 setLoanRiskFilter={setLoanRiskFilter}
+                openPawn={openPawnDetail}
               />
             )}
             {view === 'transaction' && <NewTransaction appraised={appraised} setAppraised={setAppraised} go={go} onTransactionCreated={(message) => {
@@ -457,7 +487,10 @@ const StaffPortal: React.FC = () => {
                 focusItemId={focusItemId}
                 setFocusItemId={setFocusItemId}
                 focusType={focusType}
+                openFocusedDetail={openFocusedDetail}
+                onFocusedDetailOpened={() => setOpenFocusedDetail(false)}
                 staffUserId={staffProfile.userId}
+                staffName={staffProfile.name}
               />
             )}
             {view === 'reports' && <StaffReport go={go} setLoanTab={setLoanTab} />}
@@ -484,35 +517,20 @@ type GoldPoint = { date: string; price: number; predicted: number | null; source
 const GOLD_RANGES = [7, 14, 30] as const;
 type GoldRange = (typeof GOLD_RANGES)[number];
 
-/** Urgency band for a loan due in the given number of days. */
-const dueTone = (days: number) => (days < 0 ? 'overdue' : days <= 3 ? 'urgent' : days <= 7 ? 'soon' : 'ok');
-
-/** One loan approaching its due date, flattened for the "Due soon" table. */
-type DueRow = { id: string; item: string; customer: string; dueDate: string; daysRemaining: number };
-
 /** Format a date the way the dashboard header shows it. */
 const longDate = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit', year: 'numeric' }).toUpperCase();
 
 /** Morning, afternoon, or evening, from the browser clock. */
 const greetingFor = (hour: number) => (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
-/** Whole days from today until the given date. Negative once overdue. */
-const daysUntil = (isoDate: string) => {
-  const due = new Date(isoDate);
-  const today = new Date();
-  due.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / 86400000);
-};
-
 const Dashboard: React.FC<{
   go: (view: View) => void;
   staffName: string;
   setLoanTab: (value: 'active' | 'payments' | 'renewals' | 'customers' | 'lifecycle') => void;
   setLoanRiskFilter: (value: 'All' | 'Low' | 'Medium' | 'High') => void;
-}> = ({ go, staffName, setLoanTab, setLoanRiskFilter }) => {
+  openPawn: (itemId: number) => void;
+}> = ({ go, staffName, setLoanTab, setLoanRiskFilter, openPawn }) => {
   const [riskAlerts, setRiskAlerts] = useState<RiskRow[]>([]);
-  const [upcomingDue, setUpcomingDue] = useState<DueRow[]>([]);
   const [goldHistory, setGoldHistory] = useState<GoldPoint[]>([]);
   const [silverHistory, setSilverHistory] = useState<GoldPoint[]>([]);
   // Which metal the Market Reference panel shows. Gold on every load.
@@ -536,22 +554,6 @@ const Dashboard: React.FC<{
       setRiskAlerts(alerts.filter(alert => !alert.resolved).map(toRiskRow));
 
       const live = transactions.filter(transaction => transaction.status === 'active');
-
-      // Soonest due first, so the loans needing attention sit at the top.
-      setUpcomingDue(
-        live
-          .filter(transaction => transaction.due_date)
-          .sort((first, second) => first.due_date.localeCompare(second.due_date))
-          .slice(0, 5)
-          .map(transaction => ({
-            id: String(transaction.transactions_id),
-            item: String((transaction.item as { description?: string })?.description || 'Item'),
-            customer: String((transaction.customer as { name?: string })?.name || 'Unknown customer'),
-            dueDate: new Date(transaction.due_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-            daysRemaining: daysUntil(transaction.due_date),
-          }))
-      );
-
       const todayKey = new Date().toISOString().slice(0, 10);
       setStats({
         todayCount: transactions.filter(transaction => String((transaction as { created_at?: string }).created_at || '').slice(0, 10) === todayKey).length,
@@ -622,7 +624,7 @@ const Dashboard: React.FC<{
         <div className="dash-hero-copy">
           <small>{longDate(now)}</small>
           <h2>{greetingFor(now.getHours())}, {staffName}</h2>
-          <p>Here is today operational overview and live pawn activity.</p>
+          <p>Quick Links</p>
         </div>
         <div className="dash-hero-actions">
           <IonButton onClick={() => { setLoanTab('active'); go('transaction'); }}>
@@ -760,78 +762,10 @@ const Dashboard: React.FC<{
         </div>
       </div>
 
-      <TrendSuggestionCard />
-
-      <div className="dashboard-grid">
-        <div className="staff-panel dashboard-panel">
-          <div className="staff-panel-head">
-            <div>
-              <small>RISK ALERTS</small>
-              <h3>Priority items</h3>
-            </div>
-            <button onClick={handleViewAllAlerts}>View All</button>
-          </div>
-
-          <div className="risk-legend">
-            <span><i className="risk-dot high" />High &middot; value below the pawn amount</span>
-            <span><i className="risk-dot medium" />Medium &middot; within the safety margin</span>
-          </div>
-
-          <div className="dashboard-table">
-            <div className="dashboard-table-head">
-              <span>Item</span>
-              <span>Customer</span>
-              <span>Current Value</span>
-              <span>Pawn Amount</span>
-              <span>Risk Level</span>
-            </div>
-
-            {riskAlerts.map((alert) => (
-              <div className="dashboard-table-row" key={alert.id}>
-                <span>{alert.item}</span>
-                <span>{alert.customer}</span>
-                <span>{alert.currentValue}</span>
-                <span>{alert.loanAmount}</span>
-                <em className={'risk-pill ' + alert.risk.toLowerCase()}>{alert.risk}</em>
-              </div>
-            ))}
-            {!loaded && <SkeletonList rows={3} />}
-            {loaded && riskAlerts.length === 0 && <p className="risk-empty">No unresolved risk alerts. Every active item is above its pawn amount plus the safety margin.</p>}
-          </div>
-        </div>
-
-        <div className="staff-panel dashboard-panel">
-          <div className="staff-panel-head">
-            <div>
-              <small>UPCOMING</small>
-              <h3>Due soon</h3>
-            </div>
-            <button onClick={() => { setLoanRiskFilter('All'); setLoanTab('active'); go('loans'); }}>View All</button>
-          </div>
-
-          <div className="dashboard-table compact-table">
-            <div className="dashboard-table-head">
-              <span>Item</span>
-              <span>Customer</span>
-              <span>Due Date</span>
-              <span>Days</span>
-            </div>
-
-            {upcomingDue.map((row) => (
-              <div className="dashboard-table-row" key={row.id}>
-                <span>{row.item}</span>
-                <span>{row.customer}</span>
-                <span>{row.dueDate}</span>
-                <em className={'due-pill ' + dueTone(row.daysRemaining)}>
-                  {row.daysRemaining < 0 ? Math.abs(row.daysRemaining) + 'd late' : row.daysRemaining + 'd'}
-                </em>
-              </div>
-            ))}
-            {!loaded && <SkeletonList rows={3} />}
-            {loaded && upcomingDue.length === 0 && <p className="risk-empty">No active pawns with a due date yet.</p>}
-          </div>
-        </div>
-      </div>
+      {/* Due calendar and its details panel. Replaces the Best Time to Redeem
+          card and the Priority items and Due soon tables: risk alerts now show
+          in the panel's default "Today and at risk" view. */}
+      <StaffDueCalendar onView={row => openPawn(row.item_id)} />
     </section>
   );
 };
@@ -934,18 +868,32 @@ const CONDITION_OPTIONS: ComboOption[] = [
 // Matches Item::KARAT_PURITY in the API.
 const GOLD_KARAT_OPTIONS = ['10k', '14k', '18k', '21k', '22k', '24k'].map((karat) => ({ value: karat, label: karat }));
 
-// Suggested gemstone types. Staff may also type any other stone.
-const GEMSTONE_TYPE_OPTIONS = [
-  { value: 'diamond', label: 'Diamond' },
-  { value: 'ruby', label: 'Ruby' },
-  { value: 'sapphire', label: 'Sapphire' },
-  { value: 'emerald', label: 'Emerald' },
-  { value: 'pearl', label: 'Pearl' },
-  { value: 'other', label: 'Other' },
-];
-const gemstoneTypeLabel = (value: string) => GEMSTONE_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 // Free text typed by staff goes into the printed ticket's HTML, so it is escaped.
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] as string));
+
+/** The customer fields staff can correct and save. The email is the sign-in and is not among them. */
+const CUSTOMER_DETAIL_FIELDS = ['fullName', 'contactNumber', 'address', 'validIdType', 'validIdNumber', 'validIdPhoto'] as const;
+type CustomerDetails = Record<(typeof CUSTOMER_DETAIL_FIELDS)[number], string>;
+
+/** A customer record from the API as the form's saved details. */
+const customerDetails = (customer: ApiCustomer): CustomerDetails => ({
+  fullName: customer.name,
+  contactNumber: customer.contact_number || '',
+  address: customer.address || '',
+  validIdType: customer.valid_id_type || 'National ID',
+  validIdNumber: customer.valid_id_number || '',
+  validIdPhoto: customer.valid_id_photo || '',
+});
+
+/** ID fields read by OCR, renamed to the customer form's own keys. */
+const idFieldsToCustomer = (fields: IdFields) => {
+  const patch: Partial<Record<'fullName' | 'validIdType' | 'validIdNumber' | 'address', string>> = {};
+  if (fields.fullName) patch.fullName = fields.fullName;
+  if (fields.idType) patch.validIdType = fields.idType;
+  if (fields.idNumber) patch.validIdNumber = fields.idNumber;
+  if (fields.address) patch.address = fields.address;
+  return patch;
+};
 
 const VALID_ID_TYPE_OPTIONS: ComboOption[] = [
   { value: 'National ID', label: 'National ID' },
@@ -1016,6 +964,12 @@ const NewTransaction: React.FC<{
     // Data URL of the picked ID, so it survives into the saved customer.
     validIdPhoto: '',
   });
+  /*
+    The customer's details as last saved, for a customer picked from search or
+    just registered. The form is compared against it to tell staff there are
+    unsaved edits. Null while no saved customer is on the form.
+  */
+  const [savedCustomer, setSavedCustomer] = useState<CustomerDetails | null>(null);
   const [customerForm, setCustomerForm] = useState({
     fullName: '',
     contactNumber: '',
@@ -1049,12 +1003,16 @@ const NewTransaction: React.FC<{
   // The value the staff actually lends against. Empty means "use the computed
   // or typed appraisal", so it follows that value until the staff changes it.
   const [adjustedValue, setAdjustedValue] = useState('');
-  // Jewelry only. A gemstone or diamond adds the staff's own estimate on top of
+  // Jewelry only. A diamond adds the staff's own estimate on top of
   // the AI-assisted gold value; the details are a note for reference only.
+  // The shop takes diamonds only, so a ticked box is always sent as one. The
+  // gemstone_* names are the database columns and stay as they are.
   const [hasGemstone, setHasGemstone] = useState(false);
   const [gemstoneValue, setGemstoneValue] = useState('');
-  const [gemstoneType, setGemstoneType] = useState('');
   const [gemstoneDetails, setGemstoneDetails] = useState('');
+  // Watch and cellphone only: the structured details (IMEI, movement, papers...)
+  // kept in items.item_details. See DeviceDetailsFields.
+  const [deviceDetails, setDeviceDetails] = useState<DeviceDetails>({});
   // Loan-to-Value % and Loan Amount are both editable and kept in sync. Only
   // the field typed in last is stored; the other is derived from it, so they
   // never drift apart. Empty LTV means the shop's suggested default.
@@ -1072,6 +1030,13 @@ const NewTransaction: React.FC<{
   const customerIdCheck = useIdPhotoCheck();
   const modalIdCheck = useIdPhotoCheck();
   const modalIdInputRef = useRef<HTMLInputElement>(null);
+  // Which form the ID camera is taking a photo for, or null when it is closed.
+  const [idCameraFor, setIdCameraFor] = useState<'customer' | 'modal' | null>(null);
+  // Face photo of the selected customer, for identity checks at redemption.
+  const [faceEnrolled, setFaceEnrolled] = useState(false);
+  const [faceOpen, setFaceOpen] = useState(false);
+  const [faceNote, setFaceNote] = useState('');
+  const [itemCameraOpen, setItemCameraOpen] = useState(false);
 
   // Which of the four steps is on screen. All form state lives above this, so
   // moving back and forth never loses what the staff already typed.
@@ -1092,6 +1057,7 @@ const NewTransaction: React.FC<{
 
   // Loading and error state
   const [loading, setLoading] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Setting rows keyed by setting_key, as the form reads them.
@@ -1190,11 +1156,26 @@ const NewTransaction: React.FC<{
   const itemTypeOptions = ITEM_CATEGORIES[itemForm.group] || [];
   const itemTypeText = itemForm.category.trim();
   const itemTypeValue = resolveComboValue(itemTypeOptions, itemForm.category);
+  // Cellphone or Watch picked from the suggestions gets its own fields, and
+  // so does every bulky item; a custom watch_phone type keeps the plain
+  // Brand/Model field.
+  const deviceKind = deviceKindFor(itemForm.group, itemTypeValue);
+  const deviceErrors = deviceDetailErrors(deviceKind, deviceDetails);
 
   // Today's gold price, from the recorded prices first and the configured
   // fallback second. Nothing is assumed when neither is available.
   const currentGoldPrice = currentGoldPriceOverride ?? Number(systemSettings?.current_gold_price ?? 0);
   const weightValue = Number(itemForm.weight || 0);
+  // Jewelry is weighed in grams. A figure far outside the usual range is
+  // flagged, not blocked: under 0.1 g usually means kilos were typed, and over
+  // 1,000 g is rare enough to deserve a second look.
+  const weightNote = !(weightValue > 0) || weightValue > MAX_WEIGHT_GRAMS
+    ? null
+    : weightValue >= 1000
+      ? `= ${(weightValue / 1000).toLocaleString('en-PH', { maximumFractionDigits: 3 })} kg. Over 1 kilo. Check the weight is right.`
+      : weightValue < 0.1
+        ? 'Under 0.1 g. Weight is in grams, not kilos. Check the weight is right.'
+        : null;
   // Silver jewelry follows the same live recompute, from the silver price and
   // the silver fineness instead of the gold price and karat.
   const isSilver = isJewelry && itemForm.metalType === 'silver';
@@ -1234,8 +1215,8 @@ const NewTransaction: React.FC<{
   const valueAdjusted = Math.abs(effectiveAdjustedValue - itemValue) >= 0.01;
   const pesoText = (value: number) => `₱${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   // Review and printed ticket: metal + gemstone = total, for jewelry with a stone.
-  const gemstoneBreakdown = `${metalName} Value: ${pesoText(computedValue)} + Gemstone Value: ${pesoText(gemstoneAmount)} = Total Appraised Value: ${pesoText(itemValue)}`;
-  const gemstoneSummary = [gemstoneTypeLabel(gemstoneType), gemstoneDetails.trim()].filter(Boolean).join(' · ');
+  const gemstoneBreakdown = `${metalName} Value: ${pesoText(computedValue)} + Diamond Value: ${pesoText(gemstoneAmount)} = Total Appraised Value: ${pesoText(itemValue)}`;
+  const gemstoneSummary = gemstoneDetails.trim();
   const roundMoney = (value: number) => Math.round(value * 100) / 100;
   const ltvPercent = loanEditedLast === 'amount'
     ? (effectiveAdjustedValue > 0 ? roundMoney((Number(loanAmountInput || 0) / effectiveAdjustedValue) * 100) : 0)
@@ -1343,7 +1324,7 @@ const NewTransaction: React.FC<{
               <div><span class="label">Due Date</span><span class="value">${dueDateLabel}</span></div>
               ${gemstoneOn ? `
               <div class="wide"><span class="label">Value Breakdown</span><span class="value breakdown">${gemstoneBreakdown}</span></div>
-              ${gemstoneSummary ? `<div class="wide"><span class="label">Gemstone</span><span class="value">${escapeHtml(gemstoneSummary)}</span></div>` : ''}` : ''}
+              ${gemstoneSummary ? `<div class="wide"><span class="label">Diamond</span><span class="value">${escapeHtml(gemstoneSummary)}</span></div>` : ''}` : ''}
             </div>
 
             <div class="access">
@@ -1389,11 +1370,14 @@ const NewTransaction: React.FC<{
     if (!itemForm.condition.trim()) newErrors.condition = 'Condition is required';
     if (isJewelry) {
       if (!itemForm.weight || Number(itemForm.weight) <= 0) newErrors.weight = 'Item weight is required';
+      else if (Number(itemForm.weight) > MAX_WEIGHT_GRAMS) newErrors.weight = `Weight cannot exceed ${MAX_WEIGHT_GRAMS.toLocaleString('en-PH')} g (10 kg)`;
       else if (computedValue <= 0) newErrors.weight = 'Could not compute value';
-      if (hasGemstone && !(Number(gemstoneValue) > 0)) newErrors.gemstoneValue = 'Enter the gemstone value, or untick Has gemstone or diamond';
+      if (hasGemstone && !(Number(gemstoneValue) > 0)) newErrors.gemstoneValue = 'Enter the diamond value, or untick Has diamond';
     } else {
-      if (!itemForm.brandModel.trim()) newErrors.brandModel = 'Brand/model is required';
+      // A watch's Brand/Model is built from its Brand field, which reports its own error.
+      if (!itemForm.brandModel.trim() && deviceKind !== 'watch') newErrors.brandModel = 'Brand/model is required';
       if (!itemForm.manualAppraisedValue || manualValue <= 0) newErrors.manualAppraisedValue = 'Appraised value is required';
+      Object.assign(newErrors, deviceErrors);
     }
     if (effectiveAdjustedValue <= 0) newErrors.adjustedValue = 'Final appraised value must be a positive number';
     if (ltvPercent <= 0) newErrors.ltvPercent = 'Pawn-to-Value % must be a positive number';
@@ -1464,6 +1448,7 @@ const NewTransaction: React.FC<{
           custom_item_type: null,
           description: itemForm.itemDescription || `${itemTypeText} item`,
           brand_model: isJewelry ? null : itemForm.brandModel.trim(),
+          item_details: deviceDetailsPayload(deviceKind, deviceDetails),
           metal_type: isJewelry ? itemForm.metalType : null,
           // Gold sends its karat; silver sends its fineness and no karat.
           karat: isJewelry && !isSilver ? itemForm.karat.toLowerCase() : null,
@@ -1480,7 +1465,7 @@ const NewTransaction: React.FC<{
           // The API adds gemstone_value to the gold value it computes itself.
           has_gemstone: isJewelry ? hasGemstone : null,
           gemstone_value: gemstoneOn ? Number(gemstoneValue) : null,
-          gemstone_type: gemstoneOn ? gemstoneType || null : null,
+          gemstone_type: gemstoneOn ? 'diamond' : null,
           gemstone_details: gemstoneOn ? gemstoneDetails.trim() || null : null,
           // The attached photos, downscaled, in the order they were picked.
           // The customer portal shows the first one as the item's thumbnail.
@@ -1515,7 +1500,7 @@ const NewTransaction: React.FC<{
    * The check is advice. A blurry photo still attaches, because a walk-in
    * transaction must not wait on a retake.
    */
-  const attachPhotos = async (fileList: FileList | null) => {
+  const attachPhotos = async (fileList: FileList | File[] | null) => {
     // The API keeps at most MAX_ITEM_PHOTOS per item, so extra picks are dropped
     // here with a note rather than failing the whole transaction at submit.
     const room = Math.max(0, MAX_ITEM_PHOTOS - photos.length);
@@ -1541,11 +1526,16 @@ const NewTransaction: React.FC<{
     }));
   };
 
-  /** Drop the photo and reopen the picker, which is what the retake prompt does. */
+  /**
+   * Drop the photo and get a new one the same way: the camera for a photo
+   * taken with it, the file picker for an uploaded one.
+   */
   const retakePhoto = (photoId: string) => {
+    const fromCamera = photos.find(photo => photo.id === photoId)?.name.startsWith('item-photo-');
     setPhotos(current => current.filter(photo => photo.id !== photoId));
     setPhotoLimitNote('');
-    photoInputRef.current?.click();
+    if (fromCamera) setItemCameraOpen(true);
+    else photoInputRef.current?.click();
   };
 
   /** Keep a photo the check complained about, and stop showing the warning. */
@@ -1565,6 +1555,17 @@ const NewTransaction: React.FC<{
     void readImageAsScaledDataUrl(file).then(apply).catch(() => undefined);
   };
 
+  /** A new ID photo, uploaded or taken with the camera, for either customer form. */
+  const applyIdPhoto = (target: 'customer' | 'modal', file: File | undefined) => {
+    if (target === 'customer') {
+      customerIdCheck.check(file);
+      readIdPhoto(file, (dataUrl) => updateCustomerForm('validIdPhoto', dataUrl));
+    } else {
+      modalIdCheck.check(file);
+      readIdPhoto(file, (dataUrl) => setNewCustomerDraft((current) => ({ ...current, validIdPhoto: dataUrl })));
+    }
+  };
+
   const handleCancel = () => {
     setErrors({});
     setSuccessMessage('');
@@ -1575,11 +1576,12 @@ const NewTransaction: React.FC<{
   const startNewTransaction = () => {
     customerIdCheck.reset();
     setCustomerForm({ fullName: '', contactNumber: '', address: '', validIdType: 'National ID', validIdNumber: '', email: '', validIdPhoto: '', customersId: undefined });
+    setSavedCustomer(null);
     setItemForm({ group: 'jewelry', category: 'Ring', itemDescription: '', brandModel: '', metalType: 'gold', karat: '18k', fineness: DEFAULT_SILVER_FINENESS, weight: '', manualAppraisedValue: '', condition: 'Good', remarks: '' });
+    setDeviceDetails({});
     setAdjustedValue('');
     setHasGemstone(false);
     setGemstoneValue('');
-    setGemstoneType('');
     setGemstoneDetails('');
     setLtvInput('');
     setLoanAmountInput('');
@@ -1607,6 +1609,9 @@ const NewTransaction: React.FC<{
       validIdPhoto: customer.valid_id_photo || '',
       customersId: customer.customers_id,
     });
+    setSavedCustomer(customerDetails(customer));
+    setFaceEnrolled(Boolean(customer.has_face_reference));
+    setFaceNote('');
     setCustomerSearch(customer.name);
     setShowCustomerResults(false);
   };
@@ -1646,6 +1651,9 @@ const NewTransaction: React.FC<{
         validIdPhoto: createdCustomer.valid_id_photo || validIdPhoto || '',
         customersId: createdCustomer.customers_id,
       });
+      setSavedCustomer({ ...customerDetails(createdCustomer), validIdPhoto: createdCustomer.valid_id_photo || validIdPhoto || '' });
+      setFaceEnrolled(false);
+      setFaceNote('');
 
       setSuccessMessage(createdCustomer.activation_email_sent === false
         ? 'Customer registered, but the activation email could not be sent. Check the API mail log.'
@@ -1712,7 +1720,55 @@ const NewTransaction: React.FC<{
 
   // What each step needs before Next is allowed. The same conditions are
   // re-checked by handleConfirmAndGenerate, which stays the last word.
-  const customerStepValid = Boolean(customerForm.fullName.trim()) && (Boolean(customerForm.customersId) || EMAIL_PATTERN.test(customerForm.email.trim()));
+  // A saved customer whose details were edited here but not saved yet.
+  const customerDirty = Boolean(customerForm.customersId && savedCustomer)
+    && CUSTOMER_DETAIL_FIELDS.some(field => customerForm[field].trim() !== (savedCustomer?.[field] ?? '').trim());
+  // Next waits for Save or Discard, so the ticket never goes out under details
+  // that differ from the customer's record.
+  const customerStepValid = Boolean(customerForm.fullName.trim())
+    && (Boolean(customerForm.customersId) || EMAIL_PATTERN.test(customerForm.email.trim()))
+    && !customerDirty;
+
+  const saveCustomerChanges = async () => {
+    if (!customerForm.customersId) return;
+    const formErrors: Record<string, string> = {};
+    if (!customerForm.fullName.trim()) formErrors.fullName = 'Full name is required';
+    if (!customerForm.contactNumber.trim()) formErrors.contactNumber = 'Contact number is required';
+    if (!customerForm.validIdType.trim()) formErrors.validIdType = 'Valid ID type is required';
+    if (!customerForm.validIdNumber.trim()) formErrors.validIdNumber = 'Valid ID number is required';
+    if (Object.keys(formErrors).length > 0) { setErrors(formErrors); return; }
+
+    setSavingCustomer(true);
+    try {
+      const updated = await updateCustomer(customerForm.customersId, {
+        name: customerForm.fullName.trim(),
+        contact_number: customerForm.contactNumber.trim(),
+        address: customerForm.address.trim(),
+        valid_id_type: customerForm.validIdType.trim(),
+        valid_id_number: customerForm.validIdNumber.trim(),
+        valid_id_photo: customerForm.validIdPhoto || null,
+      });
+      const details = customerDetails(updated);
+      setCustomerForm(current => ({ ...current, ...details }));
+      setSavedCustomer(details);
+      setCustomerSearch(updated.name);
+      setErrors({});
+      setSuccessMessage('Customer details saved.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Could not save the customer details.' });
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  /** Put the form back to the customer's saved details. */
+  const discardCustomerChanges = () => {
+    if (!savedCustomer) return;
+    setCustomerForm(current => ({ ...current, ...savedCustomer }));
+    customerIdCheck.reset();
+    setErrors({});
+  };
   const itemStepValid =
     settingsReady &&
     itemValue > 0 &&
@@ -1721,7 +1777,7 @@ const NewTransaction: React.FC<{
     Boolean(itemForm.condition.trim()) &&
     (isJewelry
       ? metalPrice > 0 && weightValue > 0 && (!hasGemstone || Number(gemstoneValue) > 0)
-      : Boolean(itemForm.brandModel.trim()) && manualValue > 0);
+      : Boolean(itemForm.brandModel.trim()) && manualValue > 0 && Object.keys(deviceErrors).length === 0);
   const loanStepValid = settingsReady && ltvPercent > 0 && effectiveLoanAmount > 0 && !loanExceedsValue;
 
   const stepValid: Record<WizardStep, boolean> = {
@@ -1934,7 +1990,7 @@ const NewTransaction: React.FC<{
                   />
                 </IonItem>
 
-                <label className="file-input tx-field">
+                <div className="file-input tx-field">
                   <span>Valid ID Photo</span>
                   {customerForm.validIdPhoto ? (
                     // Filled in from the customer just added, or from the one
@@ -1952,31 +2008,82 @@ const NewTransaction: React.FC<{
                       </div>
                     </div>
                   ) : (
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={(event) => {
-                        customerIdCheck.check(event.target.files?.[0]);
-                        readIdPhoto(event.target.files?.[0], (dataUrl) => updateCustomerForm('validIdPhoto', dataUrl));
-                      }}
-                    />
+                    // Walk-ins hand the card over, so the camera comes first.
+                    <div className="id-photo-source">
+                      <button type="button" className="primary" onClick={() => setIdCameraFor('customer')}>
+                        <IonIcon icon={cameraOutline} />Take photo
+                      </button>
+                      <label>
+                        <IonIcon icon={cloudUploadOutline} />Upload file
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={(event) => { applyIdPhoto('customer', event.target.files?.[0]); event.target.value = ''; }}
+                        />
+                      </label>
+                    </div>
                   )}
                   <IdPhotoQualityWarning
                     check={customerIdCheck.state}
-                    onRetake={() => { customerIdCheck.reset(); updateCustomerForm('validIdPhoto', ''); }}
+                    onRetake={() => { customerIdCheck.reset(); updateCustomerForm('validIdPhoto', ''); setIdCameraFor('customer'); }}
                     onKeep={customerIdCheck.dismissQuality}
                   />
-                </label>
+                </div>
 
-                <IonItem lines="none" className="tx-field span-2">
-                  <IonLabel position="stacked">Email</IonLabel>
+                {/* Beside the ID photo, so the pair lines up under Valid ID Type
+                    and Valid ID Number. */}
+                <IonItem lines="none" className="tx-field">
+                  <IonLabel position="stacked">Email{customerForm.customersId ? ' (sign-in, not editable here)' : ''}</IonLabel>
+                  {/* A saved customer's email is their sign-in and where password
+                      resets go, so it is shown but not changed from this form. */}
                   <IonInput
                     type="email"
                     value={customerForm.email}
+                    readonly={Boolean(customerForm.customersId)}
                     onIonInput={(event) => updateCustomerForm('email', event.detail.value || '')}
                     placeholder="customer@email.com"
                   />
                 </IonItem>
+
+                <IdAutofillCard
+                  className="span-2"
+                  check={customerIdCheck.state}
+                  current={{ fullName: customerForm.fullName, idType: customerForm.validIdType, idNumber: customerForm.validIdNumber, address: customerForm.address }}
+                  onUse={(fields) => Object.entries(idFieldsToCustomer(fields)).forEach(([field, value]) => updateCustomerForm(field as keyof typeof customerForm, value))}
+                />
+
+                {/* The face photo is taken once the customer is saved, since it
+                    is stored against their record. It is checked against the
+                    ID photo, then used to check whoever claims their items. */}
+                {customerForm.customersId && (
+                  <div className={`tx-face-row span-2${faceEnrolled ? ' is-done' : ''}`}>
+                    <IonIcon icon={faceEnrolled ? checkmarkCircle : personCircleOutline} aria-hidden="true" />
+                    <div>
+                      <strong>{faceEnrolled ? 'Face photo on file' : 'Take a face photo'}</strong>
+                      <span>{faceNote || (faceEnrolled
+                        ? 'Used to check the person who claims this customer’s items.'
+                        : 'Checked against the valid ID, then used to confirm who claims the item later.')}</span>
+                    </div>
+                    <button type="button" className={faceEnrolled ? 'secondary-button' : 'primary-button'} onClick={() => setFaceOpen(true)}>
+                      <IonIcon icon={cameraOutline} aria-hidden="true" />{faceEnrolled ? 'Retake' : 'Take face photo'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {customerDirty && (
+              <div className="tx-customer-unsaved" role="status">
+                <div>
+                  <strong>Unsaved changes to this customer</strong>
+                  <span>Save them to the customer's record, or discard them, before going on.</span>
+                </div>
+                <div className="tx-customer-unsaved-actions">
+                  <button type="button" className="secondary-button" onClick={discardCustomerChanges} disabled={savingCustomer}>Discard</button>
+                  <button type="button" className="primary-button" onClick={saveCustomerChanges} disabled={savingCustomer} aria-busy={savingCustomer}>
+                    {savingCustomer && <Spinner />}{savingCustomer ? 'Saving' : 'Save changes'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2036,20 +2143,31 @@ const NewTransaction: React.FC<{
                 error={errors.condition}
               />
 
-              <IonItem lines="none" className="tx-field span-2">
-                <IonLabel position="stacked">Item Description</IonLabel>
-                <IonInput
-                  value={itemForm.itemDescription}
-                  onIonInput={(event) => updateItemForm('itemDescription', event.detail.value || '')}
-                  placeholder={isJewelry ? 'e.g. Wedding ring with heart design' : 'e.g. With charger and original box'}
-                />
-              </IonItem>
+              {/* Jewelry fields share the Item Type box (.tx-combobox), so all
+                  six line up two by two at one height. Non-jewelry keeps the
+                  description full width above its own pair of fields. */}
+              <div className={`tx-combobox${isJewelry ? '' : ' span-2'}`}>
+                <label className="tx-combobox-label" htmlFor="tx-item-description">Item Description</label>
+                <div className="tx-combobox-control">
+                  <input
+                    id="tx-item-description"
+                    type="text"
+                    value={itemForm.itemDescription}
+                    onChange={(event) => updateItemForm('itemDescription', event.target.value)}
+                    placeholder={isJewelry
+                      ? 'e.g. Wedding ring with heart design'
+                      : deviceKind
+                        ? 'Scratches, damage, missing parts, or anything else seen'
+                        : 'e.g. With charger and original box'}
+                  />
+                </div>
+              </div>
 
               {isJewelry ? (
                 <>
-                  <div className="tx-field span-2 tx-material">
-                    <span id="tx-material-label">Material</span>
-                    <div className="tx-material-picker" role="radiogroup" aria-labelledby="tx-material-label">
+                  <div className="tx-combobox tx-material">
+                    <span className="tx-combobox-label" id="tx-material-label">Material</span>
+                    <div className="tx-combobox-control tx-material-picker" role="radiogroup" aria-labelledby="tx-material-label">
                       {METALS.map(metal => (
                         <button
                           key={metal.value}
@@ -2079,15 +2197,30 @@ const NewTransaction: React.FC<{
                     placeholder="Pick or type, e.g. 18k"
                   />
 
-                  <IonItem lines="none" className="tx-field">
-                    <IonLabel position="stacked">Weight</IonLabel>
-                    <IonInput
-                      type="number"
-                      value={itemForm.weight}
-                      onIonInput={(event) => updateItemForm('weight', event.detail.value || '')}
-                      placeholder="e.g. 5.25"
-                    />
-                  </IonItem>
+                  <div className="tx-field-wrap">
+                  <div className={`tx-combobox tx-weight${errors.weight ? ' has-error' : ''}`}>
+                    <label className="tx-combobox-label" htmlFor="tx-weight">Weight</label>
+                    <div className="tx-combobox-control">
+                      {/* Text, not number: a number input still accepts "-", "+"
+                          and "e", so the value is cleaned on every keystroke. */}
+                      <input
+                        id="tx-weight"
+                        type="text"
+                        inputMode="decimal"
+                        value={itemForm.weight}
+                        onChange={(event) => updateItemForm('weight', cleanDecimal(event.target.value))}
+                        placeholder="e.g. 5.25"
+                      />
+                      {/* The unit sits in the field itself, not only in the
+                          label: a jeweller weighing in kilos would otherwise
+                          enter 0.005 and never be told. */}
+                      <span className="tx-weight-unit" aria-hidden="true">grams</span>
+                    </div>
+                  </div>
+                  {errors.weight
+                    ? <small className="tx-field-error">{errors.weight}</small>
+                    : weightNote && <small className="tx-field-warn" role="status">{weightNote}</small>}
+                  </div>
 
                   {/* Optional. Unticked, the gold computation is the whole value. */}
                   <div className="tx-gemstone span-2">
@@ -2100,7 +2233,7 @@ const NewTransaction: React.FC<{
                         setAdjustedValue('');
                       }}
                     >
-                      Has gemstone or diamond?
+                      Has diamond?
                     </IonCheckbox>
                   </div>
 
@@ -2112,13 +2245,13 @@ const NewTransaction: React.FC<{
                       </IonItem>
 
                       <IonItem lines="none" className="tx-field">
-                        <IonLabel position="stacked">Gemstone Value</IonLabel>
+                        <IonLabel position="stacked">Diamond Value</IonLabel>
                         <IonInput
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputmode="decimal"
                           value={gemstoneValue}
                           onIonInput={(event) => {
-                            setGemstoneValue(event.detail.value || '');
+                            setGemstoneValue(readDecimal(event));
                             setAdjustedValue('');
                             setErrors((current) => {
                               const updated = { ...current };
@@ -2131,19 +2264,8 @@ const NewTransaction: React.FC<{
                         {errors.gemstoneValue && <small className="tx-field-error">{errors.gemstoneValue}</small>}
                       </IonItem>
 
-                      <TypeSelect
-                        free
-                        className="span-2"
-                        label="Gemstone Type (optional)"
-                        value={gemstoneType}
-                        options={GEMSTONE_TYPE_OPTIONS}
-                        onChange={setGemstoneType}
-                        maxLength={50}
-                        placeholder="Pick or type, e.g. Topaz"
-                      />
-
                       <IonItem lines="none" className="tx-field span-2">
-                        <IonLabel position="stacked">Gemstone Details (optional)</IonLabel>
+                        <IonLabel position="stacked">Diamond Details (optional)</IonLabel>
                         <IonInput
                           value={gemstoneDetails}
                           maxlength={255}
@@ -2154,6 +2276,27 @@ const NewTransaction: React.FC<{
                     </>
                   )}
                 </>
+              ) : deviceKind ? (
+                <DeviceDetailsFields
+                  kind={deviceKind}
+                  itemType={itemTypeValue}
+                  details={deviceDetails}
+                  onChange={(field, value) => {
+                    setDeviceDetails(current => ({ ...current, [field]: value }));
+                    setErrors(current => {
+                      if (!current[field]) return current;
+                      const updated = { ...current };
+                      delete updated[field];
+                      return updated;
+                    });
+                  }}
+                  brandModel={itemForm.brandModel}
+                  onBrandModelChange={(value) => updateItemForm('brandModel', value)}
+                  appraisedValue={itemForm.manualAppraisedValue}
+                  onAppraisedValueChange={(value) => updateItemForm('manualAppraisedValue', value)}
+                  readDecimal={readDecimal}
+                  errors={{ ...errors, ...(deviceDetails.imei || deviceDetails.battery_health ? deviceErrors : {}) }}
+                />
               ) : (
                 <>
                   <IonItem lines="none" className="tx-field">
@@ -2168,9 +2311,10 @@ const NewTransaction: React.FC<{
                   <IonItem lines="none" className="tx-field">
                     <IonLabel position="stacked">Appraised Value</IonLabel>
                     <IonInput
-                      type="number"
+                      type="text"
+                      inputmode="decimal"
                       value={itemForm.manualAppraisedValue}
-                      onIonInput={(event) => updateItemForm('manualAppraisedValue', event.detail.value || '')}
+                      onIonInput={(event) => updateItemForm('manualAppraisedValue', readDecimal(event))}
                       placeholder="₱0.00"
                     />
                   </IonItem>
@@ -2189,7 +2333,7 @@ const NewTransaction: React.FC<{
                     </span>
                     {gemstoneOn && (
                       <span className="tx-value-formula">
-                        {metalName} {money(computedValue)} <i>+</i> gemstone {money(gemstoneAmount)} <i>=</i> {money(itemValue)}
+                        {metalName} {money(computedValue)} <i>+</i> diamond {money(gemstoneAmount)} <i>=</i> {money(itemValue)}
                       </span>
                     )}
                   </>
@@ -2216,35 +2360,46 @@ const NewTransaction: React.FC<{
                 <IonItem lines="none" className="tx-field">
                   <IonLabel position="stacked">Final Appraised Value</IonLabel>
                   <IonInput
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputmode="decimal"
                     value={adjustedValue || itemValue.toString()}
-                    onIonInput={(event) => setAdjustedValue(event.detail.value || '')}
+                    onIonInput={(event) => setAdjustedValue(readDecimal(event))}
                     placeholder="₱0.00"
                   />
                 </IonItem>
                 <small className="tx-value-note">
                   {isJewelry ? 'Computed value is a reference only. ' : ''}
-                  Final appraisal is up to staff, especially for items with gemstones or added value.
+                  Final appraisal is up to staff, especially for items with diamonds or added value.
                 </small>
               </div>
 
               <div className="tx-field tx-photo-field">
-                <label className="file-input">
+                <div className="file-input tx-photo-picker">
                   <span>Item Photo(s) <small>up to {MAX_ITEM_PHOTOS}</small></span>
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    multiple
-                    onChange={(event) => {
-                      void attachPhotos(event.target.files);
-                      // Clear the picker so re-picking the same file after a
-                      // retake still fires a change event.
-                      event.target.value = '';
-                    }}
-                  />
-                </label>
+                  {/* The item is on the counter, so the camera comes first. Both
+                      add to the same list; neither is offered once it is full. */}
+                  <div className="id-photo-source">
+                    <button type="button" className="primary" onClick={() => setItemCameraOpen(true)} disabled={photos.length >= MAX_ITEM_PHOTOS}>
+                      <IonIcon icon={cameraOutline} />Take a photo
+                    </button>
+                    <label className={photos.length >= MAX_ITEM_PHOTOS ? 'is-disabled' : ''}>
+                      <IonIcon icon={cloudUploadOutline} />Upload file
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        multiple
+                        disabled={photos.length >= MAX_ITEM_PHOTOS}
+                        onChange={(event) => {
+                          void attachPhotos(event.target.files);
+                          // Clear the picker so re-picking the same file after a
+                          // retake still fires a change event.
+                          event.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
 
                 {photoLimitNote && <p className="tx-step-hint" role="status">{photoLimitNote}</p>}
 
@@ -2329,11 +2484,10 @@ const NewTransaction: React.FC<{
               <IonItem lines="none" className="tx-field">
                 <IonLabel position="stacked">Pawn-to-Value %</IonLabel>
                 <IonInput
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputmode="decimal"
                   value={loanEditedLast === 'ltv' ? (ltvInput === '' ? String(defaultLtvPercent) : ltvInput) : String(ltvPercent)}
-                  onIonInput={(event) => editLtv(event.detail.value || '')}
+                  onIonInput={(event) => editLtv(readDecimal(event))}
                   placeholder="e.g. 70"
                 />
               </IonItem>
@@ -2341,11 +2495,10 @@ const NewTransaction: React.FC<{
               <IonItem lines="none" className="tx-field">
                 <IonLabel position="stacked">Pawn Amount</IonLabel>
                 <IonInput
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputmode="decimal"
                   value={loanEditedLast === 'amount' ? loanAmountInput : String(effectiveLoanAmount)}
-                  onIonInput={(event) => editLoanAmount(event.detail.value || '')}
+                  onIonInput={(event) => editLoanAmount(readDecimal(event))}
                   placeholder="₱0.00"
                 />
                 {loanExceedsValue && <small className="tx-field-error">Pawn amount cannot exceed the final appraised value.</small>}
@@ -2413,6 +2566,9 @@ const NewTransaction: React.FC<{
                     <div><span>Brand/Model</span><strong>{itemForm.brandModel || 'Not provided'}</strong></div>
                   )}
                   <div><span>Condition</span><strong>{itemForm.condition}</strong></div>
+                  {deviceKind && deviceDetailRows(deviceDetailsPayload(deviceKind, deviceDetails)).map(([label, value]) => (
+                    <div key={label}><span>{label}</span><strong>{value}</strong></div>
+                  ))}
                 </div>
               </div>
 
@@ -2423,7 +2579,7 @@ const NewTransaction: React.FC<{
                   {gemstoneOn ? (
                     <>
                       <div className="tx-summary-breakdown"><span>Value Breakdown</span><strong>{gemstoneBreakdown}</strong></div>
-                      {gemstoneSummary && <div><span>Gemstone</span><strong>{gemstoneSummary}</strong></div>}
+                      {gemstoneSummary && <div><span>Diamond</span><strong>{gemstoneSummary}</strong></div>}
                       {valueAdjusted && <div><span>Final Appraised Value (staff adjusted)</span><strong>{pesoText(effectiveAdjustedValue)}</strong></div>}
                     </>
                   ) : (
@@ -2505,7 +2661,7 @@ const NewTransaction: React.FC<{
               />
             </IonItem>
 
-            <IonItem lines="none" className="tx-field span-2">
+            <IonItem lines="none" className="tx-field">
               <IonLabel position="stacked">Email</IonLabel>
               <IonInput
                 type="email"
@@ -2515,23 +2671,28 @@ const NewTransaction: React.FC<{
               />
             </IonItem>
 
-            <label className="file-input tx-field span-2">
+            <div className="file-input tx-field">
               <span>Valid ID Photo</span>
-              <input
-                ref={modalIdInputRef}
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={(event) => {
-                  modalIdCheck.check(event.target.files?.[0]);
-                  readIdPhoto(event.target.files?.[0], (dataUrl) => setNewCustomerDraft((current) => ({ ...current, validIdPhoto: dataUrl })));
-                }}
-              />
+              <div className="id-photo-source">
+                <button type="button" className="primary" onClick={() => setIdCameraFor('modal')}>
+                  <IonIcon icon={cameraOutline} />{newCustomerDraft.validIdPhoto ? 'Retake photo' : 'Take photo'}
+                </button>
+                <label>
+                  <IonIcon icon={cloudUploadOutline} />Upload file
+                  <input
+                    ref={modalIdInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={(event) => { applyIdPhoto('modal', event.target.files?.[0]); event.target.value = ''; }}
+                  />
+                </label>
+              </div>
               <IdPhotoQualityWarning
                 check={modalIdCheck.state}
                 onRetake={() => {
                   modalIdCheck.reset();
                   setNewCustomerDraft((current) => ({ ...current, validIdPhoto: '' }));
-                  if (modalIdInputRef.current) { modalIdInputRef.current.value = ''; modalIdInputRef.current.click(); }
+                  setIdCameraFor('modal');
                 }}
                 onKeep={modalIdCheck.dismissQuality}
               />
@@ -2541,7 +2702,14 @@ const NewTransaction: React.FC<{
                   <small><IonIcon icon={checkmarkCircle} />Attached</small>
                 </div>
               )}
-            </label>
+            </div>
+
+            <IdAutofillCard
+              className="span-2"
+              check={modalIdCheck.state}
+              current={{ fullName: newCustomerDraft.fullName, idType: newCustomerDraft.validIdType, idNumber: newCustomerDraft.validIdNumber, address: newCustomerDraft.address }}
+              onUse={(fields) => setNewCustomerDraft((current) => ({ ...current, ...idFieldsToCustomer(fields) }))}
+            />
           </div>
 
           {errorList.length > 0 && (
@@ -2561,6 +2729,39 @@ const NewTransaction: React.FC<{
           </div>
         </div>
       </IonModal>
+
+      <CameraCapture
+        isOpen={idCameraFor !== null}
+        onClose={() => setIdCameraFor(null)}
+        onCapture={(file) => { if (idCameraFor) applyIdPhoto(idCameraFor, file); }}
+      />
+
+      {customerForm.customersId && (
+        <FaceCheck
+          isOpen={faceOpen}
+          mode="enroll"
+          customerId={customerForm.customersId}
+          customerName={customerForm.fullName}
+          onClose={() => setFaceOpen(false)}
+          onDone={(result) => {
+            setFaceOpen(false);
+            setFaceEnrolled(true);
+            setFaceNote(result === 'match'
+              ? 'Saved. The face matched the valid ID.'
+              : result === 'no_reference'
+                ? 'Saved. There was no ID photo to compare it with.'
+                : 'Saved, but it did not clearly match the ID photo. Check the ID by hand.');
+          }}
+        />
+      )}
+
+      <CameraCapture
+        subject="item"
+        title="Take item photo"
+        isOpen={itemCameraOpen}
+        onClose={() => setItemCameraOpen(false)}
+        onCapture={(file) => { void attachPhotos([file]); }}
+      />
 
       <div className="tx-actionbar">
         <div className="tx-actionbar-figures">
@@ -2596,6 +2797,7 @@ type WorkflowGroupKey = 'for_sale' | 'redeemed' | 'active' | 'forfeited' | 'sold
 type LoanRow = {
   transactionId: number;
   itemId: number;
+  customerId: number;
   ticketNumber: string;
   item: string;
   customer: string;
@@ -2604,6 +2806,12 @@ type LoanRow = {
   loanAmount: number;
   interestDue: number;
   totalPayable: number;
+  /** Monthly interest rate as a percentage, e.g. 5 for 5% a month. */
+  interestRatePercent: number;
+  /** Days the pawn has run, which the interest is charged on. */
+  daysElapsed: number;
+  /** Date the pawn was opened. */
+  pawnedOn: string;
   dueDate: string;
   daysUntilDue: number;
   risk: 'Low' | 'Medium' | 'High';
@@ -2642,7 +2850,7 @@ const savedItemTypeLabel = (item?: { category?: string | null; custom_item_type?
 const specsFor = (item?: ApiItemDetail | null) => {
   if (!item) return '-';
   if (item.group === 'jewelry') {
-    return [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with gemstone' : null]
+    return [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with diamond' : null]
       .filter(Boolean)
       .join(' / ') || '-';
   }
@@ -2687,7 +2895,7 @@ const StaffReport: React.FC<{ go: (view: View) => void; setLoanTab: (value: 'act
       <div className="staff-page-intro">
         <div>
           <small>MY WORK</small>
-          <h2>My Reports</h2>
+          <h2>Generate Reports</h2>
           <p>{report ? `Everything ${report.staff_name} has handled. Only your own records are counted here.` : 'Your own pawn tickets, redemptions and renewals.'}</p>
         </div>
       </div>
@@ -2896,6 +3104,7 @@ const useLoanData = () => {
     return {
       transactionId: transaction.transactions_id,
       itemId: transaction.item_id,
+      customerId: transaction.customer_id,
       ticketNumber: transaction.ticket_number,
       item: item?.description || `Item #${transaction.item_id}`,
       customer: transaction.customer?.name || 'Unknown customer',
@@ -2904,6 +3113,10 @@ const useLoanData = () => {
       loanAmount: Number(transaction.loan_amount),
       interestDue: Number(transaction.interest_due),
       totalPayable: Number(transaction.total_payable),
+      // Stored as a fraction (0.05); shown as a percentage.
+      interestRatePercent: Number(transaction.interest_rate) * 100,
+      daysElapsed: Number(transaction.days_elapsed) || 0,
+      pawnedOn: shortDate(transaction.created_at),
       dueDate: shortDate(transaction.due_date),
       daysUntilDue: transaction.days_until_due,
       risk: riskByItem.get(transaction.item_id) || 'Low',
@@ -3076,7 +3289,7 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
 
   return (
     <div className="staff-panel workflow-operations-panel">
-      <div className="staff-panel-head"><div><small>SHARED WORKFLOW</small><h3>Lifecycle operations</h3></div><button onClick={onChanged} disabled={busy}>Refresh</button></div>
+      <div className="staff-panel-head"><div><small>SHARED WORKFLOW</small><h3>Lifecycle operations</h3></div><button onClick={() => { clearApiCache(); onChanged(); }} disabled={busy}>Refresh</button></div>
       {error && <p className="risk-empty">{error}</p>}
       <div className="workflow-filter" role="group" aria-label="Show items">
         {visibleGroups.map(group => (
@@ -3543,9 +3756,14 @@ const LoansPage: React.FC<{
   focusItemId: number | null;
   setFocusItemId: (value: number | null) => void;
   focusType?: ApiNotification['type'] | null;
+  /** Open the focused pawn's detail once the rows load. */
+  openFocusedDetail?: boolean;
+  onFocusedDetailOpened?: () => void;
   /** Whose claims count as your own, so a row can grey out only other people's. */
   staffUserId: number | null;
-}> = ({ loanTab, setLoanTab, riskFilter, setRiskFilter, focusItemId, setFocusItemId, focusType = null, staffUserId }) => {
+  /** Printed on the redemption receipt as the one who processed it. */
+  staffName: string;
+}> = ({ loanTab, setLoanTab, riskFilter, setRiskFilter, focusItemId, setFocusItemId, focusType = null, openFocusedDetail = false, onFocusedDetailOpened, staffUserId, staffName }) => {
   const modal = useModal();
   const { items, loans, customers, loaded, error, reload } = useLoanData();
 
@@ -3574,6 +3792,9 @@ const LoansPage: React.FC<{
   const [paymentArmed, setPaymentArmed] = useState(false);
   // What the optional pickup code check came back with.
   const [codeCheck, setCodeCheck] = useState<'idle' | 'checking' | 'ok' | 'bad'>('idle');
+  // The optional face check of the person claiming the item.
+  const [claimantCheckOpen, setClaimantCheckOpen] = useState(false);
+  const [claimantCheck, setClaimantCheck] = useState<FaceCheckResult | null>(null);
   // The row whose claim is being asked for, so only its own button waits.
   const [claiming, setClaiming] = useState<number | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -3650,7 +3871,8 @@ const LoansPage: React.FC<{
   */
   useEffect(() => {
     if (loanTab !== 'payments' || selectedRedemption) return;
-    const timer = window.setInterval(reload, REDEMPTION_POLL_MS);
+    // A colleague's claim must show, so this skips the quick screen change cache.
+    const timer = window.setInterval(() => { clearApiCache(); reload(); }, REDEMPTION_POLL_MS);
     return () => window.clearInterval(timer);
   }, [loanTab, selectedRedemption, reload]);
 
@@ -3660,6 +3882,13 @@ const LoansPage: React.FC<{
 
   // Bring the singled out row into view, so staff land on the exact request.
   const focusedTransactionId = focusedLoan?.transactionId ?? null;
+
+  // Opened from the dashboard calendar: show the pawn's detail straight away.
+  useEffect(() => {
+    if (!openFocusedDetail || !loaded) return;
+    if (focusedLoan) setSelectedLoan(focusedLoan);
+    onFocusedDetailOpened?.();
+  }, [openFocusedDetail, loaded, focusedLoan, onFocusedDetailOpened]);
   useEffect(() => {
     if (!loaded || focusedTransactionId === null) return;
     const frame = window.requestAnimationFrame(() => {
@@ -3718,6 +3947,7 @@ const LoansPage: React.FC<{
     setSelectedRedemption(null);
     setPaymentArmed(false);
     setCodeCheck('idle');
+    setClaimantCheck(null);
     if (held) unlockTransaction(held.transactionId).then(reload).catch(() => reload());
   };
 
@@ -3768,23 +3998,53 @@ const LoansPage: React.FC<{
     setProcessing(true);
     setPaymentError('');
     try {
-      const collected = Number(paymentDraft.amount || selectedRedemption.totalPayable);
-      await redeemTransaction(selectedRedemption.transactionId, {
+      const loan = selectedRedemption;
+      const collected = Number(paymentDraft.amount || loan.totalPayable);
+      const cashReceived = isCashPayment && paymentDraft.cashReceived !== '' ? Number(paymentDraft.cashReceived) : null;
+      const reference = isCashPayment ? null : paymentDraft.reference.trim();
+      const result = await redeemTransaction(loan.transactionId, {
         payment_method: paymentDraft.method,
-        payment_reference: isCashPayment ? null : paymentDraft.reference.trim(),
+        payment_reference: reference,
         amount_collected: collected,
-        cash_received: isCashPayment && paymentDraft.cashReceived !== '' ? Number(paymentDraft.cashReceived) : null,
-      });
-      modal.success({
-        title: 'Payment confirmed',
-        message: <>Payment of <strong>{moneyExact(collected)}</strong> taken via {paymentDraft.method}. The receipt is generated and the item is marked redeemed.</>,
-      });
+        cash_received: cashReceived,
+      }) as { principal?: string | number; interest?: number; total_payable?: number; receipt_number?: string };
+
+      // The figures the API closed the pawn on, so the receipt matches the
+      // record even if a day turned over since the screen was opened.
+      const receipt: RedemptionReceipt = {
+        receiptNumber: result?.receipt_number || `RC-${loan.ticketNumber}`,
+        ticketNumber: loan.ticketNumber,
+        customer: loan.customer,
+        item: loan.item,
+        pawnedOn: loan.pawnedOn,
+        principal: Number(result?.principal ?? loan.loanAmount),
+        ratePercent: loan.interestRatePercent,
+        daysElapsed: loan.daysElapsed,
+        interest: Number(result?.interest ?? loan.interestDue),
+        totalPayable: Number(result?.total_payable ?? loan.totalPayable),
+        method: paymentDraft.method,
+        reference,
+        collected,
+        cashReceived,
+        staffName,
+      };
+
       // redeem() clears the claim itself, so the screen just closes.
       setSelectedRedemption(null);
       setPaymentArmed(false);
       setCodeCheck('idle');
       setPaymentDraft(EMPTY_PAYMENT_DRAFT);
       reload();
+
+      const wantsReceipt = await modal.confirm({
+        title: 'Payment confirmed',
+        message: <>Payment of <strong>{moneyExact(collected)}</strong> taken via {receipt.method}. Ticket <strong>{receipt.ticketNumber}</strong> is redeemed and the item can be released.</>,
+        confirmLabel: 'Print receipt',
+        cancelLabel: 'Done',
+      });
+      if (wantsReceipt && !printRedemptionReceipt(receipt)) {
+        await modal.error({ message: 'The receipt window was blocked by the browser. Allow pop-ups for this site so receipts can print.' });
+      }
     } catch (requestError) {
       setPaymentError(requestError instanceof Error ? requestError.message : 'The payment could not be processed.');
       setPaymentArmed(false);
@@ -3807,7 +4067,7 @@ const LoansPage: React.FC<{
       <div className="staff-page-intro">
         <div>
           <small>PAWN OPERATIONS</small>
-          <h2>Pawns</h2>
+          <h2>List of Pawns</h2>
           <p>Track pawns, redemption requests, and customer payment records.</p>
         </div>
       </div>
@@ -3817,7 +4077,7 @@ const LoansPage: React.FC<{
       {focusItemId !== null && (
         <div className="loan-focus-banner" role="status">
           <div className="loan-focus-text">
-            <small>{focusType ? NOTIFICATION_TITLES[focusType] : 'From your notification'}</small>
+            <small>{focusType ? NOTIFICATION_TITLES[focusType] : 'Selected pawn'}</small>
             {focusedLoan ? (
               <>
                 <strong>{focusedLoan.customer} &middot; {focusedLoan.item}</strong>
@@ -3929,7 +4189,7 @@ const LoansPage: React.FC<{
                 <span>#</span>
                 <span>Item</span>
                 <span>Customer</span>
-                <span>Karat/Weight or Brand</span>
+                <span>Karat/Weight (g) or Brand</span>
                 <span>Current Value</span>
                 <span>Pawn Amount</span>
                 <span>Due Date</span>
@@ -4104,19 +4364,63 @@ const LoansPage: React.FC<{
             </button>
           </div>
 
+          {/* Two columns on wide screens: what is owed on the left, the payment
+              form and its checks on the right, so nothing needs scrolling. */}
+          <div className="payment-columns">
+          <div className="payment-col payment-col-summary">
           <div className="payment-summary">
             <div><span>Customer</span><strong>{selectedRedemption?.customer}</strong></div>
             <div><span>Item</span><strong>{selectedRedemption?.item}</strong></div>
             <div><span>Total Payable</span><strong>{selectedRedemption ? moneyExact(selectedRedemption.totalPayable) : '-'}</strong></div>
           </div>
 
+          {/* How the total is made up, and what the counter takes against it.
+              The same lines go on the printed receipt. */}
+          {selectedRedemption && (
+            <div className="redeem-breakdown" aria-label="Payment breakdown">
+              <h4>Payment breakdown</h4>
+              <div className="redeem-breakdown-row">
+                <span>Principal (pawn amount)</span>
+                <strong>{moneyExact(selectedRedemption.loanAmount)}</strong>
+              </div>
+              <div className="redeem-breakdown-row">
+                <span>Interest <small>{interestBasis(selectedRedemption.interestRatePercent, selectedRedemption.daysElapsed)}</small></span>
+                <strong>{moneyExact(selectedRedemption.interestDue)}</strong>
+              </div>
+              <div className="redeem-breakdown-row is-total">
+                <span>Total payable</span>
+                <strong>{moneyExact(selectedRedemption.totalPayable)}</strong>
+              </div>
+              <div className="redeem-breakdown-row">
+                <span>Amount to collect</span>
+                <strong>{moneyExact(collectedAmount)}</strong>
+              </div>
+              {isCashPayment && paymentDraft.cashReceived !== '' && (
+                <>
+                  <div className="redeem-breakdown-row is-muted">
+                    <span>Cash received</span>
+                    <strong>{moneyExact(Number(paymentDraft.cashReceived))}</strong>
+                  </div>
+                  <div className={`redeem-breakdown-row is-muted ${cashShort ? 'is-short' : ''}`}>
+                    <span>{cashShort ? 'Short by' : 'Change'}</span>
+                    <strong>{moneyExact(Math.abs(changeDue))}</strong>
+                  </div>
+                </>
+              )}
+              <small className="redeem-breakdown-note">Pawned {selectedRedemption.pawnedOn}. Interest is the monthly rate for each day the pawn ran (rate × days ÷ 30).</small>
+            </div>
+          )}
+
+          </div>
+          <div className="payment-col payment-col-form">
           <div className="form-grid two-col payment-form-grid">
             <IonItem lines="none" className="tx-field">
               <IonLabel position="stacked">Confirm Payment Amount</IonLabel>
               <IonInput
-                type="number"
+                type="text"
+                inputmode="decimal"
                 value={paymentDraft.amount}
-                onIonInput={(event) => editPayment({ amount: event.detail.value || '' })}
+                onIonInput={(event) => editPayment({ amount: readDecimal(event) })}
               />
             </IonItem>
 
@@ -4133,9 +4437,10 @@ const LoansPage: React.FC<{
               <IonItem lines="none" className="tx-field">
                 <IonLabel position="stacked">Cash Received</IonLabel>
                 <IonInput
-                  type="number"
+                  type="text"
+                  inputmode="decimal"
                   value={paymentDraft.cashReceived}
-                  onIonInput={(event) => editPayment({ cashReceived: event.detail.value || '' })}
+                  onIonInput={(event) => editPayment({ cashReceived: readDecimal(event) })}
                 />
               </IonItem>
             ) : (
@@ -4185,6 +4490,24 @@ const LoansPage: React.FC<{
             </p>
           )}
 
+          {/* Optional: compare the claimant with the customer's face photo.
+              It never blocks the payment; staff decide, and the result is logged. */}
+          {selectedRedemption && (
+            <div className={`payment-face-check${claimantCheck ? ` is-${claimantCheck.replace('_', '-')}` : ''}`}>
+              <div>
+                <strong>Claimant face check <small>(optional)</small></strong>
+                <span>{claimantCheck === 'match' ? 'Looks like the same person.'
+                  : claimantCheck === 'unsure' ? 'Not sure. Compare the face with the valid ID yourself.'
+                  : claimantCheck === 'no_match' ? 'Did not look like the same person. Check the valid ID carefully.'
+                  : claimantCheck === 'no_reference' ? 'No photo on file to compare. Checked by ID only.'
+                  : `Compare the person here with ${selectedRedemption.customer}'s photo on file.`}</span>
+              </div>
+              <button type="button" className="secondary-button" onClick={() => setClaimantCheckOpen(true)}>
+                <IonIcon icon={cameraOutline} aria-hidden="true" />{claimantCheck ? 'Check again' : 'Check face'}
+              </button>
+            </div>
+          )}
+
           <label className="payment-verify">
             <input
               type="checkbox"
@@ -4209,8 +4532,22 @@ const LoansPage: React.FC<{
               {processing ? 'Processing' : paymentArmed ? 'Yes, Confirm' : 'Confirm Payment'}
             </button>
           </div>
+          </div>
+          </div>
         </div>
       </IonModal>
+
+      {selectedRedemption && (
+        <FaceCheck
+          isOpen={claimantCheckOpen}
+          mode="verify"
+          customerId={selectedRedemption.customerId}
+          customerName={selectedRedemption.customer}
+          transactionId={selectedRedemption.transactionId}
+          onClose={() => setClaimantCheckOpen(false)}
+          onDone={(result) => { setClaimantCheckOpen(false); setClaimantCheck(result); }}
+        />
+      )}
 
       <IonModal isOpen={Boolean(selectedCustomer)} onDidDismiss={() => setSelectedCustomer(null)} className="customer-profile-modal">
         <div className="loan-detail-panel customer-profile-panel">

@@ -4,6 +4,7 @@ import { calculatorOutline, chatbubbleEllipsesOutline, locationOutline } from 'i
 import { getEstimate, type ApiEstimate, type MetalType } from '../services/api';
 import { longDate, moneyExact } from '../data/pawnshopStore';
 import TypeSelect from './TypeSelect';
+import { cleanDecimal } from '../utils/decimalInput';
 import './GoldEstimate.css';
 
 /**
@@ -32,7 +33,7 @@ const PURITIES: Record<MetalType, Array<{ value: string; label: string }>> = {
 const DEFAULT_PURITY: Record<MetalType, string> = { gold: '18k', silver: '925' };
 
 const DISCLAIMER =
-  'This is a rough estimate based on gold weight and today’s market price. It does not account for item condition, gemstones, or other factors. Final appraisal is done in-store by our staff.';
+  'This is a rough estimate based on gold weight and today’s market price. It does not account for item condition, diamonds, or other factors. Final appraisal is done in-store by our staff.';
 
 /** A plain "2026-09-18" date read as a local day, so it never shifts back a day west of UTC. */
 const dayLabel = (date: string) => longDate(`${date}T00:00:00`);
@@ -115,7 +116,7 @@ const GoldEstimate: React.FC<GoldEstimateProps> = ({ onAskQuestion }) => {
         <div className="section-eyebrow">FREE JEWELRY ESTIMATE</div>
         <h2>Get an Estimate before you visit.</h2>
         <p>
-          This estimate is for gold and silver jewelry only (rings, necklaces, bracelets, earrings, pendants) based on weight and purity — it does not cover watches, cellphones, gadgets, appliances, or items with gemstones/diamonds, which require in-person appraisal. No login and no personal details needed.
+          This estimate is for gold and silver jewelry only (rings, necklaces, bracelets, earrings, pendants) based on weight and purity — it does not cover watches, cellphones, gadgets, appliances, or items with diamonds, which require in-person appraisal. No login and no personal details needed.
         </p>
       </div>
 
@@ -165,13 +166,11 @@ const GoldEstimate: React.FC<GoldEstimateProps> = ({ onAskQuestion }) => {
           <label className="estimate-field">
             <span>Weight (grams)</span>
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              min="0"
-              step="0.01"
               placeholder="e.g. 5.2"
               value={weight}
-              onChange={event => { setWeight(event.target.value); clearResult(); }}
+              onChange={event => { setWeight(cleanDecimal(event.target.value)); clearResult(); }}
             />
           </label>
           <IonButton type="submit" className="hero-btn primary-btn estimate-submit" disabled={loading}>

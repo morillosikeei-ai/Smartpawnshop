@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -25,12 +26,12 @@ class RenewalRequest extends Model
     protected $hidden = ['receipt_path'];
     protected $appends = ['receipt_url'];
 
-    /** The receipt the customer attached, as an image URL, or null when none was. */
+    /** The receipt the customer attached, as a link to the image (see App\Support\MediaUrl), or null when none was. */
     public function getReceiptUrlAttribute(): ?string
     {
         $stored = trim((string) $this->receipt_path);
 
-        return $stored === '' ? null : $stored;
+        return MediaUrl::for('media.receipt', ['renewalRequest' => $this->renewal_requests_id], $stored === '' ? null : $stored);
     }
 
     public function transaction() { return $this->belongsTo(Transaction::class, 'transaction_id', 'transactions_id'); }

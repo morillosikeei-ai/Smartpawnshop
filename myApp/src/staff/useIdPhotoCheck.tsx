@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { extractIdText, matchNameToIdText } from '../services/idOcr';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { extractIdText, matchNameToIdText, normalizeText, parseIdText, type IdFields } from '../services/idOcr';
 import { checkPhotoQuality, type PhotoQuality } from '../services/photoQuality';
 import { Spinner } from '../components/Skeleton';
 import './IdPhotoCheck.css';
@@ -92,6 +92,71 @@ export const IdPhotoQualityWarning: React.FC<{ check: IdPhotoCheck; onRetake: ()
         <button type="button" className="secondary-button" onClick={onRetake}>Retake photo</button>
         <button type="button" className="id-photo-keep" onClick={onKeep}>Keep anyway</button>
       </div>
+    </div>
+  );
+};
+
+const AUTOFILL_FIELDS: Array<{ key: keyof IdFields; label: string }> = [
+  { key: 'fullName', label: 'Full Name' },
+  { key: 'idType', label: 'Valid ID Type' },
+  { key: 'idNumber', label: 'Valid ID Number' },
+  { key: 'address', label: 'Address' },
+];
+
+/**
+ * What the OCR read off the ID, offered to the staff field by field.
+ *
+ * Nothing is filled in on its own: OCR misreads real IDs, and staff are the
+ * ones holding the card. Each value has a Use button, and Use all takes every
+ * one shown. A value already in its field is not offered again.
+ */
+export const IdAutofillCard: React.FC<{
+  check: IdPhotoCheck;
+  current: IdFields;
+  onUse: (fields: IdFields) => void;
+  className?: string;
+}> = ({ check, current, onUse, className = '' }) => {
+  const parsed = useMemo(() => (check.text ? parseIdText(check.text) : {}), [check.text]);
+  const [dismissedText, setDismissedText] = useState<string | null>(null);
+
+  if (check.reading) {
+    return (
+      <div className={`id-autofill reading ${className}`} role="status">
+        <Spinner />Reading the ID to suggest details...
+      </div>
+    );
+  }
+  if (check.text === null || dismissedText === check.text) return null;
+
+  const offered = AUTOFILL_FIELDS.filter(({ key }) => {
+    const value = parsed[key];
+    return value && normalizeText(value) !== normalizeText(current[key] ?? '');
+  });
+  if (offered.length === 0) return null;
+
+  const useAll = () => onUse(Object.fromEntries(offered.map(({ key }) => [key, parsed[key]])) as IdFields);
+
+  return (
+    <div className={`id-autofill ${className}`} role="region" aria-label="Details read from the ID">
+      <div className="id-autofill-head">
+        <div>
+          <strong>Read from the ID</strong>
+          <span>Check each value against the card before using it.</span>
+        </div>
+        <button type="button" className="id-autofill-dismiss" onClick={() => setDismissedText(check.text)}>Dismiss</button>
+      </div>
+      <ul>
+        {offered.map(({ key, label }) => (
+          <li key={key}>
+            <span>{label}</span>
+            <strong>{parsed[key]}</strong>
+            <button type="button" onClick={() => onUse({ [key]: parsed[key] })}>Use</button>
+          </li>
+        ))}
+      </ul>
+      {offered.length > 1 && (
+        <button type="button" className="id-autofill-all" onClick={useAll}>Use all</button>
+      )}
     </div>
   );
 };

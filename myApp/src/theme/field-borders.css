@@ -1,0 +1,95 @@
+/* ============================================================
+   Field borders
+   One outline for every form field's outer box across the staff, admin and
+   customer portals, so a field is easy to find on a light card. Light mode
+   uses black; dark mode uses a lighter slate that stands out on the navy
+   cards. A soft drop shadow lifts each box off the card. Focus turns the
+   border gold with a gold ring, and an error stays red.
+
+   The landing page, auth modal and set-password page are left alone: their
+   fields sit on dark or photo backgrounds, where a black border would vanish.
+
+   Loaded after portal-dark.css and glass.css. Every selector starts with
+   body:not(#_), which adds id-level specificity, so these win over the
+   generated dark rules and the per-page field styles without a longer chain.
+   ============================================================ */
+
+:root {
+  --field-border: #000;
+  --field-border-focus: #d4a72c;
+  --field-border-error: #c0392b;
+  --field-shadow: 0 4px 12px rgba(8, 20, 48, .24), 0 2px 4px rgba(8, 20, 48, .16);
+  --field-shadow-focus: 0 0 0 3px rgba(212, 167, 44, .3), 0 6px 16px rgba(8, 20, 48, .26);
+}
+html[data-theme="dark"] {
+  --field-border: #5b6b88;
+  --field-border-focus: #f5c842;
+  --field-border-error: #f0857a;
+  --field-shadow: 0 4px 14px rgba(0, 0, 0, .6), 0 2px 4px rgba(0, 0, 0, .45);
+  --field-shadow-focus: 0 0 0 3px rgba(245, 200, 66, .32), 0 6px 18px rgba(0, 0, 0, .65);
+}
+
+/* Outer box of each field */
+body:not(#_) .staff-page .tx-field,
+body:not(#_) ion-modal .tx-customer-modal-box .tx-field,
+body:not(#_) .tx-combobox,
+body:not(#_) .staff-page .search-field-wrap ion-input,
+body:not(#_) .staff-page .register-customer-fields ion-item,
+body:not(#_) .staff-page .loan-filters ion-input,
+body:not(#_) .staff-page .loan-filters ion-select,
+body:not(#_) .staff-page .loan-tool-row ion-input,
+body:not(#_) .staff-page .loan-tool-row ion-select,
+body:not(#_) .staff-page .loan-tool-row .type-select input,
+body:not(#_) .staff-page .payment-lookup ion-input,
+body:not(#_) .workflow-actions input,
+body:not(#_) .staff-page .staff-panel ion-item,
+body:not(#_) .staff-login-form ion-item,
+body:not(#_) .portal-page .portal-panel ion-item,
+body:not(#_) .profile-grid ion-item,
+body:not(#_) .portal-page .ch-search,
+body:not(#_) .portal-page .renew-online-field input,
+body:not(#_) .portal-page .feedback-comment textarea,
+body:not(#_) .admin-page .acct-search,
+body:not(#_) .admin-page .rpt-dates input,
+body:not(#_) .risk-policy-field input,
+body:not(#_) .risk-policy-field select,
+body:not(#_) .admin-user-modal-box input,
+body:not(#_) .admin-user-modal-box select,
+body:not(#_) .faq-composer input {
+  border: 1px solid var(--field-border) !important;
+  box-shadow: var(--field-shadow) !important;
+}
+
+/* Focus: gold, on the box that holds the caret */
+body:not(#_) .staff-page .tx-field:focus-within,
+body:not(#_) ion-modal .tx-customer-modal-box .tx-field:focus-within,
+body:not(#_) .tx-combobox:focus-within,
+body:not(#_) .staff-page .search-field-wrap ion-input:focus-within,
+body:not(#_) .staff-page .register-customer-fields ion-item:focus-within,
+body:not(#_) .staff-page .loan-filters ion-input:focus-within,
+body:not(#_) .staff-page .loan-tool-row ion-input:focus-within,
+body:not(#_) .staff-page .loan-tool-row .type-select input:focus,
+body:not(#_) .staff-page .payment-lookup ion-input:focus-within,
+body:not(#_) .workflow-actions input:focus,
+body:not(#_) .staff-page .staff-panel ion-item:focus-within,
+body:not(#_) .staff-login-form ion-item:focus-within,
+body:not(#_) .portal-page .portal-panel ion-item:focus-within,
+body:not(#_) .profile-grid ion-item:focus-within,
+body:not(#_) .portal-page .ch-search:focus-within,
+body:not(#_) .portal-page .renew-online-field input:focus,
+body:not(#_) .portal-page .feedback-comment textarea:focus,
+body:not(#_) .admin-page .acct-search:focus-within,
+body:not(#_) .admin-page .rpt-dates input:focus,
+body:not(#_) .risk-policy-field input:focus,
+body:not(#_) .risk-policy-field select:focus,
+body:not(#_) .admin-user-modal-box input:focus,
+body:not(#_) .admin-user-modal-box select:focus,
+body:not(#_) .faq-composer input:focus {
+  border-color: var(--field-border-focus) !important;
+  box-shadow: var(--field-shadow-focus) !important;
+}
+
+/* Error */
+body:not(#_) .tx-combobox.has-error {
+  border-color: var(--field-border-error) !important;
+}

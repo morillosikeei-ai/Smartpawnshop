@@ -1,0 +1,56 @@
+/* ---------- Redemption payment breakdown ----------
+   Principal, interest and total in the Redemption payment modal, then what
+   the counter collects against it. The printed receipt carries the same
+   lines. */
+.redeem-breakdown {
+  display: grid;
+  gap: 2px;
+  margin: 14px 0 16px;
+  padding: 14px 16px;
+  border: 1px solid #dfe7f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.redeem-breakdown h4 {
+  margin: 0 0 6px;
+  color: #52627b;
+  font-size: var(--fs-10);
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.redeem-breakdown-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px dashed #dfe7f0;
+  color: #334155;
+  font-size: var(--fs-13);
+}
+.redeem-breakdown-row span { display: grid; gap: 2px; }
+.redeem-breakdown-row small { color: #64748b; font-size: var(--fs-11); }
+.redeem-breakdown-row strong { color: #061028; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.redeem-breakdown-row.is-total {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 2px solid #061028;
+  border-bottom: 0;
+  font-size: var(--fs-15);
+  font-weight: 800;
+}
+.redeem-breakdown-row.is-total span { color: #061028; }
+.redeem-breakdown-row.is-muted { font-size: var(--fs-12); }
+.redeem-breakdown-row.is-short strong { color: #b42318; }
+.redeem-breakdown-note { margin-top: 8px; color: #64748b; font-size: var(--fs-11); line-height: 1.5; }
+
+html[data-theme="dark"] .redeem-breakdown { border-color: #2a3650; background: #141e30; }
+html[data-theme="dark"] .redeem-breakdown h4,
+html[data-theme="dark"] .redeem-breakdown-row small,
+html[data-theme="dark"] .redeem-breakdown-note { color: #8b97ad; }
+html[data-theme="dark"] .redeem-breakdown-row { border-color: #2a3650; color: #cbd5e1; }
+html[data-theme="dark"] .redeem-breakdown-row strong,
+html[data-theme="dark"] .redeem-breakdown-row.is-total span { color: #e6ebf5; }
+html[data-theme="dark"] .redeem-breakdown-row.is-total { border-top-color: #e6ebf5; }
+html[data-theme="dark"] .redeem-breakdown-row.is-short strong { color: #f0928a; }

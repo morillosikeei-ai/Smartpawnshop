@@ -26,10 +26,13 @@ class NotificationService
     /** A customer has said they are ready to redeem an item. */
     public const TYPE_STAFF_REDEEM_REQUEST = 'staff_redeem_request';
 
-    /** A customer has asked for a redemption appointment at the branch. */
+    /**
+     * No longer sent. The Payments screen's appointment and renewal requests
+     * only rang the staff bell and left staff nothing to act on, so they were
+     * removed in favour of "ready to redeem" and Renew Online. The types stay
+     * named because older rows of them are still in the notifications table.
+     */
     public const TYPE_STAFF_APPOINTMENT_REQUEST = 'staff_appointment_request';
-
-    /** A customer has asked to renew or extend an open loan. */
     public const TYPE_STAFF_RENEWAL_REQUEST = 'staff_renewal_request';
 
     /** A customer has submitted a GCash reference number for a renewal. */
@@ -118,6 +121,9 @@ class NotificationService
      */
     public const GCASH_PAYMENT_INFO_KEY = 'gcash_payment_info';
 
+    /** The shop's GCash number, shown until the admin sets another in settings. */
+    public const DEFAULT_GCASH_PAYMENT_INFO = 'GCash 0970 885 6182';
+
     /**
      * How often a repeatable message may be sent again for the same item, in
      * days. A due date reminder is worth repeating; a forfeiture is not.
@@ -188,31 +194,6 @@ class NotificationService
             self::TYPE_STAFF_REDEEM_REQUEST,
             $this->customerName($transaction->customer).' is ready to pick up/pay for '.$this->itemName($transaction->item)
                 .' (Ticket #'.$transaction->ticket_number.')',
-            $transaction->item_id,
-            self::REPEAT_AFTER_DAYS
-        );
-    }
-
-    /** A customer asked for a redemption appointment from the payments screen. */
-    public function customerRequestedAppointment(Transaction $transaction): void
-    {
-        $this->sendToStaff(
-            self::TYPE_STAFF_APPOINTMENT_REQUEST,
-            $this->customerName($transaction->customer).' has asked for a redemption appointment for '
-                .$this->itemName($transaction->item).' (Ticket #'.$transaction->ticket_number.')',
-            $transaction->item_id,
-            self::REPEAT_AFTER_DAYS
-        );
-    }
-
-    /** A customer asked to renew or extend an open loan. */
-    public function customerRequestedRenewal(Transaction $transaction): void
-    {
-        $this->sendToStaff(
-            self::TYPE_STAFF_RENEWAL_REQUEST,
-            $this->customerName($transaction->customer).' has asked to renew or extend the pawn on '
-                .$this->itemName($transaction->item).' (Ticket #'.$transaction->ticket_number
-                .', due '.$this->date($transaction->due_date).')',
             $transaction->item_id,
             self::REPEAT_AFTER_DAYS
         );
@@ -430,10 +411,10 @@ class NotificationService
         return (int) $this->setting(self::RENEWAL_TERM_DAYS_KEY, self::DEFAULT_RENEWAL_TERM_DAYS);
     }
 
-    /** The GCash number the customer pays, or an empty string when unset. */
+    /** The GCash number the customer pays: the admin's setting, or the shop's number when it is blank. */
     public function gcashPaymentInfo(): string
     {
-        return (string) (SystemSetting::where('setting_key', self::GCASH_PAYMENT_INFO_KEY)->value('setting_value') ?? '');
+        return (string) (SystemSetting::where('setting_key', self::GCASH_PAYMENT_INFO_KEY)->value('setting_value') ?: self::DEFAULT_GCASH_PAYMENT_INFO);
     }
 
     /** A numeric setting, or the built in default when it is missing or not a number. */

@@ -18,7 +18,7 @@ import {
   warningOutline,
 } from 'ionicons/icons';
 import { money, shortDate, timeAgo } from '../data/pawnshopStore';
-import { getRiskAlerts, type ApiRiskAlert } from '../services/api';
+import { clearApiCache, getRiskAlerts, type ApiRiskAlert } from '../services/api';
 import { SkeletonList } from '../components/Skeleton';
 import Pager, { usePagedRows } from '../components/Pager';
 import TypeSelect from '../components/TypeSelect';
@@ -272,7 +272,7 @@ const RiskManagement: React.FC<RiskManagementProps> = ({ policySaved, onSavePoli
             <small>COLLATERAL WATCH</small>
             <h3>Live risk alerts</h3>
           </div>
-          <button type="button" className="risk-refresh" onClick={load} disabled={refreshing} aria-busy={refreshing}>
+          <button type="button" className="risk-refresh" onClick={() => { clearApiCache(); load(); }} disabled={refreshing} aria-busy={refreshing}>
             <IonIcon icon={refreshOutline} aria-hidden="true" />
             {refreshing ? 'Refreshing' : 'Refresh'}
           </button>

@@ -673,6 +673,15 @@
 .dashboard-stats { margin-bottom: 26px; }
 /* Notifications moved to the bell, so the remaining column takes the row. */
 .dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+/* The schedule is a date picker, so it keeps its own width. The timing
+   suggestion takes the rest of the row beside it. */
+.dashboard-schedule { display: flex; align-items: stretch; gap: 18px; margin: 22px 0; }
+.dashboard-schedule > .dashboard-suggestion { flex: 1; min-width: 0; display: flex; }
+.portal-page .dashboard-schedule .trend-suggestion { flex: 1; margin: 0; }
+@media (max-width: 720px) {
+	.dashboard-schedule { flex-direction: column; }
+	.dashboard-schedule > .shop-calendar { max-width: none; }
+}
 .dashboard-section { min-width: 0; }
 .dashboard-section > .portal-heading { margin: 0 0 12px; }
 .dashboard-section > .portal-heading h3 { margin-bottom: 0; }
@@ -1061,6 +1070,66 @@
 .portal-page .action-dialog-head button { border: 0; background: none; padding: 2px; color: #6b7280; font-size: var(--fs-18); line-height: 1; cursor: pointer; }
 .portal-page .action-dialog-body { display: grid; gap: 12px; overflow: auto; padding: 16px 18px 18px; }
 
+/* ---------- Feedback ----------
+   Asked once, after the pawn is closed. The stars are the whole control, so
+   they are large enough to hit with a thumb and say what they mean in words
+   underneath. */
+.portal-page .feedback-lead { margin: 0; color: #4b5563; font-size: var(--fs-12); line-height: 1.5; }
+.portal-page .feedback-stars { display: flex; justify-content: center; gap: 6px; }
+.portal-page .feedback-stars button {
+	border: 0;
+	padding: 4px;
+	background: none;
+	color: #cbd5e1;
+	font-size: 2rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: color .12s ease, transform .12s ease;
+}
+.portal-page .feedback-stars button.is-on { color: var(--gold); }
+.portal-page .feedback-stars button:hover:not(:disabled) { transform: translateY(-1px); }
+.portal-page .feedback-stars button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
+.portal-page .feedback-scale { margin: 0; text-align: center; font-size: var(--fs-12); font-weight: 700; color: #8a6100; min-height: 1.2em; }
+.portal-page .feedback-comment { display: grid; gap: 5px; }
+.portal-page .feedback-comment span { font-size: var(--fs-11); font-weight: 600; color: #374151; }
+.portal-page .feedback-comment textarea {
+	border: 1px solid #d9e0ea;
+	border-radius: 8px;
+	padding: 10px 12px;
+	background: #fff;
+	font: inherit;
+	font-size: var(--fs-13);
+	resize: vertical;
+}
+.portal-page .feedback-comment textarea:focus { outline: 2px solid rgba(29, 78, 216, .35); outline-offset: 1px; }
+.portal-page .feedback-error { margin: 0; color: #b42318; font-size: var(--fs-12); }
+.portal-page .feedback-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.portal-page .feedback-skip {
+	border: 0;
+	background: none;
+	padding: 11px 14px;
+	color: #6b7280;
+	font: inherit;
+	font-size: var(--fs-12);
+	font-weight: 700;
+	cursor: pointer;
+}
+.portal-page .feedback-submit {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	border: 0;
+	border-radius: 7px;
+	padding: 11px 18px;
+	background: var(--blue);
+	color: #fff;
+	font: inherit;
+	font-size: var(--fs-13);
+	font-weight: 700;
+	cursor: pointer;
+}
+.portal-page .feedback-submit:disabled { opacity: .6; cursor: default; }
+
 .portal-page .pickup-code-lead { margin: 0; color: #4b5563; font-size: var(--fs-12); line-height: 1.5; }
 .portal-page .pickup-code-generate {
 	display: inline-flex;
@@ -1151,6 +1220,9 @@
 	cursor: pointer;
 }
 .portal-page .renew-online-receipt-pick:hover { border-color: #1d4ed8; }
+/* Upload and Take a photo side by side when there is room. */
+.portal-page .renew-online-receipt-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.portal-page button.renew-online-receipt-pick { width: 100%; font: inherit; font-size: var(--fs-12); font-weight: 600; text-align: left; }
 .portal-page .renew-online-receipt-picked { display: flex; align-items: center; gap: 12px; border: 1px solid #e6ebf3; border-radius: 9px; padding: 10px; background: #fff; }
 .portal-page .renew-online-receipt-picked img { width: 56px; height: 56px; border-radius: 7px; object-fit: cover; }
 .portal-page .renew-online-receipt-picked > div { display: grid; gap: 4px; min-width: 0; }
@@ -1498,4 +1570,35 @@
 @media (prefers-reduced-motion: reduce) {
 	.portal-page .portal-stat-link { transition: none; }
 	.portal-page .portal-stat-link:hover { transform: none; }
+}
+
+/* Which pawn the two Payments cards open, when there is more than one. */
+.portal-page .payment-target-note { margin: -12px 0 26px; color: var(--muted); font-size: var(--fs-12); }
+.portal-page .payment-target-note strong { color: var(--ink); }
+
+/* Item details with a side menu (ModalSections). The summary and the action
+   buttons stay on top; the rest of the record shows one part at a time. On
+   wide screens the modal keeps one height whichever part is open, so it does
+   not jump; only a long part scrolls, inside its own panel. */
+.portal-page .item-modal-stack { display: grid; gap: 18px; min-width: 0; }
+.portal-page .item-modal .modal-sections { padding-bottom: 0; }
+
+@media (min-width: 721px) {
+  .portal-page .item-modal { width: min(860px, 100%); height: min(720px, calc(100vh - 32px)); height: min(720px, calc(100dvh - 32px)); }
+  .portal-page .item-modal-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .portal-page .item-modal-body > :not(.modal-sections) { flex: none; }
+}
+/* The section tabs stick to the top on phones; they take the modal's own
+   background (light or dark) so text does not show through them. */
+.portal-page .item-modal-body,
+.portal-page .item-modal .modal-sections { background: inherit; }
+
+/* Renew Online: two columns on wide screens (amount and GCash QR on the
+   left, the steps and form on the right), so Submit is in view without
+   scrolling. A phone keeps the single column. */
+.portal-page .renew-online-columns { display: grid; gap: 14px; min-width: 0; }
+.portal-page .renew-online-col { display: grid; gap: 14px; align-content: start; min-width: 0; }
+@media (min-width: 760px) {
+  .portal-page .action-dialog:has(.renew-online-columns) { max-width: 780px; }
+  .portal-page .renew-online-columns { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; }
 }

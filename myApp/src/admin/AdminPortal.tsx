@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { IonButton, IonContent, IonIcon, IonModal, IonPage } from '@ionic/react';
 import {
   analyticsOutline,
+  calendarOutline,
   cashOutline,
   chevronDownOutline,
   chevronUpOutline,
@@ -24,21 +25,25 @@ import {
   trendingDownOutline,
   trendingUpOutline,
   warningOutline,
+  starOutline,
+  star as starFilled,
 } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
-import { money, moneyExact, timeAgo } from '../data/pawnshopStore';
-import { createUser, updateUser, getAuditLogs, getCustomers, getDashboard, getModelMetrics, getReportSummary, getRiskAlerts, getSystemSettings, getTransactions, getUsers, saveSystemSetting, NOTIFICATION_TITLES, type ApiAuditLog, type ApiNotification, type ApiReportSummary, type ApiRiskAlert, type ApiSystemSetting, type ApiTransaction, type ApiUser } from '../services/api';
+import { money, moneyExact, shortDate, timeAgo } from '../data/pawnshopStore';
+import { createUser, updateUser, getAuditLogs, getCustomers, deleteShopClosure, getDashboard, getFeedbackList, getShopSchedule, saveShopClosure, getModelMetrics, getReportSummary, getRiskAlerts, getSystemSettings, getTransactions, getUsers, saveSystemSetting, NOTIFICATION_TITLES, type ApiFeedbackList, type ApiNotification, type ApiShopClosure, type ApiReportSummary, type ApiRiskAlert, type ApiSystemSetting, type ApiTransaction, type ApiUser } from '../services/api';
 import RevenueTrendChart, { type RevenuePoint } from '../components/RevenueTrendChart';
 import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
+import MotionToggle from '../components/MotionToggle';
 import PullToRefresh from '../components/PullToRefresh';
 import GoldPriceTracking from './GoldPriceTracking';
 import ModelMonitoring from './ModelMonitoring';
 import RiskManagement from './RiskManagement';
 import AdminRecords, { type RecordsTab } from './AdminRecords';
+import StaffDueCalendar from '../staff/StaffDueCalendar';
 import { activityCsv, customersCsv, isOverdue, isPayment, overdueCsv, paymentsCsv, transactionsCsv } from './recordsExport';
-import { Skeleton, SkeletonList, SkeletonRows, SkeletonStat, SkeletonText, Spinner } from '../components/Skeleton';
+import { Skeleton, SkeletonList, SkeletonStat, SkeletonText, Spinner } from '../components/Skeleton';
 import Pager, { usePagedRows } from '../components/Pager';
 import { useModal } from '../components/ModalProvider';
 import './AdminPortal.css';
@@ -52,14 +57,7 @@ const ACCOUNT_STATUS_OPTIONS = [
 ];
 
 type AdminView = 'dashboard' | 'manage' | 'records' | 'monitoring' | 'reports' | 'profile';
-type Tab = 'users' | 'settings' | 'models' | 'gold' | 'risk' | 'activity' | 'analytics' | 'exports';
-
-type AuditItem = {
-  time: string;
-  actor: string;
-  action: string;
-  category: string;
-};
+type Tab = 'users' | 'settings' | 'models' | 'gold' | 'risk' | 'activity' | 'analytics' | 'feedback' | 'exports';
 
 const navigation: Array<{ id: AdminView; label: string; icon: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: gridOutline },
@@ -97,16 +95,6 @@ const overviewStats = [
 
 /** A risk alert flattened for the dashboard table. */
 type RiskRow = { id: string; customer: string; item: string; currentValue: string; amount: string; risk: 'High' | 'Medium' | 'Low' };
-
-/** Map an API audit log row onto the dashboard activity feed item. */
-const toAuditItem = (log: ApiAuditLog): AuditItem => ({
-  // Relative, because the feed spans several days: a bare clock time would
-  // read as today for a row recorded last week.
-  time: timeAgo(log.created_at),
-  actor: log.user?.name || 'System',
-  action: log.action,
-  category: log.ticket_number || '',
-});
 
 /** Map an API risk alert onto the dashboard table row. */
 const toRiskRow = (alert: ApiRiskAlert): RiskRow => ({
@@ -250,6 +238,7 @@ const AdminPortal: React.FC = () => {
 
               <div className="admin-header-actions">
                 <div className="admin-action-wrap">
+                  <MotionToggle className="admin-notification" />
                   <ThemeToggle className="admin-notification" />
                 </div>
                 <div className="admin-action-wrap">
@@ -331,7 +320,8 @@ const AdminPortal: React.FC = () => {
   );
 };
 
-const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: RecordsTab) => void; onViewRiskAlerts: () => void }> = ({ go, onOpenRecords, onViewRiskAlerts }) => {
+const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: RecordsTab, search?: string) => void; onViewRiskAlerts: () => void }> = ({ go, onOpenRecords, onViewRiskAlerts }) => {
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   // Empty until the API answers: the dashboard shows placeholders rather than
   // a set of demo figures that would be read as real for a moment.
   const [liveStats, setLiveStats] = useState<typeof overviewStats>([]);
@@ -347,14 +337,10 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
   const [revenueSeries, setRevenueSeries] = useState<RevenuePoint[]>([]);
   const [priorWeekRevenue, setPriorWeekRevenue] = useState(0);
   const [revenueLoaded, setRevenueLoaded] = useState(false);
-  const [liveRiskAlerts, setLiveRiskAlerts] = useState<RiskRow[]>([]);
-  const [alertsLoaded, setAlertsLoaded] = useState(false);
-  const [liveActivity, setLiveActivity] = useState<AuditItem[]>([]);
-  const [activityLoaded, setActivityLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    Promise.all([getDashboard('admin'), getRiskAlerts()]).then(([dashboard, alerts]) => {
+    getDashboard('admin').then(dashboard => {
       // The API computes these counts, so each card matches the list it opens.
       setLiveStats([
         { icon: cashOutline, value: String(dashboard.stats.active_loans), label: 'Total active pawns', tone: 'primary' },
@@ -381,18 +367,7 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
       setRevenueSeries((dashboard.revenue_trend || []).map((day) => ({ date: day.date, revenue: Number(day.revenue) || 0 })));
       setPriorWeekRevenue(previousWeekRevenue(dashboard.transactions || []));
       setRevenueLoaded(true);
-      // Only unresolved alerts are live risk. A resolved row is history: the
-      // item's value recovered above the threshold on a later day.
-      setLiveRiskAlerts(alerts.filter(alert => !alert.resolved).map(toRiskRow));
-      setAlertsLoaded(true);
     }).catch(error => setLoadError(error instanceof Error ? error.message : 'Unable to load dashboard data.'));
-
-    // The activity feed has its own endpoint, so it loads on its own and its
-    // panel fills in as soon as it answers.
-    getAuditLogs(6)
-      .then(logs => setLiveActivity(logs.map(toAuditItem)))
-      .catch(() => setLiveActivity([]))
-      .finally(() => setActivityLoaded(true));
 
     // The forecast accuracy is a footnote on the gold card, so it is fetched on
     // its own: if this endpoint is unavailable the card still shows the price.
@@ -456,7 +431,7 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
     <div className="admin-intro admin-dashboard-intro">
       <div>
         <small>THURSDAY, SEPTEMBER 03, 2026</small>
-        <h2>System overview</h2>
+        <h2>Quick links</h2>
         <p>Review shop performance, risk posture, and recent operational events.</p>
       </div>
       <IonButton onClick={() => go('reports')}>Open reports</IonButton>
@@ -551,38 +526,20 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
       </div>
     </div>
 
-    <div className="dashboard-lower-grid">
-      <div className="admin-panel dashboard-risk-panel">
-        <div className="admin-panel-head">
-          <div><small>TOP PRIORITY ITEMS</small><h3>Risk alerts</h3></div>
-          <button onClick={onViewRiskAlerts}>View all</button>
-        </div>
-        <div className="risk-legend">
-          <span><i className="risk-dot high" />High &middot; value below the pawn amount</span>
-          <span><i className="risk-dot medium" />Medium &middot; within the safety margin</span>
-        </div>
-        <div className="dashboard-risk-table-wrap">
-          <table className="dashboard-risk-table" aria-busy={!alertsLoaded}><thead><tr><th>Item</th><th>Customer</th><th>Current value</th><th>Pawn amount</th><th>Risk</th></tr></thead><tbody>
-            {alertsLoaded
-              ? liveRiskAlerts.map((alert) => <tr key={alert.id}><td><strong>{alert.item}</strong><small>{alert.id}</small></td><td>{alert.customer}</td><td>{alert.currentValue}</td><td>{alert.amount}</td><td><em className={`risk-pill ${alert.risk.toLowerCase()}`}>{alert.risk}</em></td></tr>)
-              : <SkeletonRows rows={3} columns={['70%', '58%', '48%', '48%', '42px']} />}
-          </tbody></table>
-          {alertsLoaded && liveRiskAlerts.length === 0 && <p className="risk-empty">No unresolved risk alerts. Every active item is above its pawn amount plus the safety margin.</p>}
-        </div>
-      </div>
-
-      <div className="admin-panel dashboard-audit-panel">
-        <div className="admin-panel-head">
-          <div><small>OPERATIONAL SUMMARY</small><h3>Recent activity</h3></div>
-          <button onClick={() => onOpenRecords('activity')}>View all</button>
-        </div>
-        <div className="dashboard-audit-list" aria-busy={!activityLoaded}>
-          {!activityLoaded && <SkeletonList rows={4} />}
-          {activityLoaded && liveActivity.map((item) => <div className="dashboard-audit-item" key={`${item.time}-${item.action}`}><IonIcon icon={documentTextOutline} /><div><strong>{item.action}</strong><span>{item.actor} · {item.time}</span></div></div>)}
-          {activityLoaded && liveActivity.length === 0 && <p className="risk-empty">No recorded activity yet.</p>}
-        </div>
-      </div>
-    </div>
+    {/* Due calendar and its details panel, the same view the staff
+        dashboard has. Replaces the Risk alerts and Recent activity panels:
+        risk alerts show in the panel's default "Today and at risk" view. */}
+    <StaffDueCalendar
+      variant="admin"
+      onView={row => onOpenRecords('transactions', row.ticket_number)}
+      headerAction={(
+        <button type="button" className="due-calendar-action" onClick={() => setScheduleOpen(true)}>
+          <IonIcon icon={calendarOutline} aria-hidden="true" />
+          Shop schedule
+        </button>
+      )}
+    />
+    <ShopScheduleModal isOpen={scheduleOpen} onClose={() => setScheduleOpen(false)} />
   </section>
   );
 };
@@ -635,6 +592,7 @@ const Manage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('users');
   const [accountTab, setAccountTab] = useState<AccountTab>('staff');
   const [search, setSearch] = useState('');
+  const modal = useModal();
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -688,6 +646,27 @@ const Manage: React.FC = () => {
       setUpdateError('A new password needs at least 8 characters.');
       return;
     }
+
+    /*
+      Turning an account off locks a person out of the system. It is one click
+      away from a password reset in the same dialog, so it is worth stopping to
+      say out loud which account, and what happens to it.
+    */
+    if (updateTarget.status === 'active' && updateForm.status === 'inactive') {
+      const agreed = await modal.confirm({
+        title: 'Deactivate this account?',
+        message: <>
+          <strong>{updateTarget.name}</strong> ({updateTarget.email}) will be signed out of every device and will not be able to sign in again until an admin turns the account back on.
+          {updateTarget.role === 'customer'
+            ? ' Their pawns and records stay exactly as they are.'
+            : ' Their recorded work stays exactly as it is.'}
+        </>,
+        confirmLabel: 'Deactivate account',
+        tone: 'danger',
+      });
+      if (!agreed) return;
+    }
+
     setUpdating(true);
     try {
       const saved = await updateUser(updateTarget.users_id, {
@@ -715,7 +694,7 @@ const Manage: React.FC = () => {
 
   return (
     <section className="admin-content">
-      <PageIntro eyebrow="ADMINISTRATION" title="Manage" text="Manage staff and customer accounts, then configure system-wide policies." />
+      <PageIntro eyebrow="ADMINISTRATION" title="List of User Information" text="Manage staff and customer accounts, then configure system-wide policies." />
       <Tabs
         tabs={[{ id: 'users', label: 'Staff & Customer Accounts' }, { id: 'settings', label: 'System Settings' }]}
         active={tab}
@@ -899,6 +878,167 @@ const Manage: React.FC = () => {
   );
 };
 
+/**
+ * Shop schedule dialog, opened from the dashboard calendar.
+ *
+ * The weekly pattern is three ordinary settings, edited with the rest of them.
+ * What needs its own screen is the exceptions: the holidays and short days a
+ * customer has to know about before they travel to the branch.
+ */
+const ShopScheduleModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  const modal = useModal();
+  const [closures, setClosures] = useState<ApiShopClosure[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState({ closure_date: '', label: '', kind: 'closed' as 'closed' | 'half_day', opens_at: '09:00', closes_at: '12:00' });
+
+  /*
+    Three months at a time, starting with this one: a shop announces a holiday
+    weeks ahead, not a year.
+  */
+  const load = useCallback(() => {
+    setError('');
+    setLoading(true);
+    const now = new Date();
+    const months = [0, 1, 2].map(step => {
+      const date = new Date(now.getFullYear(), now.getMonth() + step, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    });
+
+    Promise.all(months.map(month => getShopSchedule(month)))
+      .then(results => setClosures(results.flatMap(result => result.closures)))
+      .catch(loadError => setError(loadError instanceof Error ? loadError.message : 'Unable to load the shop schedule.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Loaded each time the dialog opens, so a notice another admin added since
+  // the last visit is listed.
+  useEffect(() => {
+    if (isOpen) load();
+  }, [isOpen, load]);
+
+  const save = async () => {
+    if (!draft.closure_date || draft.label.trim() === '') {
+      setError('Pick a date and say what it is.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    try {
+      await saveShopClosure({
+        closure_date: draft.closure_date,
+        label: draft.label.trim(),
+        kind: draft.kind,
+        opens_at: draft.kind === 'half_day' ? draft.opens_at : undefined,
+        closes_at: draft.kind === 'half_day' ? draft.closes_at : undefined,
+      });
+      setDraft({ closure_date: '', label: '', kind: 'closed', opens_at: '09:00', closes_at: '12:00' });
+      load();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'That date could not be announced.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (closure: ApiShopClosure) => {
+    const agreed = await modal.confirm({
+      title: 'Remove this notice?',
+      message: <>Customers will stop seeing <strong>{closure.label}</strong> on {closure.closure_date}. The branch will show as open that day.</>,
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!agreed) return;
+
+    try {
+      await deleteShopClosure(closure.shop_closures_id);
+      load();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'That notice could not be removed.');
+    }
+  };
+
+  return (
+    <IonModal isOpen={isOpen} onDidDismiss={onClose} className="admin-user-modal admin-schedule-modal">
+      <div className="admin-user-modal-box sched-panel">
+        <div className="admin-user-modal-head">
+          <span className="admin-modal-icon" aria-hidden="true"><IonIcon icon={calendarOutline} /></span>
+          <div>
+            <small>WHAT CUSTOMERS SEE ON THEIR CALENDAR</small>
+            <h3>Holiday and closure notices</h3>
+            <p className="admin-modal-sub">Opening days and hours are set with the rest of the system settings. This is for the days that break the pattern.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close shop schedule dialog"><IonIcon icon={closeOutline} /></button>
+        </div>
+
+        <div className="admin-modal-scroll">
+          <div className="sched-form">
+            <label>
+              Date
+              <input type="date" value={draft.closure_date} onChange={event => { setDraft(current => ({ ...current, closure_date: event.target.value })); setError(''); }} />
+            </label>
+            <label>
+              What is it
+              <input value={draft.label} maxLength={120} placeholder="e.g. All Saints' Day" onChange={event => { setDraft(current => ({ ...current, label: event.target.value })); setError(''); }} />
+            </label>
+            <label>
+              Kind
+              <select value={draft.kind} onChange={event => setDraft(current => ({ ...current, kind: event.target.value as 'closed' | 'half_day' }))}>
+                <option value="closed">Closed all day</option>
+                <option value="half_day">Shorter hours</option>
+              </select>
+            </label>
+            {draft.kind === 'half_day' && (
+              <>
+                <label>
+                  Opens
+                  <input type="time" value={draft.opens_at} onChange={event => setDraft(current => ({ ...current, opens_at: event.target.value }))} />
+                </label>
+                <label>
+                  Closes
+                  <input type="time" value={draft.closes_at} onChange={event => setDraft(current => ({ ...current, closes_at: event.target.value }))} />
+                </label>
+              </>
+            )}
+          </div>
+
+          {error && <p className="admin-form-error" role="alert">{error}</p>}
+
+          <div className="sched-actions">
+            <button type="button" className="admin-primary-button" onClick={save} disabled={saving} aria-busy={saving}>{saving && <Spinner />}{saving ? 'Saving' : 'Announce this day'}</button>
+          </div>
+
+          <div className="sched-list">
+            <div className="sched-head">
+              <span>Date</span>
+              <span>What it is</span>
+              <span>Hours</span>
+              <span className="col-sr">Action</span>
+            </div>
+
+            {loading && <SkeletonText lines={3} />}
+
+            {!loading && closures.map(closure => (
+              <div className="sched-row" key={closure.shop_closures_id}>
+                <span>{closure.closure_date}</span>
+                <span>{closure.label}</span>
+                <span>{closure.kind === 'closed' ? <em className="sched-closed">Closed all day</em> : `${closure.opens_at} - ${closure.closes_at}`}</span>
+                <button type="button" className="sched-remove" onClick={() => remove(closure)}>Remove</button>
+              </div>
+            ))}
+
+            {!loading && closures.length === 0 && (
+              <p className="sched-empty">Nothing announced for the next three months. Customers see the usual week.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </IonModal>
+  );
+};
+
 /** Human readable label for a system_settings key. */
 const SETTING_LABEL: Record<string, string> = {
   current_gold_price: 'Fallback gold price per gram',
@@ -913,6 +1053,9 @@ const SETTING_LABEL: Record<string, string> = {
   redemption_visit_days: 'Redemption hold (days)',
   renewal_term_days: 'Online renewal extension (days)',
   gcash_payment_info: 'GCash number/account shown to customers',
+  shop_open_days: 'Open days (1 = Monday … 7 = Sunday)',
+  shop_opens_at: 'Opening time (24h, e.g. 09:00)',
+  shop_closes_at: 'Closing time (24h, e.g. 18:00)',
 };
 
 const settingLabel = (key: string) => SETTING_LABEL[key] || key.split('_').join(' ');
@@ -994,7 +1137,7 @@ const Monitoring: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'models' }) =
 
   return (
     <section className="admin-content">
-      <PageIntro eyebrow="OPERATIONS CONTROL" title="Monitoring" text="Monitor AI performance, commodity pricing, risk policies, and all platform activity." />
+      <PageIntro eyebrow="OPERATIONS CONTROL" title="AI Monitoring" text="Monitor AI performance, commodity pricing, risk policies, and all platform activity." />
       <Tabs
         tabs={[
           { id: 'models', label: 'AI Model Monitoring' },
@@ -1079,6 +1222,88 @@ const EXPORTS: Array<{ id: string; title: string; detail: string; run: () => Pro
 
 const percent = (value: number | null) => (value === null ? '-' : `${value}%`);
 
+/** A rating drawn as five stars, for a table row or a headline figure. */
+const Stars: React.FC<{ rating: number }> = ({ rating }) => (
+  <span className="fb-stars" aria-label={`${rating} out of 5`}>
+    {[1, 2, 3, 4, 5].map(star => (
+      <IonIcon key={star} icon={star <= Math.round(rating) ? starFilled : starOutline} className={star <= Math.round(rating) ? 'is-on' : ''} />
+    ))}
+  </span>
+);
+
+/**
+ * Reports > Customer Feedback.
+ *
+ * The average and the count sit together on purpose: a 5.0 from one customer
+ * is a different shop from a 4.6 from ninety, and either number alone invites
+ * the wrong conclusion. The spread underneath says what the average hides.
+ */
+const FeedbackPanel: React.FC = () => {
+  const [data, setData] = useState<ApiFeedbackList | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getFeedbackList()
+      .then(setData)
+      .catch(loadError => setError(loadError instanceof Error ? loadError.message : 'Unable to load customer feedback.'));
+  }, []);
+
+  if (error) return <p className="admin-form-error">{error}</p>;
+  if (!data) return <SkeletonText lines={4} />;
+
+  const highest = Math.max(1, ...Object.values(data.rating_counts));
+
+  return (
+    <div className="fb-panel">
+      <div className="report-grid fb-summary">
+        <Metric
+          label="Average rating"
+          value={data.average_rating === null ? '-' : `${data.average_rating.toFixed(2)} / 5`}
+          detail={data.total === 0 ? 'No responses yet' : `Across ${data.total} ${data.total === 1 ? 'response' : 'responses'}`}
+        />
+        <Metric label="Total responses" value={String(data.total)} detail="Redeemed pawns rated by the customer" />
+      </div>
+
+      {data.total > 0 && (
+        <div className="fb-spread">
+          {[5, 4, 3, 2, 1].map(star => {
+            const count = data.rating_counts[String(star)] || 0;
+            return (
+              <div className="fb-spread-row" key={star}>
+                <span>{star} star{star === 1 ? '' : 's'}</span>
+                <i aria-hidden="true"><b style={{ width: `${(count / highest) * 100}%` }} /></i>
+                <strong>{count}</strong>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="admin-table-head fb-head">
+        <span>Date</span>
+        <span>Customer</span>
+        <span>Ticket No.</span>
+        <span>Rating</span>
+        <span>Comment</span>
+      </div>
+
+      {data.feedback.map(row => (
+        <div className="fb-row" key={row.feedback_id}>
+          <span>{row.submitted_at ? shortDate(row.submitted_at) : '-'}</span>
+          <span>{row.customer_name || '-'}</span>
+          <span>{row.ticket_number || '-'}</span>
+          <span><Stars rating={row.rating} /></span>
+          <span className="fb-comment">{row.comment || <em>No comment</em>}</span>
+        </div>
+      ))}
+
+      {data.feedback.length === 0 && (
+        <p className="admin-inline-message acct-empty">No customer feedback yet. Customers are asked once after each pawn is redeemed.</p>
+      )}
+    </div>
+  );
+};
+
 const Reports: React.FC = () => {
   const modal = useModal();
   const [tab, setTab] = useState<Tab>('analytics');
@@ -1108,11 +1333,11 @@ const Reports: React.FC = () => {
 
   return (
     <section className="admin-content">
-      <PageIntro eyebrow="BUSINESS INTELLIGENCE" title="Reports" text="Review live shop figures and download records as CSV files." />
-      <Tabs tabs={[{ id: 'analytics', label: 'Analytics' }, { id: 'exports', label: 'Exports' }]} active={tab} onChange={setTab} />
+      <PageIntro eyebrow="BUSINESS INTELLIGENCE" title="Generate Reports" text="Review live shop figures and download records as CSV files." />
+      <Tabs tabs={[{ id: 'analytics', label: 'Analytics' }, { id: 'feedback', label: 'Customer Feedback' }, { id: 'exports', label: 'Exports' }]} active={tab} onChange={setTab} />
 
       <div className="admin-panel">
-        {tab === 'analytics' ? (
+        {tab === 'feedback' ? <FeedbackPanel /> : tab === 'analytics' ? (
           summaryError ? <p className="admin-form-error">{summaryError}</p> : !summary ? <SkeletonText lines={4} /> : (
             <div className="report-grid">
               <Metric label="Monthly pawn volume" value={money(summary.monthly_loan_volume)} detail={change === null || change === undefined ? 'No pawns last month to compare' : `${change > 0 ? '+' : ''}${change}% vs last month`} />

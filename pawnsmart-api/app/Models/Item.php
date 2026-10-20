@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,8 +12,8 @@ class Item extends Model
     use HasFactory;
 
     protected $primaryKey = 'items_id';
-    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'status'];
-    protected $casts = ['weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2'];
+    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'item_details', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'status'];
+    protected $casts = ['item_details' => 'array', 'weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2'];
 
     /**
      * total_value is sent with every item so each screen shows the same total:
@@ -29,13 +31,27 @@ class Item extends Model
     public const MAX_PHOTOS = 4;
 
     /**
-     * The item's photos, first one first, as image URLs the app can show.
+     * The item's photos, first one first, as links the app can show. Each
+     * link serves one stored photo (see App\Support\MediaUrl), so a list of
+     * items no longer carries every photo inside it.
+     */
+    public function getPhotoUrlsAttribute(): array
+    {
+        return array_map(
+            fn (string $photo, int $index) => MediaUrl::for('media.item', ['item' => $this->items_id, 'index' => $index], $photo),
+            $this->storedPhotos(),
+            array_keys($this->storedPhotos())
+        );
+    }
+
+    /**
+     * The photos as stored, first one first.
      *
      * photo_path holds a JSON list of data URLs for items recorded with photos.
      * A single plain URL or data URL, as an older record might hold, is read as
      * a list of one; an empty column is an empty list.
      */
-    public function getPhotoUrlsAttribute(): array
+    public function storedPhotos(): array
     {
         $stored = trim((string) $this->photo_path);
 
@@ -185,6 +201,39 @@ class Item extends Model
      * cut) stay in the free-text gemstone_details.
      */
     public const GEMSTONE_TYPES = ['diamond', 'ruby', 'sapphire', 'emerald', 'pearl', 'other'];
+
+    /**
+     * The structured details kept in item_details, per watch_phone item type.
+     *
+     * Only these keys are stored; anything else sent is dropped. A custom
+     * watch_phone type (a smart ring, say) has no structured details and keeps
+     * only its brand/model and description. Bulky items all share one set,
+     * keyed by the group rather than the type.
+     */
+    public const DETAIL_FIELDS = [
+        'cellphone' => [
+            'storage_capacity', 'color', 'imei', 'serial_number', 'battery_health',
+            'network_status', 'functionality_status',
+            'has_receipt', 'has_box', 'has_charger_accessories', 'ownership_verified',
+        ],
+        'watch' => [
+            'brand', 'model_reference', 'serial_number', 'movement_type', 'material',
+            'year_age', 'authenticity_status',
+            'has_box', 'has_papers', 'has_receipt', 'has_accessories',
+        ],
+        // Every bulky item, whatever its type.
+        'bulky' => [
+            'serial_number', 'color', 'size_capacity', 'year_age', 'specifications',
+            'functionality_status', 'power_tested', 'has_remote_accessories',
+            'has_box', 'has_receipt', 'has_warranty', 'ownership_verified',
+        ],
+    ];
+
+    /** Yes/No details, stored as true or false. */
+    public const DETAIL_FLAGS = [
+        'has_receipt', 'has_box', 'has_charger_accessories', 'ownership_verified', 'has_papers', 'has_accessories',
+        'power_tested', 'has_remote_accessories', 'has_warranty',
+    ];
 
     /**
      * Purity fraction for this item's karat. Unknown karat falls back to pure

@@ -265,3 +265,53 @@ ion-modal .tx-customer-modal-box .file-input {
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* ---------- Field warning ----------
+   A value that is allowed but unusual, such as a weight over 1 kilo. Amber,
+   not red: the staff member may go on after checking it. */
+.staff-page .tx-field-wrap { min-width: 0; }
+.staff-page .tx-field-warn { display: block; margin-top: 4px; color: #b45309; font-size: var(--fs-11); font-weight: 600; }
+
+/* ---------- Jewelry fields in the Item Type box ----------
+   Item Description, Material, Karat/Purity and Weight use the same box as
+   Item Type and Condition (.tx-combobox), so the six sit two by two at one
+   height. The Material toggle and the "grams" unit fit inside the box's 34px
+   control row. */
+.staff-page .tx-material.tx-combobox { display: block; }
+.staff-page .tx-material > .tx-combobox-label { color: #000; font-size: var(--fs-12); font-weight: 700; }
+.staff-page .tx-material .tx-material-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 2px 0 4px;
+  padding: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: #f4f7fb;
+}
+.staff-page .tx-material .tx-material-picker button { padding: 4px 12px; }
+.staff-page .tx-weight-unit { flex: none; padding-left: 8px; color: #52627b; font-size: var(--fs-12); font-weight: 700; }
+
+/* ---------- Unsaved customer changes ----------
+   Shown when a saved customer's details were edited on the form. Next waits
+   until the edits are saved or discarded. */
+.staff-page .tx-customer-unsaved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f0c36d;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+.staff-page .tx-customer-unsaved > div:first-child { display: grid; gap: 2px; }
+.staff-page .tx-customer-unsaved strong { color: #8a5a06; font-size: var(--fs-13); }
+.staff-page .tx-customer-unsaved span { color: #6b4a0a; font-size: var(--fs-12); }
+.staff-page .tx-customer-unsaved-actions { display: flex; gap: 8px; }
+.staff-page .tx-customer-unsaved-actions button { display: inline-flex; align-items: center; }
+html[data-theme="dark"] .staff-page .tx-customer-unsaved { border-color: #8a6a1f; background: rgba(245, 200, 66, .1); }
+html[data-theme="dark"] .staff-page .tx-customer-unsaved strong { color: #f5c842; }
+html[data-theme="dark"] .staff-page .tx-customer-unsaved span { color: #d9c28a; }

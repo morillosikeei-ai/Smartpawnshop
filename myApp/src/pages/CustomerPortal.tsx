@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IonButton, IonContent, IonIcon, IonInput, IonItem, IonLabel, IonPage } from '@ionic/react';
-import { alertCircleOutline, cashOutline, checkmarkCircleOutline, chevronDownOutline, chevronForwardOutline, chevronUpOutline, closeOutline, eyeOutline, homeOutline, logOutOutline, menuOutline, notificationsOutline, personCircleOutline, receiptOutline, timeOutline, walletOutline } from 'ionicons/icons';
-import { cloudUploadOutline, pricetagOutline, keyOutline, refreshOutline, removeOutline, trashOutline, trendingDownOutline, trendingUpOutline } from 'ionicons/icons';
+import { alertCircleOutline, cameraOutline, cashOutline, cubeOutline, checkmarkCircleOutline, chevronDownOutline, chevronUpOutline, closeOutline, eyeOutline, homeOutline, logOutOutline, menuOutline, notificationsOutline, personCircleOutline, receiptOutline, timeOutline, walletOutline } from 'ionicons/icons';
+import { cloudUploadOutline, keyOutline, pricetagOutline, starOutline, star as starFilled, refreshOutline, removeOutline, trashOutline, trendingDownOutline, trendingUpOutline } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
-import { daysUntil, dueStatus, FORFEITED_LABEL, longDate, money, moneyExact, purityLabel, statusClass, statusLabel, timeAgo } from '../data/pawnshopStore';
+import { daysUntil, FORFEITED_LABEL, longDate, money, moneyExact, purityLabel, statusClass, statusLabel, timeAgo } from '../data/pawnshopStore';
 import {
     generatePickupCode,
     getDashboard,
     getItems,
     getMe,
     getOnlineRenewalInfo,
+    getPendingFeedback,
     getPickupCode,
     requestRedemption,
-    sendCustomerRequest,
+    submitFeedback,
     submitOnlineRenewal,
-    type CustomerRequestType,
     updateMe,
     updateMyPassword,
     NOTIFICATION_TITLES,
@@ -24,6 +24,7 @@ import {
     type ApiMe,
     type ApiNotification,
     type ApiOnlineRenewalInfo,
+    type ApiPendingFeedback,
     type ApiPickupCode,
     type ApiRenewalRequest,
     type ApiTransaction,
@@ -31,24 +32,31 @@ import {
 import { ITEM_PHOTO_SCALE, readImageAsScaledDataUrl } from '../services/photoQuality';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
+import MotionToggle from '../components/MotionToggle';
 import FaqChatbot from '../components/FaqChatbot';
 import PullToRefresh from '../components/PullToRefresh';
 import TrendSuggestionCard from '../components/TrendSuggestionCard';
 import ValueSparkline, { ValuePoint } from '../components/ValueSparkline';
-import LoanTermBar, { loanTermProgress } from '../components/LoanTermBar';
+import LoanTermBar from '../components/LoanTermBar';
 import LoanOverviewChart, { type LoanRecord } from '../components/LoanOverviewChart';
 import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
 import { SkeletonList, Spinner } from '../components/Skeleton';
 import Pager, { usePagedRows } from '../components/Pager';
 import { useModal } from '../components/ModalProvider';
 import { ItemThumbViewer, PhotoLightbox, PhotoStrip } from '../components/ItemPhotos';
+import ShopCalendar from '../components/ShopCalendar';
+import CameraCapture from '../components/CameraCapture';
+
+/** A phone or tablet, where a file input with capture opens the camera itself. */
+const TOUCH_SCREEN = typeof window !== 'undefined' && Boolean(window.matchMedia?.('(pointer: coarse)').matches);
 import CustomerHistory from './CustomerHistory';
 import CustomerShop from './CustomerShop';
+import ModalSections from '../components/ModalSections';
 import './CustomerPortal.css';
 import '../theme/portal-ui.css';
 
 type Status = 'Active' | 'Overdue' | 'Redeemed' | typeof FORFEITED_LABEL | 'For Sale' | 'Sold';
-type View = 'dashboard' | 'items' | 'payments' | 'shop' | 'history' | 'profile';
+type View = 'dashboard' | 'items' | 'shop' | 'history' | 'profile';
 
 /** One pawned item, flattened from the API for the customer screens. */
 type Item = {
@@ -117,7 +125,7 @@ const itemTypeLabel = (item: { category?: string | null; custom_item_type?: stri
  */
 const specsFor = (item: ApiItemDetail) =>
     item.group === 'jewelry'
-        ? [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with gemstone' : null].filter(Boolean).join(' · ')
+        ? [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with diamond' : null].filter(Boolean).join(' · ')
         : item.brand_model || itemTypeLabel(item);
 
 /** The loan that matters for this item: the open one, else the most recent. */
@@ -179,6 +187,32 @@ const FLASH_VISIBLE_MS = 7000;
  * notification the customer has already been shown once.
  */
 const SEEN_NOTICES_KEY = 'smartpawn_seen_notices';
+
+/**
+ * Pawns the customer has already been asked to rate, whether they answered or
+ * closed the dialog. Kept in the browser because a skip is not worth a row in
+ * the database, and being asked twice is what makes a survey feel like nagging.
+ */
+const FEEDBACK_ASKED_KEY = 'smartpawn_feedback_asked';
+
+const readAskedFeedback = (): number[] => {
+    try {
+        const stored = JSON.parse(localStorage.getItem(FEEDBACK_ASKED_KEY) || '[]');
+        return Array.isArray(stored) ? stored.filter((id): id is number => typeof id === 'number') : [];
+    } catch {
+        // Cleared or blocked storage only means one extra prompt.
+        return [];
+    }
+};
+
+const rememberAskedFeedback = (transactionId: number) => {
+    try {
+        const next = [...new Set([...readAskedFeedback(), transactionId])].slice(-60);
+        localStorage.setItem(FEEDBACK_ASKED_KEY, JSON.stringify(next));
+    } catch {
+        // As above: the rating still works, it is only asked again.
+    }
+};
 
 /** Notification types the flash shows with the warning icon rather than the clock. */
 const ALERT_NOTIFICATIONS: ApiNotification['type'][] = ['risk_notice', 'forfeited'];
@@ -332,6 +366,28 @@ const CustomerPortal: React.FC = () => {
     */
     const passwordPromptShown = useRef(false);
 
+    /*
+      A redeemed pawn the customer has not rated. Read once on load: the pawn
+      was closed at the counter, so there is nothing to watch for live, and
+      being asked the moment a screen opens is enough.
+    */
+    const [feedbackFor, setFeedbackFor] = useState<ApiPendingFeedback['transaction']>(null);
+
+    useEffect(() => {
+        let active = true;
+        getPendingFeedback()
+            .then(result => {
+                if (!active || !result.transaction) return;
+                // Already asked about this one, on this device. Let it lie.
+                if (readAskedFeedback().includes(result.transaction.transaction_id)) return;
+                setFeedbackFor(result.transaction);
+            })
+            // Nothing to rate reads the same as a failed check: the portal
+            // simply does not ask. It is not worth an error for.
+            .catch(() => undefined);
+        return () => { active = false; };
+    }, []);
+
     useEffect(() => {
         if (!me || me.user.is_activated || passwordPromptShown.current) return;
 
@@ -436,7 +492,6 @@ const CustomerPortal: React.FC = () => {
 
     const menu: Array<{ id: View; label: string; icon: string }> = [
         { id: 'dashboard', label: 'Home', icon: homeOutline }, { id: 'items', label: 'My Items', icon: walletOutline },
-        { id: 'payments', label: 'Payments', icon: cashOutline },
         { id: 'shop', label: 'Items for Sale', icon: pricetagOutline },
         { id: 'history', label: 'History', icon: receiptOutline },
     ];
@@ -449,7 +504,12 @@ const CustomerPortal: React.FC = () => {
         return reloadNotices();
     }} /><div className="portal-shell">
         <div className={`portal-mobile-backdrop ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}></div><aside className={`portal-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}><div className="portal-brand"><img src="/logo.png" alt="SmartPawn" /></div><div className="portal-user"><IonIcon icon={personCircleOutline} /><div><strong>{displayName}</strong><span>Customer</span></div></div><span className="portal-menu-label">CUSTOMER MENU</span><nav className="portal-nav">{menu.map(item => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => go(item.id)}><IonIcon icon={item.icon} /><span>{item.label}</span></button>)}</nav></aside>
-        <main className="portal-main"><header className="portal-topbar"><div className="portal-title-group"><button className="portal-mobile-menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? 'Hide navigation' : 'Show navigation'}><IonIcon icon={mobileMenuOpen ? closeOutline : menuOutline} /></button><div><small>CUSTOMER PORTAL</small></div></div><div className="portal-header-actions"><div className="portal-action-wrap"><ThemeToggle className="portal-notice-button" /></div><div className="portal-action-wrap"><button className="portal-notice-button" onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }} aria-label="Notifications" aria-expanded={notificationsOpen}><IonIcon icon={notificationsOutline} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notificationsOpen && <div className="portal-dropdown portal-notification-dropdown"><div className="portal-dropdown-head"><strong>Notifications</strong><button onClick={markAllRead}>Mark all read</button></div>{notices.map(notice => <button className={`portal-notification-item ${notice.is_read ? 'read' : 'unread'}`} key={notice.notifications_id} onClick={() => openNotification(notice)}><strong>{NOTIFICATION_TITLES[notice.type] || 'Notification'}</strong><small>{notice.message} · {timeAgo(notice.created_at)}</small></button>)}{!noticesLoaded && <SkeletonList rows={3} />}{noticesLoaded && notices.length === 0 && <p className="portal-notification-empty">Nothing needs your attention right now.</p>}</div>}{toast && !notificationsOpen && <div className="portal-toast" role="status" aria-live="polite"><button type="button" className="portal-toast-body" onClick={openToastInBell}><span className={`portal-toast-icon ${ALERT_NOTIFICATIONS.includes(toast.type) ? 'risk' : 'due'}`}><IonIcon icon={ALERT_NOTIFICATIONS.includes(toast.type) ? alertCircleOutline : timeOutline} aria-hidden="true" /></span><span className="portal-toast-copy"><strong>{NOTIFICATION_TITLES[toast.type] || 'Notification'}</strong><small>{toast.message}</small><em>{timeAgo(toast.created_at)}</em></span></button><button type="button" className="portal-toast-close" onClick={dismissToast} aria-label="Dismiss notification"><IonIcon icon={closeOutline} /></button></div>}</div><div className="portal-action-wrap"><button className="portal-profile-button" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }} aria-expanded={profileOpen}><IonIcon icon={personCircleOutline} /><span>{displayName}</span><IonIcon className="profile-chevron" icon={profileOpen ? chevronUpOutline : chevronDownOutline} aria-hidden="true" /></button>{profileOpen && <div className="portal-dropdown portal-profile-dropdown"><button onClick={() => { setProfileOpen(false); go('profile'); }}><IonIcon icon={personCircleOutline} />Profile</button><button onClick={logout}><IonIcon icon={logOutOutline} />Logout</button></div>}</div></div></header>
+        <main className="portal-main"><header className="portal-topbar"><div className="portal-title-group"><button className="portal-mobile-menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? 'Hide navigation' : 'Show navigation'}><IonIcon icon={mobileMenuOpen ? closeOutline : menuOutline} /></button><div><small>CUSTOMER PORTAL</small></div></div><div className="portal-header-actions"><div className="portal-action-wrap"><MotionToggle className="portal-notice-button" /></div><div className="portal-action-wrap"><ThemeToggle className="portal-notice-button" /></div><div className="portal-action-wrap"><button className="portal-notice-button" onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }} aria-label="Notifications" aria-expanded={notificationsOpen}><IonIcon icon={notificationsOutline} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notificationsOpen && <div className="portal-dropdown portal-notification-dropdown"><div className="portal-dropdown-head"><strong>Notifications</strong><button onClick={markAllRead}>Mark all read</button></div>{notices.map(notice => <button className={`portal-notification-item ${notice.is_read ? 'read' : 'unread'}`} key={notice.notifications_id} onClick={() => openNotification(notice)}><strong>{NOTIFICATION_TITLES[notice.type] || 'Notification'}</strong><small>{notice.message} · {timeAgo(notice.created_at)}</small></button>)}{!noticesLoaded && <SkeletonList rows={3} />}{noticesLoaded && notices.length === 0 && <p className="portal-notification-empty">Nothing needs your attention right now.</p>}</div>}{toast && !notificationsOpen && <div className="portal-toast" role="status" aria-live="polite"><button type="button" className="portal-toast-body" onClick={openToastInBell}><span className={`portal-toast-icon ${ALERT_NOTIFICATIONS.includes(toast.type) ? 'risk' : 'due'}`}><IonIcon icon={ALERT_NOTIFICATIONS.includes(toast.type) ? alertCircleOutline : timeOutline} aria-hidden="true" /></span><span className="portal-toast-copy"><strong>{NOTIFICATION_TITLES[toast.type] || 'Notification'}</strong><small>{toast.message}</small><em>{timeAgo(toast.created_at)}</em></span></button><button type="button" className="portal-toast-close" onClick={dismissToast} aria-label="Dismiss notification"><IonIcon icon={closeOutline} /></button></div>}</div><div className="portal-action-wrap"><button className="portal-profile-button" onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }} aria-expanded={profileOpen}><IonIcon icon={personCircleOutline} /><span>{displayName}</span><IonIcon className="profile-chevron" icon={profileOpen ? chevronUpOutline : chevronDownOutline} aria-hidden="true" /></button>{profileOpen && <div className="portal-dropdown portal-profile-dropdown"><button onClick={() => { setProfileOpen(false); go('profile'); }}><IonIcon icon={personCircleOutline} />Profile</button><button onClick={logout}><IonIcon icon={logOutOutline} />Logout</button></div>}</div></div></header>
+            {feedbackFor && <FeedbackDialog
+                transaction={feedbackFor}
+                onClose={() => { rememberAskedFeedback(feedbackFor.transaction_id); setFeedbackFor(null); }}
+                onDone={message => { rememberAskedFeedback(feedbackFor.transaction_id); setFeedbackFor(null); showFlash(message); }}
+            />}
             {flash && <div className="portal-flash" role="status" aria-live="polite">
                 <IonIcon icon={checkmarkCircleOutline} aria-hidden="true" />
                 <p>{flash}</p>
@@ -457,9 +517,8 @@ const CustomerPortal: React.FC = () => {
             </div>}
             {apiError && <p className="portal-load-error">{apiError}</p>}
             <React.Fragment key={refreshKey}>
-            {view === 'dashboard' && <Dashboard active={active} items={items} dashboard={dashboard} name={displayName} loaded={loaded} go={go} openItems={(next) => { setFilter(next); go('items'); }} />}
+            {view === 'dashboard' && <Dashboard active={active} items={items} dashboard={dashboard} name={displayName} loaded={loaded} openItems={(next) => { setFilter(next); go('items'); }} openItem={item => { setView('items'); setSelected(item); }} />}
             {view === 'items' && <Items items={items} visible={visible} filter={filter} setFilter={setFilter} selected={selected} setSelected={setSelected} loaded={loaded} onAskToRedeem={askToRedeem} onFlash={showFlash} />}
-            {view === 'payments' && <Payments active={active} go={go} loaded={loaded} onFlash={showFlash} />}
             {view === 'history' && <CustomerHistory items={apiItems} loaded={loaded} onOpenItem={(itemId) => {
                 const item = items.find((row) => row.id === String(itemId));
                 setFilter('All');
@@ -479,7 +538,7 @@ const CustomerPortal: React.FC = () => {
 const nextDue = (active: Item[]) =>
     active.filter(item => item.dueIso).sort((first, second) => first.dueIso.localeCompare(second.dueIso))[0] || null;
 
-const Dashboard: React.FC<{ active: Item[]; items: Item[]; dashboard: ApiDashboard | null; name: string; loaded: boolean; go: (view: View) => void; openItems: (filter: 'All' | Status) => void }> = ({ active, items, dashboard, name, loaded, go, openItems }) => {
+const Dashboard: React.FC<{ active: Item[]; items: Item[]; dashboard: ApiDashboard | null; name: string; loaded: boolean; openItems: (filter: 'All' | Status) => void; openItem: (item: Item) => void }> = ({ active, items, dashboard, name, loaded, openItems, openItem }) => {
     const upcoming = nextDue(active);
     const daysLeft = upcoming ? daysUntil(upcoming.dueIso) : null;
     const goldPrices = (dashboard?.gold_prices || []).map(price => Number(price.price_per_gram)).filter(value => Number.isFinite(value) && value > 0);
@@ -507,42 +566,19 @@ const Dashboard: React.FC<{ active: Item[]; items: Item[]; dashboard: ApiDashboa
         <div className="portal-stats dashboard-stats">
             {/* Quick links: each card opens the page behind its figure. */}
             <Stat icon={walletOutline} value={loaded ? String(active.length) : '--'} label="Active items" onClick={() => openItems('Active')} />
-            <Stat icon={timeOutline} value={daysLeft === null ? '--' : daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`} label="Upcoming due date" onClick={() => go('payments')} />
-            <Stat icon={cashOutline} value={loaded ? money(dashboard?.stats.amount_due || 0) : '--'} label="Total amount due" onClick={() => go('payments')} />
+            <Stat icon={timeOutline} value={daysLeft === null ? '--' : daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`} label="Upcoming due date" onClick={() => (upcoming ? openItem(upcoming) : openItems('Active'))} />
+            <Stat icon={cashOutline} value={loaded ? money(dashboard?.stats.amount_due || 0) : '--'} label="Total amount due" onClick={() => openItems('Active')} />
         </div>
-        {/* Only jewelry follows the gold price, so the redemption timing
-            suggestion is shown only while an active jewelry item exists. */}
-        {active.some(item => item.goldLinked) && <div className="dashboard-suggestion"><TrendSuggestionCard compact /></div>}
-        <div className="dashboard-columns">
-            <div className="dashboard-section">
-                <div className="portal-heading"><div><small>PAWN RECORDS</small><h3>My Items</h3></div><button onClick={() => go('items')}>View all <IonIcon icon={chevronForwardOutline} /></button></div>
-                <div className="dashboard-items">
-                    {items.slice(0, 3).map(item => {
-                        // A closed loan has no term left to run, so only open ones show the bar.
-                        const loanOpen = item.status === 'Active' || item.status === 'Overdue';
-                        return (
-                            <button className="pawn-card" key={item.id} onClick={() => go('items')}>
-                                <i className="pawn-card-mark" aria-hidden="true">{item.name[0]}</i>
-                                <span className="pawn-card-body">
-                                    <span className="pawn-card-head">
-                                        <strong className="pawn-card-name">{item.name}</strong>
-                                        <strong className="pawn-card-amount">{item.loan}</strong>
-                                    </span>
-                                    <span className="pawn-card-meta">
-                                        <span className="pawn-card-ticket">{item.ticketNumber}</span>
-                                        <span className="pawn-card-due">Due {item.due}</span>
-                                    </span>
-                                </span>
-                                {loanOpen && <LoanTermBar className="pawn-card-term" pawnedIso={item.pawnedIso} dueIso={item.dueIso} />}
-                                <IonIcon className="pawn-card-chevron" icon={chevronForwardOutline} aria-hidden="true" />
-                            </button>
-                        );
-                    })}
-                    {!loaded && <SkeletonList rows={3} />}
-                    {loaded && items.length === 0 && <p className="notice-empty">You have no pawned items on record.</p>}
-                </div>
-                <button className="dashboard-view-all" onClick={() => go('items')}>View All Items <IonIcon icon={chevronForwardOutline} /></button>
-            </div>
+        {/* Where the pawn list used to sit. That list is one tap away in the
+            nav; when the branch is open is not written down anywhere else.
+            The calendar keeps its picker width; the timing suggestion fills
+            the rest of the row rather than stacking under it.
+
+            Only jewelry follows the gold price, so the suggestion is shown
+            only while an active jewelry item exists. */}
+        <div className="dashboard-schedule">
+            <ShopCalendar />
+            {active.some(item => item.goldLinked) && <div className="dashboard-suggestion"><TrendSuggestionCard compact /></div>}
         </div>
         {/* Loan Overview beside a small Gold Price Trend. The trend card takes the
             place of the one-line gold ticker, so the price is not shown twice. */}
@@ -580,7 +616,7 @@ const Items: React.FC<{ items: Item[]; visible: Item[]; filter: 'All' | Status; 
     const { pageRows, pager } = usePagedRows(visible);
 
     return <section className="portal-content">
-        <div className="portal-intro"><div><small>PAWN RECORDS</small><h2>My Items</h2><p>Review every item connected to your account.</p></div></div>
+        <div className="portal-intro"><div><small>PAWN RECORDS</small><h2>List of Items</h2><p>Review every item connected to your account.</p></div></div>
         <div className="item-tabs" role="tablist">{(['All', 'Active', 'Redeemed', FORFEITED_LABEL] as const).map(tab => <button key={tab} className={filter === tab ? 'active' : ''} onClick={() => setFilter(tab)} role="tab" aria-selected={filter === tab}>{tab} <span>{tab === 'All' ? items.length : items.filter(item => item.status === tab).length}</span></button>)}</div>
         <div className="items-table-wrap">
             <table className="items-table">
@@ -670,10 +706,6 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
                 <button ref={closeRef} type="button" className="item-modal-close" onClick={onClose} aria-label="Close item details"><IonIcon icon={closeOutline} /></button>
             </header>
             <div className="item-modal-body">
-                {item.photos.length > 0 && <section className="item-modal-section item-modal-photos">
-                    <h4>{item.photos.length > 1 ? `Item Photos (${item.photos.length})` : 'Item Photo'}</h4>
-                    <PhotoStrip photos={item.photos} name={item.name} onOpen={setPhotoIndex} />
-                </section>}
                 <section className="item-modal-section">
                     <h4>Pawn Summary</h4>
                     {/* The three headline figures. Dates moved to the timeline below. */}
@@ -700,68 +732,90 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
                     {item.status === 'Active' && <PickupCodePanel transactionId={item.transactionId} onFlash={onFlash} />}
                     {item.status === 'Active' && <RenewOnlinePanel key={item.dueIso} transactionId={item.transactionId} itemName={item.name} onFlash={onFlash} />}
                 </div>}
-                <section className="item-modal-section">
-                    <h4>Pawn Transaction Timeline</h4>
-                    <ol className="item-timeline">
-                        <li className="is-done">
-                            <span className="item-timeline-dot" aria-hidden="true" />
-                            <span className="item-timeline-label">Pawned</span>
-                            <strong>{item.pawned}</strong>
-                        </li>
-                        <li className={item.status === 'Overdue' ? 'is-alert' : loanOpen ? 'is-next' : 'is-done'}>
-                            <span className="item-timeline-dot" aria-hidden="true" />
-                            <span className="item-timeline-label">Due date</span>
-                            <strong>{item.due}</strong>
-                            {loanOpen && <LoanTermBar className="item-timeline-term" pawnedIso={item.pawnedIso} dueIso={item.dueIso} />}
-                        </li>
-                        <li className={item.status === 'Overdue' || item.status === FORFEITED_LABEL ? 'is-alert' : 'is-current'}>
-                            <span className="item-timeline-dot" aria-hidden="true" />
-                            <span className="item-timeline-label">Current status</span>
-                            <strong>{item.status}</strong>
-                            <small>{statusDate}</small>
-                        </li>
-                    </ol>
-                </section>
-                <section className="item-modal-section">
-                    <h4>Item Information</h4>
-                    <div className="item-spec-grid">
-                        <div><span>Group</span><strong>{item.group}</strong></div>
-                        <div><span>Type</span><strong>{item.category}</strong></div>
-                        <div><span>Details</span><strong>{item.specs || '-'}</strong></div>
-                        <div className="detail-wide"><span>Description</span><strong>{item.description || '-'}</strong></div>
-                    </div>
-                </section>
-                {/* Up to 30 days of recorded value, right above the value vs loan bar.
-                    A single recorded day shows only that value. */}
-                {item.valueHistory.length > 0 && <ValueSparkline points={item.valueHistory} formatValue={money} />}
-                {item.loanAmount > 0 && <section className="item-modal-section">
-                    <h4>Current Value vs Pawn Amount</h4>
-                    <div className="equity-metrics">
-                        <div><span>Current value</span><strong>{item.value}</strong></div>
-                        <div className="is-loan"><span>Pawn amount</span><strong>{item.loan}</strong></div>
-                        <div className={equity < 0 ? 'is-negative' : 'is-equity'}><span>Equity</span><strong>{equity < 0 ? '−' : ''}{money(Math.abs(equity))}</strong></div>
-                        <div><span>Pawn-to-value</span><strong>{Math.round(ltv)}%</strong></div>
-                    </div>
-                    {/* The whole track is the current value; the gold fill is the loan,
-                        the rest is equity. A loan above the value fills it in red. */}
-                    <div
-                        className={`equity-bar ${ltv > 100 ? 'is-over' : ''}`}
-                        role="img"
-                        aria-label={`Pawn amount is ${Math.round(ltv)}% of the current value. Equity ${equity < 0 ? 'minus ' : ''}${money(Math.abs(equity))}.`}
-                    >
-                        <i style={{ width: `${Math.min(100, ltv)}%` }} />
-                    </div>
-                    <div className="equity-legend" aria-hidden="true">
-                        <span><b className="is-loan" />Pawn {Math.round(ltv)}%</span>
-                        <span><b className="is-equity" />Equity {Math.max(0, 100 - Math.round(ltv))}%</span>
-                    </div>
-                </section>}
-                {/*
-                  Watches, cellphones, and bulky items are not valued against the gold
-                  price, and a closed loan has nothing left to time, so the suggestion
-                  is shown only on an active jewelry item.
-                */}
-                {item.goldLinked && item.status === 'Active' && <TrendSuggestionCard />}
+                {/* The record below the summary and actions, one part at a time
+                    from the side menu, so the modal no longer scrolls on and on. */}
+                <ModalSections
+                    label="Item detail sections"
+                    resetKey={item.id}
+                    sections={[
+                        { id: 'timeline', label: 'Timeline', icon: timeOutline, content: (
+                            <section className="item-modal-section">
+                                <h4>Pawn Transaction Timeline</h4>
+                                <ol className="item-timeline">
+                                    <li className="is-done">
+                                        <span className="item-timeline-dot" aria-hidden="true" />
+                                        <span className="item-timeline-label">Pawned</span>
+                                        <strong>{item.pawned}</strong>
+                                    </li>
+                                    <li className={item.status === 'Overdue' ? 'is-alert' : loanOpen ? 'is-next' : 'is-done'}>
+                                        <span className="item-timeline-dot" aria-hidden="true" />
+                                        <span className="item-timeline-label">Due date</span>
+                                        <strong>{item.due}</strong>
+                                        {loanOpen && <LoanTermBar className="item-timeline-term" pawnedIso={item.pawnedIso} dueIso={item.dueIso} />}
+                                    </li>
+                                    <li className={item.status === 'Overdue' || item.status === FORFEITED_LABEL ? 'is-alert' : 'is-current'}>
+                                        <span className="item-timeline-dot" aria-hidden="true" />
+                                        <span className="item-timeline-label">Current status</span>
+                                        <strong>{item.status}</strong>
+                                        <small>{statusDate}</small>
+                                    </li>
+                                </ol>
+                            </section>
+                        ) },
+                        { id: 'item', label: 'Item', icon: cubeOutline, count: item.photos.length || undefined, content: (
+                            <div className="item-modal-stack">
+                                <section className="item-modal-section">
+                                    <h4>Item Information</h4>
+                                    <div className="item-spec-grid">
+                                        <div><span>Group</span><strong>{item.group}</strong></div>
+                                        <div><span>Type</span><strong>{item.category}</strong></div>
+                                        <div><span>Details</span><strong>{item.specs || '-'}</strong></div>
+                                        <div className="detail-wide"><span>Description</span><strong>{item.description || '-'}</strong></div>
+                                    </div>
+                                </section>
+                                {item.photos.length > 0 && <section className="item-modal-section item-modal-photos">
+                                    <h4>{item.photos.length > 1 ? `Item Photos (${item.photos.length})` : 'Item Photo'}</h4>
+                                    <PhotoStrip photos={item.photos} name={item.name} onOpen={setPhotoIndex} />
+                                </section>}
+                            </div>
+                        ) },
+                        { id: 'value', label: 'Value', icon: trendingUpOutline, content: (
+                            <div className="item-modal-stack">
+                                {/* Up to 30 days of recorded value, right above the value vs loan bar.
+                                    A single recorded day shows only that value. */}
+                                {item.valueHistory.length > 0 && <ValueSparkline points={item.valueHistory} formatValue={money} />}
+                                {item.loanAmount > 0 && <section className="item-modal-section">
+                                    <h4>Current Value vs Pawn Amount</h4>
+                                    <div className="equity-metrics">
+                                        <div><span>Current value</span><strong>{item.value}</strong></div>
+                                        <div className="is-loan"><span>Pawn amount</span><strong>{item.loan}</strong></div>
+                                        <div className={equity < 0 ? 'is-negative' : 'is-equity'}><span>Equity</span><strong>{equity < 0 ? '−' : ''}{money(Math.abs(equity))}</strong></div>
+                                        <div><span>Pawn-to-value</span><strong>{Math.round(ltv)}%</strong></div>
+                                    </div>
+                                    {/* The whole track is the current value; the gold fill is the loan,
+                                        the rest is equity. A loan above the value fills it in red. */}
+                                    <div
+                                        className={`equity-bar ${ltv > 100 ? 'is-over' : ''}`}
+                                        role="img"
+                                        aria-label={`Pawn amount is ${Math.round(ltv)}% of the current value. Equity ${equity < 0 ? 'minus ' : ''}${money(Math.abs(equity))}.`}
+                                    >
+                                        <i style={{ width: `${Math.min(100, ltv)}%` }} />
+                                    </div>
+                                    <div className="equity-legend" aria-hidden="true">
+                                        <span><b className="is-loan" />Pawn {Math.round(ltv)}%</span>
+                                        <span><b className="is-equity" />Equity {Math.max(0, 100 - Math.round(ltv))}%</span>
+                                    </div>
+                                </section>}
+                                {/*
+                                  Watches, cellphones, and bulky items are not valued against the gold
+                                  price, and a closed loan has nothing left to time, so the suggestion
+                                  is shown only on an active jewelry item.
+                                */}
+                                {item.goldLinked && item.status === 'Active' && <TrendSuggestionCard />}
+                            </div>
+                        ) },
+                    ]}
+                />
             </div>
         </div>
     </div>;
@@ -772,6 +826,100 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
         {photoIndex !== null && <PhotoLightbox photos={item.photos} startIndex={photoIndex} name={item.name} onClose={() => setPhotoIndex(null)} />}
     </>;
 };
+
+/**
+ * How the redemption went.
+ *
+ * Asked once, after the pawn is paid and the item is back with its owner,
+ * because that is the only point where the whole transaction is behind them.
+ * Closing it is a real answer: the rating is optional and nothing in the shop
+ * waits on it, so the dialog never blocks and never asks twice.
+ */
+const FeedbackDialog: React.FC<{
+    transaction: NonNullable<ApiPendingFeedback['transaction']>;
+    onClose: () => void;
+    onDone: (message: string) => void;
+}> = ({ transaction, onClose, onDone }) => {
+    const [rating, setRating] = useState(0);
+    // The star under the cursor, so the row fills as it is pointed at rather
+    // than only once it is clicked.
+    const [hovered, setHovered] = useState(0);
+    const [comment, setComment] = useState('');
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState('');
+
+    const shown = hovered || rating;
+
+    const send = async () => {
+        if (rating === 0) {
+            setError('Pick a rating from one to five stars.');
+            return;
+        }
+
+        setSending(true);
+        setError('');
+        try {
+            await submitFeedback(transaction.transaction_id, rating, comment);
+            onDone('Thank you. Your feedback has been sent to the shop.');
+        } catch (sendError) {
+            setError(sendError instanceof Error ? sendError.message : 'Your feedback could not be sent.');
+            setSending(false);
+        }
+    };
+
+    return <ActionDialog title="How was your experience?" onClose={onClose}>
+        <p className="feedback-lead">
+            You redeemed <strong>{transaction.item_name || 'your item'}</strong>
+            {transaction.ticket_number ? ` (Ticket ${transaction.ticket_number})` : ''}. Tell us how it went.
+        </p>
+
+        <div className="feedback-stars" role="radiogroup" aria-label="Rating out of five">
+            {[1, 2, 3, 4, 5].map(star => (
+                <button
+                    key={star}
+                    type="button"
+                    role="radio"
+                    aria-checked={rating === star}
+                    aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`}
+                    className={star <= shown ? 'is-on' : ''}
+                    onMouseEnter={() => setHovered(star)}
+                    onMouseLeave={() => setHovered(0)}
+                    onFocus={() => setHovered(star)}
+                    onBlur={() => setHovered(0)}
+                    onClick={() => { setRating(star); setError(''); }}
+                    disabled={sending}
+                >
+                    <IonIcon icon={star <= shown ? starFilled : starOutline} />
+                </button>
+            ))}
+        </div>
+        <p className="feedback-scale" aria-live="polite">{shown > 0 ? RATING_WORDS[shown - 1] : 'Tap a star'}</p>
+
+        <label className="feedback-comment">
+            <span>Comment</span>
+            <textarea
+                rows={3}
+                maxLength={1000}
+                value={comment}
+                placeholder="Tell us about your experience (optional)."
+                onChange={event => setComment(event.target.value)}
+                disabled={sending}
+            />
+        </label>
+
+        {error && <p className="feedback-error">{error}</p>}
+
+        <div className="feedback-actions">
+            <button type="button" className="feedback-skip" onClick={onClose} disabled={sending}>Not now</button>
+            <button type="button" className="feedback-submit" onClick={send} disabled={sending} aria-busy={sending}>
+                {sending && <Spinner />}{sending ? 'Sending' : 'Submit Feedback'}
+            </button>
+        </div>
+    </ActionDialog>;
+};
+
+/** What each star means, so a rating is a word and not only a count. */
+const RATING_WORDS = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 
 /**
  * A dialog opened from inside the item modal.
@@ -969,6 +1117,9 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
      * text, so it is scaled here before it is ever sent. Item photo settings
      * suit it: a screenshot only has to stay readable.
      */
+    // Webcam capture, for a computer without a touch screen.
+    const [cameraOpen, setCameraOpen] = useState(false);
+
     const pickReceipt = async (file: File | undefined) => {
         if (!file) return;
 
@@ -1026,7 +1177,10 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
 
         {info && !info.renewable && <p className="renew-online-note">This pawn can no longer be renewed online. Please contact the shop.</p>}
 
-        {info && info.renewable && <>
+        {/* Two columns on wide screens: what to pay and where on the left, the
+            form on the right, so the Submit button is in view without scrolling. */}
+        {info && info.renewable && <div className="renew-online-columns">
+            <div className="renew-online-col">
             <div className="renew-online-amount">
                 <span>Renta Due</span>
                 <strong>{moneyExact(info.interest_due)}</strong>
@@ -1043,14 +1197,16 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
                     ? <strong>{info.gcash_payment_info}</strong>
                     : <em>Scan the QR code above in your GCash app.</em>}
             </div>
+            </div>
 
+            <div className="renew-online-col">
             {pending
                 ? <p className="renew-online-sent">
                     Reference <strong>{pending.gcash_reference_number}</strong> is with our staff. They will confirm your renewal once the payment is checked.
                 </p>
                 : <>
                     <ol className="renew-online-steps">
-                        <li>Send {moneyExact(info.interest_due)} to the GCash number above, from your own GCash app.</li>
+                        <li>Send {moneyExact(info.interest_due)} to the shop's GCash number or QR code, from your own GCash app.</li>
                         <li>Copy the reference number from your GCash receipt.</li>
                         <li>Enter it below so our staff can check it.</li>
                     </ol>
@@ -1082,18 +1238,47 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
                                     </button>
                                 </div>
                             </div>
-                            : <label className="renew-online-receipt-pick">
-                                <IonIcon icon={cloudUploadOutline} aria-hidden="true" />
-                                {reading ? 'Reading your file...' : 'Attach your GCash receipt'}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    hidden
-                                    disabled={reading || sending}
-                                    onChange={(event) => { pickReceipt(event.target.files?.[0]); event.target.value = ''; }}
-                                />
-                            </label>}
+                            : <div className="renew-online-receipt-options">
+                                <label className="renew-online-receipt-pick">
+                                    <IonIcon icon={cloudUploadOutline} aria-hidden="true" />
+                                    {reading ? 'Reading your file...' : 'Attach your GCash receipt'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        hidden
+                                        disabled={reading || sending}
+                                        onChange={(event) => { pickReceipt(event.target.files?.[0]); event.target.value = ''; }}
+                                    />
+                                </label>
+                                {/* On a phone, capture opens the back camera straight away.
+                                    A desktop ignores capture and would only show the file
+                                    picker again, so there the webcam opens in CameraCapture. */}
+                                {!reading && (TOUCH_SCREEN
+                                    ? <label className="renew-online-receipt-pick renew-online-receipt-camera">
+                                        <IonIcon icon={cameraOutline} aria-hidden="true" />
+                                        Take a photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            hidden
+                                            disabled={sending}
+                                            onChange={(event) => { pickReceipt(event.target.files?.[0]); event.target.value = ''; }}
+                                        />
+                                    </label>
+                                    : <button type="button" className="renew-online-receipt-pick renew-online-receipt-camera" onClick={() => setCameraOpen(true)} disabled={sending}>
+                                        <IonIcon icon={cameraOutline} aria-hidden="true" />
+                                        Take a photo
+                                    </button>)}
+                            </div>}
                     </div>
+                    <CameraCapture
+                        subject="receipt"
+                        title="Take receipt photo"
+                        isOpen={cameraOpen}
+                        onClose={() => setCameraOpen(false)}
+                        onCapture={(file) => { void pickReceipt(file); }}
+                    />
                     <button
                         type="button"
                         className="renew-online-submit"
@@ -1105,185 +1290,13 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
                         {sending ? 'Submitting' : 'Submit renewal payment'}
                     </button>
                 </>}
-        </>}
+            </div>
+        </div>}
 
         {error && <p className="renew-online-error">{error}</p>}
         </ActionDialog>}
     </div>;
 };
-
-const Payments: React.FC<{ active: Item[]; go: (view: View) => void; loaded: boolean; onFlash: (message: string) => void }> = ({ active, go, loaded, onFlash }) => {
-    const modal = useModal();
-    const [sending, setSending] = useState(false);
-    const principal = active.reduce((total, item) => total + item.loanAmount, 0);
-    const interest = active.reduce((total, item) => total + item.interestDue, 0);
-    const payable = active.reduce((total, item) => total + item.totalPayable, 0);
-    const upcoming = nextDue(active);
-    const upcomingDue = upcoming ? dueStatus(upcoming.dueIso) : null;
-
-    // The request goes against one loan, and the loan due soonest is the one
-    // these buttons are about. The item is named in the dialog so the customer
-    // is never guessing which one staff will be told about.
-    const requestTarget = upcoming || active[0] || null;
-    const { pageRows: activeRows, pager } = usePagedRows(active);
-
-    /**
-     * Raises one of the three counter requests.
-     *
-     * Confirmed first, because staff are told at once and the request cannot be
-     * taken back from here.
-     */
-    const raiseRequest = async (type: CustomerRequestType, copy: { title: string; confirm: string; done: string }) => {
-        if (!requestTarget?.transactionId) {
-            await modal.info({
-                title: copy.title,
-                message: 'You have no open pawn to raise this request against.',
-            });
-            return;
-        }
-
-        const confirmed = await modal.confirm({
-            title: copy.title,
-            message: <>{copy.confirm} Our staff will be notified about <strong>{requestTarget.name}</strong> (Ticket {requestTarget.ticketNumber}).</>,
-            confirmLabel: 'Send request',
-        });
-        if (!confirmed || sending) return;
-
-        setSending(true);
-        modal.loading('Sending your request...');
-        try {
-            await sendCustomerRequest(requestTarget.transactionId, type);
-            modal.hideLoading();
-            onFlash(copy.done);
-        } catch (requestError) {
-            modal.hideLoading();
-            await modal.error({
-                message: requestError instanceof Error ? requestError.message : 'Your request could not be sent. Please try again.',
-            });
-        } finally {
-            setSending(false);
-        }
-    };
-
-    return <section className="portal-content">
-        <div className="portal-intro"><div><small>KEEP YOUR ITEMS SAFE</small><h2>Payments & Redemption</h2><p>Manage your active pawns and redemption requests.</p></div></div>
-        <div className="payment-summary">
-            <div className="payment-summary-head">
-                <div>
-                    <small>TOTAL AMOUNT DUE</small>
-                    <strong>{loaded ? moneyExact(payable) : '--'}</strong>
-                </div>
-                {upcoming && <span className={`payment-due-badge ${upcomingDue ? upcomingDue.tone : ''}`}>Due {upcoming.due}</span>}
-            </div>
-
-            <div className="payment-summary-grid">
-                <div><span>Principal</span><strong>{loaded ? money(principal) : '--'}</strong></div>
-                <div><span>Accrued interest</span><strong>{loaded ? moneyExact(interest) : '--'}</strong></div>
-                <div><span>Due date</span><strong>{upcoming ? upcoming.due : '-'}</strong></div>
-                <div>
-                    <span>Pawn status</span>
-                    <strong className={`payment-status ${active.length > 0 ? 'is-active' : 'is-clear'}`}>
-                        {loaded ? (active.length > 0 ? 'Active' : 'None open') : '--'}
-                    </strong>
-                </div>
-            </div>
-
-            <div className="payment-summary-foot">
-                <small>Interest is computed to today. The shop confirms the final figure on redemption.</small>
-                <IonButton
-                    className="payment-primary-action"
-                    disabled={active.length === 0}
-                    onClick={() => raiseRequest('redemption_payment', {
-                        title: 'Request redemption payment',
-                        confirm: 'You are telling the shop you are ready to pay and redeem.',
-                        done: 'Redemption payment request submitted. Staff have been notified and will confirm it shortly.',
-                    })}
-                >
-                    <IonIcon icon={cashOutline} slot="start" />
-                    Request redemption payment
-                </IonButton>
-            </div>
-        </div>
-
-        <div className="payment-actions">
-            <div className="payment-action-card">
-                <span className="payment-action-icon"><IonIcon icon={cashOutline} /></span>
-                <strong>Redeem your item</strong>
-                <p>Pay the amount due and reserve your redemption appointment.</p>
-                <IonButton fill="outline" disabled={active.length === 0} onClick={() => raiseRequest('appointment', {
-                    title: 'Request appointment',
-                    confirm: 'You are asking the shop to set a redemption appointment.',
-                    done: 'Redemption appointment requested. Staff have been notified and will contact you.',
-                })}>Request appointment</IonButton>
-            </div>
-            <div className="payment-action-card">
-                <span className="payment-action-icon is-gold"><IonIcon icon={refreshOutline} /></span>
-                <strong>Renew or extend pawn</strong>
-                <p>Need more time? Request a renewal before the maturity date, or open the item and use Renew Online to pay the renta by GCash.</p>
-                <IonButton fill="outline" disabled={active.length === 0} onClick={() => raiseRequest('renewal', {
-                    title: 'Request renewal or extension',
-                    confirm: 'You are asking the shop to renew or extend this pawn.',
-                    done: 'Pawn renewal request submitted. Staff have been notified and will contact you.',
-                })}>Request renewal / extension</IonButton>
-            </div>
-        </div>
-
-        <div className="portal-heading"><div><small>ACTIVE PAWNS</small><h3>Items included in this payment</h3></div><button onClick={() => go('items')}>View items</button></div>
-        <div className="payment-loan-list">
-            {activeRows.map(item => <LoanCard key={item.id} item={item} onClick={() => go('items')} />)}
-            {!loaded && <SkeletonList rows={3} />}
-            {loaded && active.length === 0 && <p className="notice-empty">You have no active pawns.</p>}
-        </div>
-        <Pager pager={pager} label="active pawns" />
-    </section>;
-};
-
-/** One active loan, with its term progress read off the dates it already holds. */
-const LoanCard: React.FC<{ item: Item; onClick: () => void }> = ({ item, onClick }) => {
-    const progress = loanTermProgress(item.pawnedIso, item.dueIso);
-    const due = dueStatus(item.dueIso);
-
-    return (
-        <button type="button" className="payment-loan-card" onClick={onClick}>
-            <span className="payment-loan-top">
-                <i aria-hidden="true">{item.name[0]}</i>
-                <span className="payment-loan-id">
-                    <strong>{item.name}</strong>
-                    <small>{item.ticketNumber}</small>
-                </span>
-                <span className="payment-loan-figure">
-                    <strong>{item.loan}</strong>
-                    <small>Pawn amount</small>
-                </span>
-                <span className={`payment-loan-status ${due ? due.tone : ''}`}>
-                    <i aria-hidden="true" />
-                    {item.status}
-                </span>
-            </span>
-
-            {progress && progress.termDays !== null && (
-                <span className="payment-loan-term">
-                    <span className="payment-loan-term-head">
-                        <small>Pawn term</small>
-                        <small>
-                            {progress.daysLeft < 0
-                                ? `${Math.abs(progress.daysLeft)} days overdue`
-                                : `${progress.daysLeft} of ${progress.termDays} days remaining`}
-                        </small>
-                    </span>
-                    {/* Same bar as the Home rows and the item details. */}
-                    <LoanTermBar className="payment-loan-bar" pawnedIso={item.pawnedIso} dueIso={item.dueIso} />
-                </span>
-            )}
-
-            <span className="payment-loan-foot">
-                <small>Due {item.due}</small>
-                <em>View details <IonIcon icon={chevronForwardOutline} /></em>
-            </span>
-        </button>
-    );
-};
-
 
 const Profile: React.FC<{ me: ApiMe | null; logout: () => void; onAccountChanged: () => void; onFlash: (message: string) => void }> = ({ me, logout, onAccountChanged, onFlash }) => {
     const [name, setName] = useState('');

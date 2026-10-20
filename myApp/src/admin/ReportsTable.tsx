@@ -104,7 +104,7 @@ const ReportsTable: React.FC<{ initialSearch?: string }> = ({ initialSearch = ''
           <span role="columnheader">Date</span>
           <span role="columnheader">Item</span>
           <span role="columnheader">Category</span>
-          <span role="columnheader">Weight</span>
+          <span role="columnheader">Weight (g)</span>
           <span role="columnheader" className="rpt-num">Appraised Value</span>
           <span role="columnheader" className="rpt-num">Pawn Amount</span>
           <span role="columnheader">Status</span>
@@ -199,9 +199,9 @@ const RecordDetail: React.FC<{ record: ApiTransaction; onClose: () => void }> = 
             <Field label="Brand / Model" value={item?.brand_model} />
             {isJewelry && <Field label="Metal" value={item?.metal_type === 'silver' ? 'Silver' : 'Gold'} />}
             {isJewelry && <Field label="Karat / Purity" value={purity} />}
-            {isJewelry && <Field label="Weight" value={weightLabel(record)} />}
+            {isJewelry && <Field label="Weight (g)" value={weightLabel(record)} />}
             <Field label="Condition" value={item?.condition} />
-            <Field label="Gemstone" value={item?.has_gemstone ? [item.gemstone_details, item.gemstone_value ? moneyExact(Number(item.gemstone_value)) : null].filter(Boolean).join(' · ') || 'Yes' : 'None'} />
+            <Field label="Diamond" value={item?.has_gemstone ? [item.gemstone_details, item.gemstone_value ? moneyExact(Number(item.gemstone_value)) : null].filter(Boolean).join(' · ') || 'Yes' : 'None'} />
           </div>
         </section>
         <section>

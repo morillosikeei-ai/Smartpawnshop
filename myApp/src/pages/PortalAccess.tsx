@@ -8,8 +8,6 @@ import {
     IonHeader,
     IonIcon,
     IonInput,
-    IonItem,
-    IonLabel,
     IonPage,
     IonSpinner,
     IonToolbar,
@@ -23,6 +21,7 @@ import {
 } from 'ionicons/icons';
 import { checkQrAccessCode, verifyQrAccess } from '../services/api';
 import './SetPassword.css';
+import '../theme/ridge-button.css';
 import './PortalAccess.css';
 
 /**
@@ -188,9 +187,13 @@ const PortalAccess: React.FC = () => {
 
                             {!checking && codeValid && !success && (
                                 <>
-                                    <IonItem lines="none" className="auth-input-item">
-                                        <IonLabel position="stacked">REGISTERED EMAIL ADDRESS</IonLabel>
+                                    <div className="password-field">
+                                        <label className="password-label" htmlFor="portal-access-email">
+                                            Registered email address
+                                        </label>
+                                        <div className="password-input-wrap no-toggle">
                                         <IonInput
+                                            id="portal-access-email"
                                             ref={emailRef}
                                             type="email"
                                             inputmode="email"
@@ -201,11 +204,13 @@ const PortalAccess: React.FC = () => {
                                             }}
                                             onKeyDown={handleKeyDown}
                                             placeholder="you@example.com"
-                                            className="auth-input"
+                                            className="password-input"
+                                            aria-label="Registered email address"
                                             autocomplete="email"
                                             enterkeyhint="go"
                                         />
-                                    </IonItem>
+                                        </div>
+                                    </div>
 
                                     <p className="qr-access-note">
                                         <IonIcon icon={lockClosedOutline} aria-hidden="true" />
@@ -215,7 +220,7 @@ const PortalAccess: React.FC = () => {
 
                                     <IonButton
                                         expand="block"
-                                        className="auth-btn primary-btn"
+                                        className="auth-btn primary-btn ridge-btn"
                                         disabled={!canSubmit}
                                         onClick={handleSubmit}
                                     >

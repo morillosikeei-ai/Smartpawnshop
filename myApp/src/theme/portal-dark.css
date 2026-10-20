@@ -1942,7 +1942,6 @@ html[data-theme="dark"] .skeleton {
 /* src/components/Skeleton.css */
 html[data-theme="dark"] .skeleton-stat {
   border: 1px solid var(--ap-line, #2a3650) !important;
-  background: #131c2e !important;
 }
 
 /* src/components/Skeleton.css */
@@ -6267,3 +6266,67 @@ html[data-theme="dark"] .portal-page .action-dialog-head button {
 html[data-theme="dark"] .portal-page .pickup-code-lead {
   color: #c2cbdb !important;
 }
+
+/* Feedback (src/pages/CustomerPortal.css) */
+html[data-theme="dark"] .portal-page .feedback-lead { color: #c2cbdb !important; }
+html[data-theme="dark"] .portal-page .feedback-stars button { color: #2a3650 !important; }
+html[data-theme="dark"] .portal-page .feedback-stars button.is-on { color: #d8c68a !important; }
+html[data-theme="dark"] .portal-page .feedback-scale { color: #bfaa73 !important; }
+html[data-theme="dark"] .portal-page .feedback-comment span { color: #c2cbdb !important; }
+html[data-theme="dark"] .portal-page .feedback-comment textarea {
+  border-color: #2a3650 !important;
+  background: #0e1626 !important;
+  color: #e6ebf5 !important;
+}
+html[data-theme="dark"] .portal-page .feedback-error { color: #d59e97 !important; }
+html[data-theme="dark"] .portal-page .feedback-skip { color: #8b97ad !important; }
+
+/* Reports > Customer Feedback (src/admin/AdminPortal.css) */
+html[data-theme="dark"] .admin-page .fb-stars { color: #2a3650 !important; }
+html[data-theme="dark"] .admin-page .fb-stars .is-on { color: #d8c68a !important; }
+html[data-theme="dark"] .admin-page .fb-spread-row i { background: #0e1626 !important; }
+html[data-theme="dark"] .admin-page .fb-spread-row strong { color: #e6ebf5 !important; }
+html[data-theme="dark"] .admin-page .fb-row {
+  border-color: #2a3650 !important;
+  color: #e6ebf5 !important;
+}
+
+/* Manage > Shop Schedule (src/admin/AdminPortal.css) */
+html[data-theme="dark"] :is(.admin-page, .admin-schedule-modal) .sched-form input,
+html[data-theme="dark"] :is(.admin-page, .admin-schedule-modal) .sched-form select {
+  border-color: #2a3650 !important;
+  background: #0e1626 !important;
+  color: #e6ebf5 !important;
+}
+html[data-theme="dark"] :is(.admin-page, .admin-schedule-modal) .sched-row {
+  border-color: #2a3650 !important;
+  color: #e6ebf5 !important;
+}
+html[data-theme="dark"] :is(.admin-page, .admin-schedule-modal) .sched-closed { color: #f0928a !important; }
+
+/* Weight unit (src/staff/NewTransaction.css) */
+html[data-theme="dark"] .staff-page .tx-weight-unit { color: #8b97ad !important; }
+
+/* Field warning (src/staff/NewTransaction.css) */
+html[data-theme="dark"] .staff-page .tx-field-warn { color: #fbbf24 !important; }
+
+/* Staff due calendar (src/staff/StaffDueCalendar.css) */
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-nav button { border-color: #2a3650 !important; background: #1a2539 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day { background: #1a2539 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.normal { background: rgba(21, 128, 61, .18) !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.medium { background: rgba(202, 138, 4, .2) !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.high { background: rgba(180, 35, 24, .24) !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.today .due-calendar-date { color: #f5c842 !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-weekday { color: #8b97ad !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-row { border-color: #2a3650 !important; background: #1a2539 !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-row-main strong,
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-row-meta span:first-child { color: #e2e8f0 !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-view { border-color: #8fb0ff !important; color: #8fb0ff !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-view:hover { background: #8fb0ff !important; color: #0b1220 !important; }
+
+/* Shop schedule dialog (src/admin/AdminPortal.css) */
+html[data-theme="dark"] .admin-schedule-modal .sched-list { border-color: #2a3650 !important; }
+html[data-theme="dark"] .admin-schedule-modal .sched-head { background: #141e30 !important; color: #8b97ad !important; }
+html[data-theme="dark"] .admin-schedule-modal .sched-remove { border-color: #2a3650 !important; background: #1a2539 !important; color: #f0928a !important; }
+html[data-theme="dark"] .admin-schedule-modal .sched-remove:hover { border-color: #f0928a !important; }
+html[data-theme="dark"] .admin-schedule-modal .sched-empty { color: #8b97ad !important; }

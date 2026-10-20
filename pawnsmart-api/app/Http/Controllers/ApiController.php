@@ -6,12 +6,14 @@ use App\Models\ActivityFlag;
 use App\Models\Customer;
 use App\Models\CustomerAccessToken;
 use App\Models\AuditLog;
+use App\Models\Feedback;
 use App\Models\GoldPrice;
 use App\Models\Item;
 use App\Models\ItemReservation;
 use App\Models\Notification;
 use App\Models\RenewalRequest;
 use App\Models\RiskAlert;
+use App\Models\ShopClosure;
 use App\Models\SilverPrice;
 use App\Models\SystemSetting;
 use App\Models\Transaction;
@@ -24,6 +26,8 @@ use App\Services\ReservationService;
 use App\Mail\ActivationMail;
 use App\Mail\PasswordResetMail;
 use App\Support\FrontendUrl;
+use App\Support\MediaUrl;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -73,6 +77,13 @@ class ApiController extends Controller
      * How long a password reset link stays usable, in minutes.
      */
     private const PASSWORD_RESET_EXPIRY_MINUTES = 60;
+
+    /**
+     * How recently a pawn must have been redeemed for its customer to be asked
+     * about it. Long enough to catch somebody who did not open the portal that
+     * week, short enough that nobody is asked about a pawn they have forgotten.
+     */
+    private const FEEDBACK_WINDOW_DAYS = 30;
 
     /** Most rows one staff report breakdown returns. The tiles carry the counts; this is the reading list. */
     private const REPORT_BREAKDOWN_LIMIT = 100;
@@ -434,7 +445,18 @@ class ApiController extends Controller
             unset($data['password']);
         }
 
+        $wasActive = $user->status === 'active';
         $user->fill($data)->save();
+
+        /*
+          Deactivating has to end the sessions that are already open. The role
+          middleware reads the role, not the status, so a token issued before
+          this point would keep working and the account would look switched off
+          while still being used.
+        */
+        if ($wasActive && ($data['status'] ?? null) === 'inactive') {
+            $user->tokens()->delete();
+        }
 
         $changes = array_filter([
             isset($data['status']) ? "status {$data['status']}" : null,
@@ -482,6 +504,52 @@ class ApiController extends Controller
         });
 
         return response()->json($customer, 201);
+    }
+
+    /**
+     * Update a customer's details from the New Pawn Transaction form.
+     *
+     * Only the fields sent are changed. The email is left out on purpose: it
+     * is the customer's sign-in and where password resets go, so staff cannot
+     * redirect it. The name and contact number are copied to the sign-in
+     * account too, so both records agree. The changed fields are written to
+     * the audit log.
+     */
+    public function updateCustomer(Request $request, Customer $customer): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'contact_number' => ['sometimes', 'required', 'string', 'max:50'],
+            'address' => ['sometimes', 'nullable', 'string'],
+            'valid_id_type' => ['sometimes', 'required', 'string', 'max:100'],
+            'valid_id_number' => ['sometimes', 'required', 'string', 'max:100'],
+            'valid_id_photo' => ['sometimes', 'nullable', 'string', 'max:8000000'],
+        ]);
+
+        // The app sends back the link it was given when the ID photo did not
+        // change; only a new image (or null, to remove it) replaces the photo.
+        if (MediaUrl::isLinkTo($data['valid_id_photo'] ?? null, "/media/customers/{$customer->customers_id}/id")) {
+            unset($data['valid_id_photo']);
+        }
+
+        $customer->fill($data);
+        $changed = array_keys($customer->getDirty());
+
+        DB::transaction(function () use ($customer, $data) {
+            $customer->save();
+            $account = array_intersect_key($data, array_flip(['name', 'contact_number']));
+            if ($account && $customer->user) $customer->user->fill($account)->save();
+        });
+
+        if ($changed) {
+            AuditLog::create([
+                'user_id' => $request->user()->users_id,
+                'action' => "Updated customer #{$customer->customers_id} details",
+                'reason' => implode(', ', array_map(fn ($field) => str_replace('_', ' ', $field), $changed)),
+            ]);
+        }
+
+        return response()->json($customer->fresh('user'));
     }
 
     public function items(Request $request): JsonResponse
@@ -610,10 +678,17 @@ class ApiController extends Controller
             // Brand or model identifies a watch, cellphone, or bulky item the
             // way karat and weight identify jewelry.
             'brand_model' => [$isJewelry ? 'nullable' : 'required', 'string'],
+            // A watch, cellphone or bulky item's structured details (Item::DETAIL_FIELDS).
+            // All optional: an IMEI, when given, is the 15 digits a phone shows
+            // for *#06#, and battery health is a percentage.
+            'item_details' => ['nullable', 'array'],
+            'item_details.imei' => ['nullable', 'regex:/^\d{15}$/'],
+            'item_details.battery_health' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'item_details.*' => ['nullable'],
             'metal_type' => ['nullable', Rule::in([Item::METAL_GOLD, Item::METAL_SILVER])],
             'karat' => [$isJewelry && ! $isSilver ? 'required' : 'nullable', Rule::in(array_map('strval', array_keys(Item::KARAT_PURITY)))],
             'fineness' => [$isSilver ? 'required' : 'nullable', Rule::in(array_map('strval', array_keys(Item::SILVER_PURITY)))],
-            'weight_grams' => [$isJewelry ? 'required' : 'nullable', 'numeric', 'gt:0'],
+            'weight_grams' => [$isJewelry ? 'required' : 'nullable', 'numeric', 'gt:0', 'max:10000'],
             // Suggested conditions arrive as good, fair, or damaged; the staff
             // may also type a custom condition, which is stored as typed.
             'condition' => ['required', 'string', 'max:100'],
@@ -658,6 +733,29 @@ class ApiController extends Controller
         } else {
             $appraisedValue = $data['appraised_value'];
         }
+
+        // A watch, a cellphone or a bulky item keeps structured details, and
+        // only the keys listed for it. Blank answers are left out rather than stored.
+        $detailFields = match ($group) {
+            Item::GROUP_WATCH_PHONE => Item::DETAIL_FIELDS[$data['category']] ?? [],
+            Item::GROUP_BULKY => Item::DETAIL_FIELDS['bulky'],
+            default => [],
+        };
+        $details = [];
+        foreach ($detailFields as $field) {
+            $value = $data['item_details'][$field] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            if (in_array($field, Item::DETAIL_FLAGS, true)) {
+                $details[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            } elseif ($field === 'battery_health') {
+                $details[$field] = (int) $value;
+            } elseif (is_scalar($value)) {
+                $details[$field] = mb_substr(trim((string) $value), 0, 100);
+            }
+        }
+        $data['item_details'] = $details !== [] ? $details : null;
 
         // Only jewelry carries a gemstone. For the other groups, and for jewelry
         // without one, the gemstone fields are stored empty.
@@ -706,6 +804,92 @@ class ApiController extends Controller
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Created pawn ticket', 'ticket_number' => $transaction->ticket_number, 'reason' => $data['adjustment_reason'] ?? null]);
         $notifications->itemRecorded($item->load('customer'), $transaction);
         return response()->json($transaction->load('item', 'customer'), 201);
+    }
+
+    /** Labels for the face check results the redemption screen reports. */
+    private const FACE_CHECK_RESULTS = [
+        'match' => 'Face matched',
+        'unsure' => 'Face match unsure',
+        'no_match' => 'Face did not match',
+        'no_reference' => 'No face reference on file',
+        'skipped' => 'Face check skipped',
+    ];
+
+    /**
+     * A customer's face reference, for staff checking the person in front of
+     * them. The ID photo comes along as the fallback when none is enrolled.
+     */
+    public function customerFace(Customer $customer): JsonResponse
+    {
+        return response()->json([
+            'customers_id' => $customer->customers_id,
+            'face_photo' => $customer->face_photo,
+            'face_descriptor' => $customer->face_descriptor,
+            'face_enrolled_at' => $customer->face_enrolled_at?->toIso8601String(),
+            // The image itself, not a link: the face check reads its pixels.
+            'valid_id_photo' => $customer->getRawOriginal('valid_id_photo'),
+        ]);
+    }
+
+    /**
+     * Save the face photo staff took of the customer, with the face signature
+     * the browser worked out from it. Only stored with the customer's consent.
+     */
+    public function storeCustomerFace(Request $request, Customer $customer): JsonResponse
+    {
+        $data = $request->validate([
+            'face_photo' => ['required', 'string', 'starts_with:data:image/', 'max:8000000'],
+            'face_descriptor' => ['required', 'array', 'size:128'],
+            'face_descriptor.*' => ['required', 'numeric', 'between:-2,2'],
+            'consent' => ['accepted'],
+            // How the new photo compared with the valid ID photo, when there was one.
+            'id_match' => ['nullable', Rule::in(array_keys(self::FACE_CHECK_RESULTS))],
+        ]);
+
+        $customer->forceFill([
+            'face_photo' => $data['face_photo'],
+            'face_descriptor' => array_map('floatval', $data['face_descriptor']),
+            'face_consent_at' => now(),
+            'face_enrolled_at' => now(),
+        ])->save();
+
+        AuditLog::create([
+            'user_id' => $request->user()->users_id,
+            'action' => 'Enrolled face reference for '.$customer->name,
+            'reason' => isset($data['id_match']) ? 'Compared with valid ID: '.self::FACE_CHECK_RESULTS[$data['id_match']] : null,
+        ]);
+
+        return response()->json($customer->fresh());
+    }
+
+    /** Remove a customer's face reference, for instance when they withdraw consent. */
+    public function deleteCustomerFace(Request $request, Customer $customer): JsonResponse
+    {
+        $customer->forceFill(['face_photo' => null, 'face_descriptor' => null, 'face_consent_at' => null, 'face_enrolled_at' => null])->save();
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Removed face reference for '.$customer->name]);
+
+        return response()->json($customer->fresh());
+    }
+
+    /**
+     * Record how the claimant's face compared at redemption. The check only
+     * informs staff; it never blocks the payment, so it is kept for review.
+     */
+    public function faceCheck(Request $request, Transaction $transaction): JsonResponse
+    {
+        $data = $request->validate([
+            'result' => ['required', Rule::in(array_keys(self::FACE_CHECK_RESULTS))],
+            'distance' => ['nullable', 'numeric', 'between:0,2'],
+        ]);
+
+        AuditLog::create([
+            'user_id' => $request->user()->users_id,
+            'action' => self::FACE_CHECK_RESULTS[$data['result']].' at redemption',
+            'ticket_number' => $transaction->ticket_number,
+            'reason' => isset($data['distance']) ? 'Face distance '.number_format((float) $data['distance'], 3).' (lower is closer)' : null,
+        ]);
+
+        return response()->json(['recorded' => true]);
     }
 
     public function redeem(Request $request, Transaction $transaction, NotificationService $notifications): JsonResponse
@@ -835,6 +1019,76 @@ class ApiController extends Controller
     public function goldPriceSuggestion(GoldPriceService $goldPriceService): JsonResponse
     {
         return response()->json($goldPriceService->getRedemptionSuggestion());
+    }
+
+    /**
+     * Active pawns laid out by due date for one month, for the staff dashboard
+     * calendar. Nothing is written.
+     *
+     * Each day carries how many active pawns fall due and the worst level among
+     * them: "high" when any is overdue or has an open high risk alert, "medium"
+     * when any has an open medium alert, otherwise "normal". Alongside the
+     * month, "today" and "at_risk" feed the panel's default view, so today's
+     * pawns and every open high or medium item stay visible whichever month is
+     * on screen.
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $start = isset($data['month']) ? Carbon::createFromFormat('Y-m-d', $data['month'].'-01')->startOfDay() : today()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $today = today();
+
+        // The worst open alert per item. Resolved alerts are history.
+        $riskByItem = [];
+        RiskAlert::where('resolved', false)->get(['item_id', 'risk_level'])->each(function (RiskAlert $alert) use (&$riskByItem) {
+            if (($riskByItem[$alert->item_id] ?? null) !== 'high') $riskByItem[$alert->item_id] = $alert->risk_level;
+        });
+
+        $row = function (Transaction $transaction) use ($riskByItem, $today) {
+            $daysLeft = (int) $today->diffInDays($transaction->due_date, false);
+
+            return [
+                'transaction_id' => $transaction->transactions_id,
+                'item_id' => $transaction->item_id,
+                'ticket_number' => $transaction->ticket_number,
+                'item' => $transaction->item?->description ?? 'Item #'.$transaction->item_id,
+                'customer' => $transaction->customer?->name ?? 'Unknown customer',
+                'loan_amount' => (float) $transaction->loan_amount,
+                'due_date' => $transaction->due_date->toDateString(),
+                'days_left' => $daysLeft,
+                'overdue' => $daysLeft < 0,
+                'risk' => $riskByItem[$transaction->item_id] ?? 'low',
+            ];
+        };
+
+        $active = Transaction::with(['item:items_id,description', 'customer:customers_id,name'])
+            ->where('status', 'active')
+            ->whereNotNull('due_date')
+            ->orderBy('due_date')
+            ->get();
+
+        $inMonth = $active->filter(fn (Transaction $transaction) => $transaction->due_date->between($start, $end))->map($row)->values();
+
+        $days = $inMonth->groupBy('due_date')->map(function ($rows, $date) {
+            $level = $rows->contains(fn ($entry) => $entry['overdue'] || $entry['risk'] === 'high') ? 'high'
+                : ($rows->contains(fn ($entry) => $entry['risk'] === 'medium') ? 'medium' : 'normal');
+
+            return ['date' => $date, 'count' => $rows->count(), 'level' => $level];
+        })->values();
+
+        return response()->json([
+            'month' => $start->format('Y-m'),
+            'today' => $today->toDateString(),
+            'days' => $days,
+            'items' => $inMonth,
+            'today_items' => $active->filter(fn (Transaction $transaction) => $transaction->due_date->isSameDay($today))->map($row)->values(),
+            // High first, then medium, soonest due first within each.
+            'at_risk' => $active->filter(fn (Transaction $transaction) => in_array($riskByItem[$transaction->item_id] ?? null, ['high', 'medium'], true))
+                ->map($row)
+                ->sortBy(fn ($entry) => [$entry['risk'] === 'high' ? 0 : 1, $entry['due_date']])
+                ->values(),
+        ]);
     }
 
     public function riskAlerts(Request $request): JsonResponse { $query = RiskAlert::with('item.customer')->latest('triggered_at'); if ($request->user()->role === 'customer') $query->whereHas('item', fn ($q) => $q->where('customer_id', optional($request->user()->customerProfile)->customers_id)); return response()->json($query->get()); }
@@ -1128,37 +1382,220 @@ class ApiController extends Controller
     }
 
     /**
-     * A request the customer raises from the Payments screen.
+     * The shop's week, and the exceptions to it for one month.
      *
-     * Three buttons share this one endpoint. A redemption payment request is
-     * the same event as pressing "I'm ready to redeem" on the item, so it runs
-     * through the same stamp and the same staff message rather than inventing a
-     * second one. An appointment or a renewal has no loan state of its own: it
-     * is a message to the counter, so only the staff notification is written.
+     * The weekly pattern is three settings rather than a table, because it
+     * changes about never. The exceptions are rows, because they are the part
+     * a customer has to be told about before they travel.
+     *
+     * Every role reads this: a customer planning a visit and a staff member
+     * answering the phone want the same answer.
      */
-    public function customerRequest(Request $request, Transaction $transaction, NotificationService $notifications): JsonResponse
+    public function shopSchedule(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'type' => ['required', Rule::in(['redemption_payment', 'appointment', 'renewal'])],
+            'month' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        $month = Carbon::parse(($data['month'] ?? now()->format('Y-m')).'-01');
+
+        $closures = ShopClosure::whereBetween('closure_date', [
+            $month->copy()->startOfMonth()->toDateString(),
+            $month->copy()->endOfMonth()->toDateString(),
+        ])->orderBy('closure_date')->get();
+
+        // The next shut day from today, whichever month it falls in, so the
+        // notice is useful even while looking at a month already past.
+        $nextClosure = ShopClosure::whereDate('closure_date', '>=', now()->toDateString())
+            ->orderBy('closure_date')
+            ->first();
+
+        return response()->json([
+            'month' => $month->format('Y-m'),
+            /* ISO weekday numbers the branch opens on: 1 is Monday, 7 Sunday. */
+            'open_days' => $this->openDays(),
+            'opens_at' => (string) (SystemSetting::where('setting_key', 'shop_opens_at')->value('setting_value') ?: '09:00'),
+            'closes_at' => (string) (SystemSetting::where('setting_key', 'shop_closes_at')->value('setting_value') ?: '18:00'),
+            'closures' => $closures->map(fn (ShopClosure $row) => $this->closurePayload($row))->all(),
+            'next_closure' => $nextClosure ? $this->closurePayload($nextClosure) : null,
+        ]);
+    }
+
+    /** Announce a shut day or a short day, replacing any already on that date. */
+    public function storeShopClosure(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'closure_date' => ['required', 'date'],
+            'label' => ['required', 'string', 'max:120'],
+            'kind' => ['required', Rule::in(['closed', 'half_day'])],
+            'opens_at' => ['nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
+            'closes_at' => ['nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
+        ]);
+
+        // A short day with no hours on it tells the customer nothing.
+        if ($data['kind'] === 'half_day' && (empty($data['opens_at']) || empty($data['closes_at']))) {
+            throw ValidationException::withMessages([
+                'opens_at' => 'A shorter day needs the hours it will actually keep.',
+            ]);
+        }
+
+        $closure = ShopClosure::updateOrCreate(
+            ['closure_date' => Carbon::parse($data['closure_date'])->toDateString()],
+            [
+                'label' => $data['label'],
+                'kind' => $data['kind'],
+                'opens_at' => $data['kind'] === 'half_day' ? $data['opens_at'] : null,
+                'closes_at' => $data['kind'] === 'half_day' ? $data['closes_at'] : null,
+            ]
+        );
+
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Announced shop closure', 'reason' => $closure->closure_date->toDateString().' - '.$closure->label]);
+
+        return response()->json($this->closurePayload($closure->fresh()), 201);
+    }
+
+    /** Take an announcement back down. */
+    public function deleteShopClosure(Request $request, ShopClosure $shopClosure): JsonResponse
+    {
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Removed shop closure', 'reason' => $shopClosure->closure_date->toDateString().' - '.$shopClosure->label]);
+        $shopClosure->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /** The ISO weekday numbers the branch opens on, from settings. */
+    private function openDays(): array
+    {
+        $stored = (string) (SystemSetting::where('setting_key', 'shop_open_days')->value('setting_value') ?: '1,2,3,4,5,6');
+
+        return collect(explode(',', $stored))
+            ->map(fn ($day) => (int) trim($day))
+            ->filter(fn (int $day) => $day >= 1 && $day <= 7)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    /** One announced day, as the calendar reads it. */
+    private function closurePayload(ShopClosure $closure): array
+    {
+        return [
+            'shop_closures_id' => $closure->shop_closures_id,
+            'closure_date' => $closure->closure_date->toDateString(),
+            'label' => $closure->label,
+            'kind' => $closure->kind,
+            'opens_at' => $closure->opens_at,
+            'closes_at' => $closure->closes_at,
+        ];
+    }
+
+    /**
+     * The redeemed pawn this customer has not rated yet, if there is one.
+     *
+     * Only one is offered at a time, and only while it is recent. A customer
+     * with three unrated redemptions was being asked about the next one every
+     * time they signed in, which reads as the portal nagging rather than
+     * asking. A pawn redeemed months ago is not worth asking about anyway:
+     * nobody remembers how it went.
+     */
+    public function pendingFeedback(Request $request): JsonResponse
+    {
+        $customerId = optional($request->user()->customerProfile)->customers_id;
+
+        abort_unless($request->user()->role === 'customer' && $customerId, 404);
+
+        $transaction = Transaction::with('item')
+            ->where('customer_id', $customerId)
+            ->where('status', 'redeemed')
+            ->where('redeemed_at', '>=', now()->subDays(self::FEEDBACK_WINDOW_DAYS))
+            ->whereNotIn('transactions_id', Feedback::select('transaction_id'))
+            ->latest('redeemed_at')
+            ->first();
+
+        if (! $transaction) {
+            return response()->json(['transaction' => null]);
+        }
+
+        return response()->json([
+            'transaction' => [
+                'transaction_id' => $transaction->transactions_id,
+                'ticket_number' => $transaction->ticket_number,
+                'item_name' => $transaction->item?->description,
+                'redeemed_at' => $transaction->redeemed_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Record what the customer thought.
+     *
+     * Their own pawn, already redeemed, not already rated. The unique key on
+     * the table is the real guard against a second rating; this check is what
+     * turns that into an answer the portal can show.
+     */
+    public function storeFeedback(Request $request, Transaction $transaction): JsonResponse
+    {
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $customerId = optional($request->user()->customerProfile)->customers_id;
 
         abort_unless($request->user()->role === 'customer' && $transaction->customer_id === $customerId, 404);
-        abort_unless($transaction->status === 'active', 422, 'Only an open pawn can be requested on.');
+        abort_unless($transaction->status === 'redeemed', 422, 'Only a redeemed pawn can be rated.');
+        abort_if(Feedback::where('transaction_id', $transaction->transactions_id)->exists(), 422, 'This pawn has already been rated.');
 
-        $transaction->loadMissing('item', 'customer');
+        $feedback = Feedback::create([
+            'transaction_id' => $transaction->transactions_id,
+            'customer_id' => $transaction->customer_id,
+            'rating' => $data['rating'],
+            'comment' => trim($data['comment'] ?? '') ?: null,
+        ]);
 
-        if ($data['type'] === 'redemption_payment') {
-            $transaction->update(['ready_to_redeem_at' => now()]);
-            $notifications->customerReadyToRedeem($transaction->fresh()->load('item', 'customer'));
-        } elseif ($data['type'] === 'appointment') {
-            $notifications->customerRequestedAppointment($transaction);
-        } else {
-            $notifications->customerRequestedRenewal($transaction);
-        }
+        return response()->json($this->feedbackPayload($feedback->load('transaction.item', 'customer')), 201);
+    }
 
-        return response()->json($transaction->fresh()->load('item', 'customer'));
+    /**
+     * Every rating, newest first, with the two figures the shop is judged on.
+     *
+     * The average and the count belong with the list rather than on a screen
+     * of their own: a 5.0 from one customer is a different thing from a 4.6
+     * from ninety, and the two numbers only mean something together.
+     */
+    public function feedbackList(Request $request): JsonResponse
+    {
+        $rows = Feedback::with('transaction.item', 'customer')->latest('feedback_id')->limit(200)->get();
+        $all = Feedback::query();
+
+        $total = (clone $all)->count();
+
+        return response()->json([
+            'feedback' => $rows->map(fn (Feedback $row) => $this->feedbackPayload($row))->all(),
+            'total' => $total,
+            'average_rating' => $total > 0 ? round((float) (clone $all)->avg('rating'), 2) : null,
+            // The spread says more than the average does: one angry customer
+            // among fifty is a different shop from a steady three out of five.
+            'rating_counts' => collect(range(1, 5))
+                ->mapWithKeys(fn (int $star) => [$star => (clone $all)->where('rating', $star)->count()])
+                ->all(),
+        ]);
+    }
+
+    /** One rating, as both portals read it. */
+    private function feedbackPayload(Feedback $feedback): array
+    {
+        return [
+            'feedback_id' => $feedback->feedback_id,
+            'transaction_id' => $feedback->transaction_id,
+            'ticket_number' => $feedback->transaction?->ticket_number,
+            'item_name' => $feedback->transaction?->item?->description,
+            'customer_name' => $feedback->customer?->name,
+            'rating' => $feedback->rating,
+            'comment' => $feedback->comment,
+            'submitted_at' => $feedback->created_at?->toIso8601String(),
+        ];
     }
 
     /**
@@ -1790,9 +2227,23 @@ class ApiController extends Controller
     {
         $data = $request->validate([
             'photos' => ['present', 'array', 'max:'.Item::MAX_PHOTOS],
-            'photos.*' => ['string', 'starts_with:data:image/', 'max:'.self::ITEM_PHOTO_MAX_CHARS],
+            'photos.*' => ['string', 'max:'.self::ITEM_PHOTO_MAX_CHARS],
         ]);
-        $photos = array_values($data['photos']);
+
+        // A photo the item already has comes back as the link the app was
+        // given for it; it is swapped for the stored image. Anything else must
+        // be a new image.
+        $stored = $item->storedPhotos();
+        $photos = [];
+        foreach (array_values($data['photos']) as $position => $photo) {
+            if (preg_match('~/media/items/'.$item->items_id.'/(\d+)(?:[?#]|$)~', $photo, $match) && isset($stored[(int) $match[1]])) {
+                $photos[] = $stored[(int) $match[1]];
+            } elseif (str_starts_with($photo, 'data:image/')) {
+                $photos[] = $photo;
+            } else {
+                throw ValidationException::withMessages(["photos.{$position}" => 'Each photo must be an image.']);
+            }
+        }
         if (array_sum(array_map('strlen', $photos)) > self::ITEM_PHOTOS_TOTAL_MAX_CHARS) {
             throw ValidationException::withMessages([
                 'photos' => 'The item photos are too large together. Remove a photo or retake it and try again.',

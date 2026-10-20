@@ -1066,3 +1066,100 @@
   .admin-stat-link { transition: none; }
   .admin-stat-link:hover { transform: none; }
 }
+
+/* ---------- Reports > Customer Feedback ----------
+   The average and the count are shown together because either one alone
+   invites the wrong reading; the spread under them says what an average
+   hides. */
+.admin-page .fb-panel { display: grid; gap: 18px; }
+.admin-page .fb-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.admin-page .fb-stars { display: inline-flex; gap: 2px; color: #cbd5e1; font-size: var(--fs-14); }
+.admin-page .fb-stars .is-on { color: #d4a72c; }
+.admin-page .fb-spread { display: grid; gap: 7px; }
+.admin-page .fb-spread-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) 36px; align-items: center; gap: 12px; font-size: var(--fs-12); color: var(--admin-muted); }
+.admin-page .fb-spread-row i { display: block; height: 8px; border-radius: 999px; background: #eef2f8; overflow: hidden; }
+.admin-page .fb-spread-row b { display: block; height: 100%; border-radius: 999px; background: #d4a72c; }
+.admin-page .fb-spread-row strong { text-align: right; font-variant-numeric: tabular-nums; color: #061028; }
+.admin-page .fb-head, .admin-page .fb-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) 110px minmax(0, 1.8fr);
+  gap: 12px;
+  align-items: center;
+  padding: 11px 16px;
+}
+.admin-page .fb-row { border-bottom: 1px solid #f1f5f9; font-size: var(--fs-12); color: #061028; }
+.admin-page .fb-row:last-child { border-bottom: 0; }
+.admin-page .fb-comment { white-space: normal; line-height: 1.45; }
+.admin-page .fb-comment em { color: var(--admin-muted); font-style: normal; }
+@media (max-width: 760px) {
+  .admin-page .fb-summary { grid-template-columns: 1fr; }
+  .admin-page .fb-head { display: none; }
+  .admin-page .fb-row { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* ---------- Manage > Shop Schedule ----------
+   The weekly pattern is set with the other settings; this is only the days
+   that break it, which is what a customer actually needs warning about. */
+:is(.admin-page, .admin-schedule-modal) .sched-panel { display: grid; gap: 14px; }
+:is(.admin-page, .admin-schedule-modal) .sched-lead { margin: 0; }
+:is(.admin-page, .admin-schedule-modal) .sched-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+:is(.admin-page, .admin-schedule-modal) .sched-form label { display: grid; gap: 5px; color: var(--admin-muted); font-size: var(--fs-11); font-weight: 800; letter-spacing: .04em; }
+:is(.admin-page, .admin-schedule-modal) .sched-form input,
+:is(.admin-page, .admin-schedule-modal) .sched-form select {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #061028;
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: 400;
+  letter-spacing: normal;
+}
+:is(.admin-page, .admin-schedule-modal) .sched-head, :is(.admin-page, .admin-schedule-modal) .sched-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1.6fr) minmax(0, 1fr) 96px;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 16px;
+}
+:is(.admin-page, .admin-schedule-modal) .sched-row { border-bottom: 1px solid #f1f5f9; font-size: var(--fs-12); color: #061028; }
+:is(.admin-page, .admin-schedule-modal) .sched-row:last-child { border-bottom: 0; }
+:is(.admin-page, .admin-schedule-modal) .sched-closed { font-style: normal; font-weight: 700; color: #b42318; }
+@media (max-width: 720px) {
+  :is(.admin-page, .admin-schedule-modal) .sched-head { display: none; }
+  :is(.admin-page, .admin-schedule-modal) .sched-row { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* ---------- Shop schedule dialog ----------
+   Opened from the dashboard calendar. Wider than the account dialogs so the
+   notice list keeps its four columns. */
+.admin-schedule-modal::part(content) { width: min(720px, calc(100% - 28px)); }
+.admin-schedule-modal .sched-actions { display: flex; justify-content: flex-end; }
+.admin-schedule-modal .sched-list { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.admin-schedule-modal .sched-head {
+  background: #f8fafc;
+  color: var(--admin-muted);
+  font-size: var(--fs-10);
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.admin-schedule-modal .col-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.admin-schedule-modal .sched-remove {
+  justify-self: end;
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #b42318;
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-schedule-modal .sched-remove:hover { border-color: #b42318; background: #fef3f2; }
+.admin-schedule-modal .sched-empty { margin: 0; padding: 22px 16px; color: var(--admin-muted); font-size: var(--fs-12); text-align: center; }
+@media (max-width: 720px) {
+  .admin-schedule-modal .sched-remove { justify-self: start; }
+}

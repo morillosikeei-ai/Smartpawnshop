@@ -1,0 +1,164 @@
+/* ---------- Shop Schedule & Holiday Notice ----------
+   A date picker, not a page. The customer only reads this: one glance to see
+   whether the branch is open, then back to their own pawns. It is sized to a
+   fixed 300px card so it never stretches to fill whatever column it lands in,
+   which is what made the first version swallow the dashboard.
+
+   Indicators are deliberately quiet. On a grid this small a filled cell shouts;
+   a tinted number and a dot are enough. */
+
+.shop-calendar {
+	display: grid;
+	gap: 10px;
+	width: 100%;
+	max-width: 300px;
+	border: 1px solid var(--pui-line, #e6ebf3);
+	border-radius: 12px;
+	padding: 12px;
+	background: #fff;
+	box-shadow: 0 8px 22px rgba(8, 20, 48, .06);
+}
+
+.shop-calendar-head { display: grid; gap: 8px; }
+
+.shop-calendar-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--pui-n-500, #64748b);
+	font-size: var(--fs-10);
+	font-weight: 800;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+}
+.shop-calendar-title ion-icon { font-size: .95rem; }
+
+/* Month, flanked by the two controls. Standard date picker furniture. */
+.shop-calendar-nav { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.shop-calendar-nav strong { flex: 1; text-align: center; font-size: var(--fs-13); font-weight: 700; }
+.shop-calendar-nav button {
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	flex: 0 0 26px;
+	border: 1px solid var(--pui-n-200, #e2e8f0);
+	border-radius: 7px;
+	background: #fff;
+	color: #061028;
+	font-size: var(--fs-12);
+	cursor: pointer;
+}
+.shop-calendar-nav button:hover { border-color: #1d4ed8; color: #1d4ed8; }
+
+.shop-calendar-error { margin: 0; color: #b42318; font-size: var(--fs-11); }
+
+.shop-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+.shop-calendar-weekday {
+	padding-bottom: 2px;
+	color: var(--pui-n-500, #64748b);
+	font-size: var(--fs-10);
+	font-weight: 700;
+	text-align: center;
+}
+
+/* Square cells at a fixed size, so the grid stays a picker at any width. */
+.shop-calendar-blank { height: 32px; }
+
+.shop-calendar-day {
+	position: relative;
+	display: grid;
+	place-items: center;
+	height: 32px;
+	border: 1px solid transparent;
+	border-radius: 7px;
+	padding: 0;
+	background: none;
+	color: #061028;
+	font: inherit;
+	font-size: var(--fs-12);
+	cursor: pointer;
+	transition: background .12s ease, border-color .12s ease;
+}
+.shop-calendar-day b { font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1; }
+.shop-calendar-day:hover { background: var(--pui-n-100, #f1f5f9); }
+
+/* Closed reads by colour and by a struck number, so it still says shut to
+   someone who cannot separate the two tints. */
+.shop-calendar-day.is-shut { color: #b42318; }
+.shop-calendar-day.is-shut b { text-decoration: line-through; text-decoration-thickness: 1px; }
+.shop-calendar-day.is-half { color: #a16207; }
+
+/* One dot means the day has a reason attached, on either kind. */
+.shop-calendar-day i {
+	position: absolute;
+	bottom: 4px;
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.shop-calendar-day.is-today { background: #eef3ff; color: #1d4ed8; font-weight: 800; }
+.shop-calendar-day.is-today.is-shut { background: #fef3f2; color: #b42318; }
+.shop-calendar-day.is-picked { border-color: #061028; }
+
+/* The one line under the grid: the picked day, or the next closure. */
+.shop-calendar-detail {
+	display: grid;
+	gap: 1px;
+	border-left: 3px solid var(--pui-n-300, #cbd5e1);
+	border-radius: 6px;
+	padding: 7px 9px;
+	background: var(--pui-n-50, #f8fafc);
+}
+.shop-calendar-detail strong { font-size: var(--fs-12); font-weight: 700; }
+.shop-calendar-detail span { color: var(--pui-n-500, #64748b); font-size: var(--fs-11); line-height: 1.4; }
+.shop-calendar-detail.is-shut { border-left-color: #b42318; background: #fef3f2; }
+.shop-calendar-detail.is-shut strong { color: #b42318; }
+.shop-calendar-detail.is-half { border-left-color: #a16207; background: #fffbeb; }
+.shop-calendar-detail.is-half strong { color: #a16207; }
+
+.shop-calendar-key { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.shop-calendar-key li { display: inline-flex; align-items: center; gap: 4px; color: var(--pui-n-500, #64748b); font-size: var(--fs-10); }
+.shop-calendar-key i { width: 7px; height: 7px; border-radius: 50%; }
+.shop-calendar-key i.is-open { background: #cbd5e1; }
+.shop-calendar-key i.is-half { background: #a16207; }
+.shop-calendar-key i.is-shut { background: #b42318; }
+
+/* ---------- Dark ---------- */
+html[data-theme="dark"] .shop-calendar {
+	border-color: #2a3650;
+	background: #131c2e;
+	box-shadow: none;
+}
+html[data-theme="dark"] .shop-calendar-title,
+html[data-theme="dark"] .shop-calendar-weekday,
+html[data-theme="dark"] .shop-calendar-key li,
+html[data-theme="dark"] .shop-calendar-detail span { color: #8b97ad; }
+html[data-theme="dark"] .shop-calendar-nav strong { color: #e6ebf5; }
+html[data-theme="dark"] .shop-calendar-nav button {
+	border-color: #2a3650;
+	background: #0e1626;
+	color: #e6ebf5;
+}
+html[data-theme="dark"] .shop-calendar-day { color: #e6ebf5; }
+html[data-theme="dark"] .shop-calendar-day:hover { background: #1a2437; }
+html[data-theme="dark"] .shop-calendar-day.is-shut { color: #f0928a; }
+html[data-theme="dark"] .shop-calendar-day.is-half { color: #d8c68a; }
+html[data-theme="dark"] .shop-calendar-day.is-today { background: #16233c; color: #8fb0ff; }
+html[data-theme="dark"] .shop-calendar-day.is-today.is-shut { background: #2a1618; color: #f0928a; }
+html[data-theme="dark"] .shop-calendar-day.is-picked { border-color: #e6ebf5; }
+html[data-theme="dark"] .shop-calendar-detail {
+	border-left-color: #2a3650;
+	background: #0e1626;
+}
+html[data-theme="dark"] .shop-calendar-detail strong { color: #e6ebf5; }
+html[data-theme="dark"] .shop-calendar-detail.is-shut { border-left-color: #f0928a; background: #2a1618; }
+html[data-theme="dark"] .shop-calendar-detail.is-shut strong { color: #f0928a; }
+html[data-theme="dark"] .shop-calendar-detail.is-half { border-left-color: #d8c68a; background: #2a2416; }
+html[data-theme="dark"] .shop-calendar-detail.is-half strong { color: #d8c68a; }
+html[data-theme="dark"] .shop-calendar-key i.is-open { background: #46536b; }
+html[data-theme="dark"] .shop-calendar-key i.is-half { background: #d8c68a; }
+html[data-theme="dark"] .shop-calendar-key i.is-shut { background: #f0928a; }

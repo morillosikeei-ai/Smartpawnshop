@@ -628,7 +628,7 @@ ion-modal .tx-customer-modal-box .tx-field ion-input,
 ion-modal .tx-customer-modal-box .tx-field ion-select { min-height: 28px; color: #061028 !important; --padding-start: 0; --padding-end: 0; --placeholder-color: #98a7b7; font-size: var(--fs-13); }
 ion-modal .tx-customer-modal-box .tx-field ion-input::part(native),
 ion-modal .tx-customer-modal-box .tx-field ion-select::part(text) { color: #061028; font-weight: 600; }
-ion-modal .tx-customer-modal-box .file-input { display: grid; gap: 7px; grid-column: 1 / -1; padding: 12px; border: 1px dashed #9bb4dc; border-radius: 10px; background: #f4f7fb; color: #52627b; font-size: var(--fs-12); font-weight: 700; }
+ion-modal .tx-customer-modal-box .file-input { display: grid; gap: 7px; padding: 12px; border: 1px dashed #9bb4dc; border-radius: 10px; background: #f4f7fb; color: #52627b; font-size: var(--fs-12); font-weight: 700; }
 ion-modal .tx-customer-modal-box .file-input input { width: 100%; color: #061028; font-size: var(--fs-12); }
 ion-modal .tx-customer-modal-box .tx-customer-modal-actions .primary-button,
 ion-modal .tx-customer-modal-box .tx-customer-modal-actions .secondary-button { border-radius: 8px; padding: 10px 16px; font: inherit; font-size: var(--fs-12); font-weight: 800; cursor: pointer; }
@@ -1213,3 +1213,63 @@ ion-modal .workflow-confirm-modal p { color: #52627b; }
 html[data-theme="dark"] .staff-page .workflow-table td small.workflow-hold { color: #93b4ff; }
 .workflow-actions button.workflow-hold-cancel { background: transparent; border: 1px solid currentColor; color: #b42318; }
 html[data-theme="dark"] .workflow-actions button.workflow-hold-cancel { color: #f0928a; }
+
+/* Face photo row under the customer's details in New Transaction, and the
+   claimant face check on the redemption payment screen. */
+.staff-page .tx-face-row,
+.payment-face-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px dashed #c7d2e2;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.staff-page .tx-face-row > ion-icon { flex: none; font-size: 1.8rem; color: #1d4ed8; }
+.staff-page .tx-face-row > div,
+.payment-face-check > div { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.staff-page .tx-face-row strong,
+.payment-face-check strong { color: #061028; font-size: var(--fs-13); }
+.payment-face-check strong small { color: #64748b; font-weight: 500; }
+.staff-page .tx-face-row span,
+.payment-face-check span { color: #52627b; font-size: var(--fs-12); line-height: 1.4; }
+.staff-page .tx-face-row button,
+.payment-face-check button { display: inline-flex; flex: none; align-items: center; gap: 6px; }
+.staff-page .tx-face-row.is-done { border-style: solid; border-color: #b7e4c7; background: #ecfdf3; }
+.staff-page .tx-face-row.is-done > ion-icon { color: #15803d; }
+.payment-face-check { margin: 12px 0; }
+.payment-face-check.is-match { border-style: solid; border-color: #b7e4c7; background: #ecfdf3; }
+.payment-face-check.is-unsure { border-style: solid; border-color: #f3d78a; background: #fef9e7; }
+.payment-face-check.is-no-match { border-style: solid; border-color: #f4b4ae; background: #fef3f2; }
+
+html[data-theme="dark"] .staff-page .tx-face-row,
+html[data-theme="dark"] .payment-face-check { border-color: #2a3650; background: #111b2e; }
+html[data-theme="dark"] .staff-page .tx-face-row strong,
+html[data-theme="dark"] .payment-face-check strong { color: #e6ecf5; }
+html[data-theme="dark"] .staff-page .tx-face-row span,
+html[data-theme="dark"] .payment-face-check span { color: #94a3b8; }
+html[data-theme="dark"] .staff-page .tx-face-row.is-done,
+html[data-theme="dark"] .payment-face-check.is-match { border-color: #1f4d36; background: #12291f; }
+html[data-theme="dark"] .payment-face-check.is-unsure { border-color: #5c4a14; background: #2d2610; }
+html[data-theme="dark"] .payment-face-check.is-no-match { border-color: #6b2a25; background: #3a1c1a; }
+
+@media (max-width: 620px) {
+  .staff-page .tx-face-row,
+  .payment-face-check { flex-wrap: wrap; }
+  .staff-page .tx-face-row button,
+  .payment-face-check button { width: 100%; justify-content: center; }
+}
+
+/* Redemption payment: two columns on wide screens, what is owed on the left
+   and the payment form on the right, so the whole screen fits without
+   scrolling. Below 900px it falls back to one column. */
+ion-modal .payment-columns { display: grid; gap: 18px; min-width: 0; }
+ion-modal .payment-col { display: grid; gap: 14px; align-content: start; min-width: 0; }
+ion-modal .payment-col > * { margin-top: 0; margin-bottom: 0; }
+@media (min-width: 900px) {
+  ion-modal.payment-modal::part(content) { width: min(1040px, calc(100vw - 32px)) !important; }
+  ion-modal .payment-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px; }
+  ion-modal .payment-col-summary .payment-summary { grid-template-columns: 1fr 1fr; }
+  ion-modal .payment-col-summary .payment-summary > div:last-child { grid-column: 1 / -1; }
+}
