@@ -12,7 +12,7 @@ class Customer extends Model
     use HasFactory;
 
     protected $primaryKey = 'customers_id';
-    protected $fillable = ['user_id', 'name', 'contact_number', 'address', 'valid_id_type', 'valid_id_number', 'valid_id_photo', 'registered_by_staff_id'];
+    protected $fillable = ['user_id', 'name', 'contact_number', 'address', 'province', 'city_municipality', 'barangay', 'street', 'valid_id_type', 'valid_id_number', 'valid_id_photo', 'registered_by_staff_id'];
     protected $casts = ['face_descriptor' => 'array', 'face_consent_at' => 'datetime', 'face_enrolled_at' => 'datetime'];
 
     /**

@@ -72,6 +72,8 @@ import {
   getSystemSettings,
   getTransactions,
   markItemForSale,
+  extendForfeitedPawn,
+  recordAuctionSale,
   markItemSold,
   clearApiCache,
   getReservations,
@@ -109,6 +111,10 @@ import CameraCapture from '../components/CameraCapture';
 import FaceCheck from '../components/FaceCheck';
 import type { FaceCheckResult } from '../services/api';
 import Combobox, { ComboOption, resolveComboValue } from '../components/Combobox';
+import AddressFields from '../components/AddressFields';
+import AuctionResultModal, { type AuctionOutcome } from './AuctionResultModal';
+import { EMPTY_ADDRESS, formatCompleteAddress } from '../components/address';
+import { matchPsgcAddress } from '../components/addressMatch';
 import TypeSelect from '../components/TypeSelect';
 import './StaffPortal.css';
 import './RedeemBreakdown.css';
@@ -211,6 +217,9 @@ const NOTIFICATION_ICONS: Record<string, { icon: string; tone: 'info' | 'warn' |
   staff_high_risk: { icon: warningOutline, tone: 'danger' },
   staff_overdue: { icon: alertCircleOutline, tone: 'warn' },
   staff_forfeited: { icon: cubeOutline, tone: 'neutral' },
+  staff_listed_for_sale: { icon: cubeOutline, tone: 'info' },
+  staff_pawn_extended: { icon: refreshOutline, tone: 'success' },
+  staff_auction_notice: { icon: alertCircleOutline, tone: 'warn' },
   item_created: { icon: cubeOutline, tone: 'info' },
   value_changed: { icon: trendingUpOutline, tone: 'warn' },
   risk_notice: { icon: warningOutline, tone: 'warn' },
@@ -218,6 +227,11 @@ const NOTIFICATION_ICONS: Record<string, { icon: string; tone: 'info' | 'warn' |
   redeem_confirmed: { icon: checkmarkCircle, tone: 'success' },
   redemption_complete: { icon: checkmarkCircle, tone: 'success' },
   forfeited: { icon: cubeOutline, tone: 'neutral' },
+  overdue: { icon: alertCircleOutline, tone: 'warn' },
+  listed_for_sale: { icon: cubeOutline, tone: 'info' },
+  pawn_extended: { icon: refreshOutline, tone: 'success' },
+  auction_notice: { icon: alertCircleOutline, tone: 'danger' },
+  auction_sold: { icon: cubeOutline, tone: 'neutral' },
   renewal_confirmed: { icon: checkmarkCircle, tone: 'success' },
   renewal_rejected: { icon: alertCircleOutline, tone: 'warn' },
   staff_item_reserved: { icon: cubeOutline, tone: 'info' },
@@ -697,7 +711,7 @@ const Dashboard: React.FC<{
             </div>
 
             <div className="gold-chart-wrap">
-              <GoldPriceChart points={goldWindow} loading={!loaded} />
+              <GoldPriceChart points={goldWindow} loading={!loaded} showTable={false} />
               {loaded && goldPeak > 0 && (
                 // The peak and floor the old scale column printed beside the
                 // bars, kept as one quiet caption instead of two floating
@@ -957,7 +971,8 @@ const NewTransaction: React.FC<{
   const [newCustomerDraft, setNewCustomerDraft] = useState({
     fullName: '',
     contactNumber: '',
-    address: '',
+    // Picked from the PSGC list; the complete address is built from it.
+    addressParts: EMPTY_ADDRESS,
     validIdType: 'National ID',
     validIdNumber: '',
     email: '',
@@ -1029,6 +1044,11 @@ const NewTransaction: React.FC<{
   // form: the customer step and the Add New Customer modal. Never blocks saving.
   const customerIdCheck = useIdPhotoCheck();
   const modalIdCheck = useIdPhotoCheck();
+  // The ID address staff already used in the Add New Customer modal, and the
+  // ID text it came from, so the card stops offering it. A new ID photo has
+  // new text, so its address is offered again.
+  const [usedIdAddress, setUsedIdAddress] = useState<{ text: string | null; address: string } | null>(null);
+  const [matchingIdAddress, setMatchingIdAddress] = useState(false);
   const modalIdInputRef = useRef<HTMLInputElement>(null);
   // Which form the ID camera is taking a photo for, or null when it is closed.
   const [idCameraFor, setIdCameraFor] = useState<'customer' | 'modal' | null>(null);
@@ -1460,7 +1480,8 @@ const NewTransaction: React.FC<{
           loan_amount: effectiveLoanAmount,
           loan_to_value_percent: ltvPercent,
           due_date: dueDate.toISOString().split('T')[0],
-          grace_period_days: Number(gracePeriodDays || 7),
+          // The API uses the admin's setting; this is only what the form shows.
+          grace_period_days: Number(gracePeriodDays || 90),
           adjusted_value: adjustedValue ? Number(adjustedValue) : null,
           // The API adds gemstone_value to the gold value it computes itself.
           has_gemstone: isJewelry ? hasGemstone : null,
@@ -1617,11 +1638,14 @@ const NewTransaction: React.FC<{
   };
 
   const saveNewCustomer = async () => {
-    const { fullName, contactNumber, address, validIdType, validIdNumber, email, validIdPhoto } = newCustomerDraft;
+    const { fullName, contactNumber, addressParts, validIdType, validIdNumber, email, validIdPhoto } = newCustomerDraft;
     const formErrors: Record<string, string> = {};
 
     if (!fullName.trim()) formErrors.fullName = 'Full name is required';
     if (!email.trim()) formErrors.email = 'Email is required';
+    if (!addressParts.provinceCode) formErrors.addressProvince = 'Pick the province';
+    else if (!addressParts.cityCode) formErrors.addressCity = 'Pick the city or municipality';
+    else if (!addressParts.barangay) formErrors.addressBarangay = 'Pick the barangay';
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
@@ -1634,7 +1658,11 @@ const NewTransaction: React.FC<{
         name: fullName.trim(),
         email: email.trim(),
         contact_number: contactNumber.trim(),
-        address: address.trim(),
+        address: formatCompleteAddress(addressParts),
+        province_code: addressParts.provinceCode,
+        city_code: addressParts.cityCode,
+        barangay: addressParts.barangay,
+        street: addressParts.street.trim(),
         valid_id_type: validIdType,
         valid_id_number: validIdNumber.trim(),
         valid_id_photo: validIdPhoto || null,
@@ -1655,15 +1683,14 @@ const NewTransaction: React.FC<{
       setFaceEnrolled(false);
       setFaceNote('');
 
-      setSuccessMessage(createdCustomer.activation_email_sent === false
-        ? 'Customer registered, but the activation email could not be sent. Check the API mail log.'
-        : `Customer registered — activation email sent to ${getCustomerEmail(createdCustomer)}`);
+      // The activation email goes out in the background, a few seconds after this.
+      setSuccessMessage(`Customer registered — activation email on its way to ${getCustomerEmail(createdCustomer)}`);
       setCustomerSearch(createdCustomer.name);
       setShowCustomerResults(false);
       setNewCustomerDraft({
         fullName: '',
         contactNumber: '',
-        address: '',
+        addressParts: EMPTY_ADDRESS,
         validIdType: 'National ID',
         validIdNumber: '',
         email: '',
@@ -2470,7 +2497,7 @@ const NewTransaction: React.FC<{
               </div>
               <div className="tx-loan-chip">
                 <IonIcon icon={refreshOutline} />
-                <span>Extension Period</span>
+                <span>Redemption Period</span>
                 <strong>{gracePeriodDays} days</strong>
               </div>
             </div>
@@ -2520,7 +2547,7 @@ const NewTransaction: React.FC<{
               </IonItem>
 
               <IonItem lines="none" className="tx-field">
-                <IonLabel position="stacked">Extension Period</IonLabel>
+                <IonLabel position="stacked">Redemption Period</IonLabel>
                 <IonInput value={`${gracePeriodDays} days`} readonly />
               </IonItem>
 
@@ -2634,14 +2661,15 @@ const NewTransaction: React.FC<{
               />
             </IonItem>
 
-            <IonItem lines="none" className="tx-field span-2">
-              <IonLabel position="stacked">Address</IonLabel>
-              <IonInput
-                value={newCustomerDraft.address}
-                onIonInput={(event) => setNewCustomerDraft((current) => ({ ...current, address: event.detail.value || '' }))}
-                placeholder="Full address"
-              />
-            </IonItem>
+            {matchingIdAddress && <p className="tx-address-matching span-2" role="status"><Spinner />Matching the ID address to the province, city and barangay list...</p>}
+            <AddressFields
+              value={newCustomerDraft.addressParts}
+              onChange={(addressParts) => {
+                setNewCustomerDraft((current) => ({ ...current, addressParts }));
+                setErrors((current) => Object.fromEntries(Object.entries(current).filter(([field]) => !field.startsWith('address'))));
+              }}
+              errors={{ province: errors.addressProvince, city: errors.addressCity, barangay: errors.addressBarangay }}
+            />
 
             <Combobox
               label="Valid ID Type"
@@ -2707,8 +2735,25 @@ const NewTransaction: React.FC<{
             <IdAutofillCard
               className="span-2"
               check={modalIdCheck.state}
-              current={{ fullName: newCustomerDraft.fullName, idType: newCustomerDraft.validIdType, idNumber: newCustomerDraft.validIdNumber, address: newCustomerDraft.address }}
-              onUse={(fields) => setNewCustomerDraft((current) => ({ ...current, ...idFieldsToCustomer(fields) }))}
+              current={{
+                fullName: newCustomerDraft.fullName,
+                idType: newCustomerDraft.validIdType,
+                idNumber: newCustomerDraft.validIdNumber,
+                address: usedIdAddress && usedIdAddress.text === modalIdCheck.state.text ? usedIdAddress.address : formatCompleteAddress(newCustomerDraft.addressParts),
+              }}
+              onUse={({ address, ...fields }) => {
+                setNewCustomerDraft((current) => ({ ...current, ...idFieldsToCustomer(fields) }));
+                if (!address) return;
+                // The address is picked from the PSGC list, so the one read off
+                // the ID is matched to it: province, city and barangay are
+                // picked for staff to check, and the rest becomes the street.
+                setUsedIdAddress({ text: modalIdCheck.state.text, address });
+                setMatchingIdAddress(true);
+                matchPsgcAddress(address)
+                  .then((addressParts) => setNewCustomerDraft((current) => ({ ...current, addressParts })))
+                  .catch(() => setNewCustomerDraft((current) => ({ ...current, addressParts: { ...EMPTY_ADDRESS, street: address } })))
+                  .finally(() => setMatchingIdAddress(false));
+              }}
             />
           </div>
 
@@ -2808,8 +2853,10 @@ type LoanRow = {
   totalPayable: number;
   /** Monthly interest rate as a percentage, e.g. 5 for 5% a month. */
   interestRatePercent: number;
-  /** Days the pawn has run, which the interest is charged on. */
+  /** Days the pawn has run. */
   daysElapsed: number;
+  /** Days the interest is charged on: daysElapsed, but at least the shop's minimum. */
+  interestDays: number;
   /** Date the pawn was opened. */
   pawnedOn: string;
   dueDate: string;
@@ -3116,6 +3163,7 @@ const useLoanData = () => {
       // Stored as a fraction (0.05); shown as a percentage.
       interestRatePercent: Number(transaction.interest_rate) * 100,
       daysElapsed: Number(transaction.days_elapsed) || 0,
+      interestDays: Number(transaction.interest_days ?? transaction.days_elapsed) || 0,
       pawnedOn: shortDate(transaction.created_at),
       dueDate: shortDate(transaction.due_date),
       daysUntilDue: transaction.days_until_due,
@@ -3144,7 +3192,8 @@ const useLoanData = () => {
 const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; loaded: boolean; onChanged: () => void }> = ({ items, loans, loaded, onChanged }) => {
   const modal = useModal();
   const [selectedLoan, setSelectedLoan] = useState<LoanRow | null>(null);
-  const [salePrices, setSalePrices] = useState<Record<number, string>>({});
+  // The item set for auction whose auction result is being recorded.
+  const [auctionItem, setAuctionItem] = useState<ApiItemDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Photo editor: the item being edited and its working photo list, saved
@@ -3267,6 +3316,39 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
     }
   };
 
+  // Review of an item set for auction (PD 114), outcome one: the public
+  // auction was held. Sold there, the item is Sold; unsold, it is listed on
+  // Items for Sale. An item is never listed without an auction first.
+  const saveAuctionResult = async (outcome: AuctionOutcome) => {
+    if (!auctionItem) return;
+    const item = auctionItem;
+    const confirmed = await modal.warning({
+      title: outcome.result === 'sold' ? 'Record the auction sale?' : 'List it for sale?',
+      message: outcome.result === 'sold'
+        ? <><strong>{item.description}</strong> was sold at the public auction on <strong>{shortDate(outcome.auctionDate)}</strong> for <strong>{moneyExact(outcome.price)}</strong>. It is marked Sold and the customer is notified.</>
+        : <><strong>{item.description}</strong> went unsold at the public auction on <strong>{shortDate(outcome.auctionDate)}</strong> and will be listed on Items for Sale at <strong>{moneyExact(outcome.price)}</strong>. The customer is notified.</>,
+      confirmLabel: outcome.result === 'sold' ? 'Record sale' : 'List for sale',
+    });
+    if (!confirmed) return;
+    setAuctionItem(null);
+    await run(() => (outcome.result === 'sold'
+      ? recordAuctionSale(item.items_id, outcome.auctionDate, outcome.price)
+      : markItemForSale(item.items_id, outcome.price, outcome.auctionDate)));
+  };
+
+  // Outcome two: reopen the pawn with a new due date instead of auctioning it.
+  const extendPawn = async (item: ApiItemDetail) => {
+    const transaction = latestTransaction(item, 'forfeited');
+    if (!transaction) return;
+    const confirmed = await modal.warning({
+      title: 'Extend this pawn?',
+      message: <>Ticket <strong>{transaction.ticket_number}</strong> becomes active again with a new due date. No payment is taken now; the interest owed is collected when the customer redeems. The customer is notified.</>,
+      confirmLabel: 'Extend',
+    });
+    if (!confirmed) return;
+    await run(() => extendForfeitedPawn(transaction.transactions_id));
+  };
+
   const redeem = async () => {
     if (!selectedLoan) return;
     const ticket = selectedLoan.ticketNumber;
@@ -3347,16 +3429,8 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
                           <div className="workflow-actions">
                             {loan && <button onClick={() => setSelectedLoan(loan)} disabled={busy}>Redeem</button>}
                             {item.status === 'forfeited' && <>
-                              <input
-                                aria-label={`Sale price for ${item.description}`}
-                                value={salePrices[item.items_id] || ''}
-                                onChange={event => setSalePrices(current => ({ ...current, [item.items_id]: event.target.value }))}
-                                placeholder="Sale price"
-                              />
-                              <button
-                                disabled={busy}
-                                onClick={() => run(() => markItemForSale(item.items_id, Number(salePrices[item.items_id] || item.appraised_value)))}
-                              >For Sale</button>
+                              <button disabled={busy} onClick={() => setAuctionItem(item)}>Auction result</button>
+                              <button className="workflow-extend" disabled={busy} onClick={() => extendPawn(item)}>Extend</button>
                             </>}
                             {(item.status === 'forfeited' || item.status === 'for_sale') && <button onClick={() => openPhotoEditor(item)} disabled={busy}>Photos ({item.photo_urls?.length || 0})</button>}
                             {hold && <button className="workflow-hold-cancel" onClick={() => cancelHold(hold, item.description)} disabled={busy}>Cancel hold</button>}
@@ -3374,6 +3448,13 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
           </section>
           );
         })}
+      <AuctionResultModal
+        item={auctionItem ? { description: auctionItem.description, ticket: latestTransaction(auctionItem, 'forfeited')?.ticket_number } : null}
+        busy={busy}
+        onClose={() => setAuctionItem(null)}
+        onSubmit={saveAuctionResult}
+      />
+
       <IonModal isOpen={Boolean(photoItem)} onDidDismiss={() => setPhotoItem(null)}>
         <div className="workflow-confirm-modal item-photo-editor">
           <small>ITEM PHOTOS</small><h3>{photoItem?.description}</h3>
@@ -4007,7 +4088,7 @@ const LoansPage: React.FC<{
         payment_reference: reference,
         amount_collected: collected,
         cash_received: cashReceived,
-      }) as { principal?: string | number; interest?: number; total_payable?: number; receipt_number?: string };
+      }) as { principal?: string | number; interest?: number; days_elapsed?: number; interest_days?: number; total_payable?: number; receipt_number?: string };
 
       // The figures the API closed the pawn on, so the receipt matches the
       // record even if a day turned over since the screen was opened.
@@ -4019,7 +4100,8 @@ const LoansPage: React.FC<{
         pawnedOn: loan.pawnedOn,
         principal: Number(result?.principal ?? loan.loanAmount),
         ratePercent: loan.interestRatePercent,
-        daysElapsed: loan.daysElapsed,
+        daysElapsed: Number(result?.days_elapsed ?? loan.daysElapsed),
+        interestDays: Number(result?.interest_days ?? loan.interestDays),
         interest: Number(result?.interest ?? loan.interestDue),
         totalPayable: Number(result?.total_payable ?? loan.totalPayable),
         method: paymentDraft.method,

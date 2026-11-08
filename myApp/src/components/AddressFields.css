@@ -1,0 +1,69 @@
+/* Address pickers (AddressFields.tsx). The three dropdowns use the Combobox
+   box; these rules add the disabled look and the read-only complete address. */
+
+/* Full width in the two-column form. The modal renders outside .staff-page,
+   so it misses that page's .span-2 rule. */
+.tx-address-complete.span-2,
+.tx-address-error.span-2 { grid-column: 1 / -1; }
+
+/* Waiting for the field before it: dimmed, with a dashed edge. */
+.tx-search-select.is-disabled { border-style: dashed; background: #f6f8fb; }
+.tx-search-select.is-disabled .tx-combobox-label { color: #64748b; }
+.tx-search-select.is-disabled input,
+.tx-search-select.is-disabled .tx-combobox-toggle { cursor: not-allowed; }
+.tx-search-select.is-disabled .tx-combobox-toggle { opacity: .45; }
+
+/* Complete address: the same box, tinted gold to show it is filled in for you. */
+.tx-address-complete {
+  min-width: 0;
+  padding: 8px 12px 6px;
+  border: 1px solid #ecd9a3;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+.tx-address-complete-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #000;
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+.tx-address-complete-value { display: flex; align-items: center; gap: 8px; min-height: 34px; color: #a16207; }
+.tx-address-complete-value ion-icon { flex: none; font-size: 1.05rem; }
+.staff-page .tx-address-complete-value input,
+.tx-address-complete-value input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: #061028;
+  font: inherit;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.tx-address-complete-value.is-empty { color: #9aa8b8; }
+
+.tx-address-error { margin: 0; color: #b42318; font-size: var(--fs-12); }
+
+/* Dark mode: the same navy boxes as the other fields. */
+html[data-theme="dark"] .tx-search-select.is-disabled { background: #0f1727 !important; border-style: dashed !important; }
+html[data-theme="dark"] .tx-search-select.is-disabled .tx-combobox-label { color: #8b97ad !important; }
+html[data-theme="dark"] .tx-address-complete { border-color: rgba(212, 167, 44, .4); background: rgba(212, 167, 44, .08); }
+html[data-theme="dark"] .tx-address-complete-label { color: #e6ebf5; }
+html[data-theme="dark"] .tx-address-complete-value { color: #f5c842; }
+html[data-theme="dark"] .staff-page .tx-address-complete-value input,
+html[data-theme="dark"] .tx-address-complete-value input { color: #e6ebf5; }
+html[data-theme="dark"] .tx-address-complete-value.is-empty { color: #8b97ad; }
+html[data-theme="dark"] .tx-address-error { color: #f0928a; }
+
+/* While an address read off the ID is matched to the PSGC list. */
+.tx-address-matching.span-2 { grid-column: 1 / -1; }
+.tx-address-matching { display: flex; align-items: center; gap: 8px; margin: 0; color: #64748b; font-size: var(--fs-12); }
+html[data-theme="dark"] .tx-address-matching { color: #a3afc2; }

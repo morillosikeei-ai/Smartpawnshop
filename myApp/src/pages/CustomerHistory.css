@@ -74,3 +74,57 @@ html[data-theme="dark"] .portal-page .ch-row.renewed .ch-icon,
 html[data-theme="dark"] .portal-page .ch-row.renewal_sent .ch-icon { background: #2e2716; color: #d8c68a; }
 html[data-theme="dark"] .portal-page .ch-row.renewal_rejected .ch-icon { background: #3a1c1a; color: #f0928a; }
 html[data-theme="dark"] .portal-page .ch-row.renewed .ch-amount { color: #d8c68a; }
+
+/* ---- History as a table (same look as My Items) ---- */
+.portal-page .ch-table th.is-num,
+.portal-page .ch-table td.is-num { text-align: right; }
+.portal-page .ch-table td { white-space: nowrap; }
+.portal-page .ch-table .ch-date { display: block; font-size: var(--fs-13); }
+.portal-page .ch-table .ch-time { color: var(--ch-muted); font-size: var(--fs-11); }
+.portal-page .ch-table .ch-item { display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-13); }
+.portal-page .ch-table .ch-ticket { color: var(--ch-muted); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.portal-page .ch-table .ch-amount { font-weight: 700; }
+.portal-page .ch-table tr.paid .ch-amount { color: #15803d; }
+.portal-page .ch-table tr.renewed .ch-amount { color: #8a6100; }
+.portal-page .ch-table th:last-child,
+.portal-page .ch-table td:last-child { text-align: center; }
+.portal-page .ch-table-wrap .notice-empty { margin: 0; padding: 22px; text-align: center; }
+
+/* What happened, as a coloured label, so a column of events scans at a glance. */
+.portal-page .ch-kind {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--ch-pill); color: var(--ch-muted);
+  font-size: var(--fs-11); font-weight: 700;
+}
+.portal-page .ch-kind ion-icon { font-size: .95rem; }
+.portal-page .ch-kind.pawned { background: #eef3ff; color: #1d4ed8; }
+.portal-page .ch-kind.requested,
+.portal-page .ch-kind.confirmed { background: #f1f5f9; color: #334155; }
+.portal-page .ch-kind.paid { background: #ecfdf3; color: #15803d; }
+.portal-page .ch-kind.renewal_sent,
+.portal-page .ch-kind.renewed { background: #fff9e6; color: #8a6100; }
+.portal-page .ch-kind.expired,
+.portal-page .ch-kind.renewal_rejected { background: #fef3f2; color: #b42318; }
+
+html[data-theme="dark"] .portal-page .ch-kind.pawned { background: #16233f; color: #93b4ff; }
+html[data-theme="dark"] .portal-page .ch-kind.requested,
+html[data-theme="dark"] .portal-page .ch-kind.confirmed { background: #1a2539; color: #cbd5e1; }
+html[data-theme="dark"] .portal-page .ch-kind.paid { background: #16301f; color: #7bc0a2; }
+html[data-theme="dark"] .portal-page .ch-kind.renewal_sent,
+html[data-theme="dark"] .portal-page .ch-kind.renewed { background: #2e2716; color: #d8c68a; }
+html[data-theme="dark"] .portal-page .ch-kind.expired,
+html[data-theme="dark"] .portal-page .ch-kind.renewal_rejected { background: #3a1c1a; color: #f0928a; }
+html[data-theme="dark"] .portal-page .ch-table tr.paid .ch-amount { color: #7bc0a2; }
+html[data-theme="dark"] .portal-page .ch-table tr.renewed .ch-amount { color: #d8c68a; }
+
+/* Phones: date and activity share the card's first line (see the card rules
+   in CustomerPortal.css); the item name may wrap instead of being cut. */
+@media (max-width: 600px) {
+  .portal-page .items-table-wrap .ch-table td:first-child { grid-column: auto; }
+  .portal-page .items-table-wrap .ch-table td.is-num { text-align: left; }
+  .portal-page .items-table-wrap .ch-table .ch-item { max-width: none; white-space: normal; }
+  /* The long ticket number gets its own line, under item and amount. */
+  .portal-page .items-table-wrap .ch-table td.ch-ticket { grid-column: 1 / -1; order: 1; white-space: nowrap; }
+  .portal-page .items-table-wrap .ch-table td:last-child { order: 2; }
+}

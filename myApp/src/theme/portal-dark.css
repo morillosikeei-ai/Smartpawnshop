@@ -6316,6 +6316,7 @@ html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day { backgr
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.normal { background: rgba(21, 128, 61, .18) !important; }
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.medium { background: rgba(202, 138, 4, .2) !important; }
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.high { background: rgba(180, 35, 24, .24) !important; }
+html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day:is(.normal, .medium, .high):not(.today):not(.selected) { border-color: transparent !important; }
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-day.today .due-calendar-date { color: #f5c842 !important; }
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-weekday { color: #8b97ad !important; }
 html[data-theme="dark"] :is(.staff-page, .admin-page) .due-calendar-row { border-color: #2a3650 !important; background: #1a2539 !important; }

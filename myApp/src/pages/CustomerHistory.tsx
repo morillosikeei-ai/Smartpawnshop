@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import {
     alertCircleOutline,
+    eyeOutline,
     cashOutline,
     checkmarkCircleOutline,
     handRightOutline,
@@ -33,7 +34,7 @@ const KIND_META: Record<EventKind, { label: string; icon: string }> = {
     requested: { label: 'Request sent', icon: handRightOutline },
     confirmed: { label: 'Request confirmed', icon: checkmarkCircleOutline },
     paid: { label: 'Paid', icon: cashOutline },
-    expired: { label: 'Expired/Unclaimed', icon: alertCircleOutline },
+    expired: { label: 'For auction', icon: alertCircleOutline },
     renewal_sent: { label: 'Renewal payment sent', icon: refreshOutline },
     renewed: { label: 'Renewed', icon: refreshOutline },
     renewal_rejected: { label: 'Renewal not confirmed', icon: alertCircleOutline },
@@ -51,7 +52,7 @@ const FILTERS: Array<{ id: Filter; label: string; kinds: EventKind[] }> = [
     { id: 'expired', label: 'Expired', kinds: ['expired'] },
 ];
 
-/** The last day a pawn could be redeemed: due date plus the extension period. */
+/** The last day a pawn could be redeemed: due date plus the redemption (grace) period. */
 const forfeitDate = (transaction: ApiTransaction) => {
     const date = new Date(transaction.due_date);
     date.setDate(date.getDate() + Number(transaction.grace_period_days || 0));
@@ -103,12 +104,12 @@ const buildEvents = (items: ApiItemDetail[]): HistoryEvent[] =>
 /** Events per page. Larger than a table's, because each row is one short line. */
 const HISTORY_PAGE_SIZE = 15;
 
-const monthLabel = (value: string) => new Date(value).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-const dayLabel = (value: string) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+const timeLabel = (value: string) => new Date(value).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
 /**
  * Customer > History. Everything that happened on the customer's pawn
- * tickets, newest first, grouped by month. Read only.
+ * tickets, newest first, in one table. Read only; a row opens its item.
  */
 const CustomerHistory: React.FC<{ items: ApiItemDetail[]; loaded: boolean; onOpenItem: (itemId: number) => void }> = ({ items, loaded, onOpenItem }) => {
     const [filter, setFilter] = useState<Filter>('all');
@@ -124,17 +125,7 @@ const CustomerHistory: React.FC<{ items: ApiItemDetail[]; loaded: boolean; onOpe
         kinds.includes(event.kind)
         && (!term || event.itemName.toLowerCase().includes(term) || event.ticket.toLowerCase().includes(term)));
 
-    // Paged first, then grouped: the month headings describe the page being
-    // read, so a month split across two pages is headed on both.
     const { pageRows, pager } = usePagedRows(visible, HISTORY_PAGE_SIZE);
-
-    const months: Array<{ label: string; events: HistoryEvent[] }> = [];
-    pageRows.forEach(event => {
-        const label = monthLabel(event.date);
-        const last = months[months.length - 1];
-        if (last && last.label === label) last.events.push(event);
-        else months.push({ label, events: [event] });
-    });
 
     return (
         <section className="portal-content ch-page">
@@ -160,29 +151,53 @@ const CustomerHistory: React.FC<{ items: ApiItemDetail[]; loaded: boolean; onOpe
                 </label>
             </div>
 
-            {!loaded && <SkeletonList rows={5} />}
-
-            {loaded && months.map(month => (
-                <div className="ch-month" key={month.label}>
-                    <h3>{month.label}</h3>
-                    <div className="ch-list">
-                        {month.events.map(event => (
-                            <button type="button" key={event.id} className={`ch-row ${event.kind}`} onClick={() => onOpenItem(event.itemId)}>
-                                <span className="ch-icon" aria-hidden="true"><IonIcon icon={KIND_META[event.kind].icon} /></span>
-                                <span className="ch-text">
-                                    <strong>{event.itemName}</strong>
-                                    <small>{KIND_META[event.kind].label} · {dayLabel(event.date)} · #{event.ticket}</small>
-                                </span>
-                                {event.amount !== null && <b className="ch-amount">{moneyExact(event.amount)}</b>}
-                            </button>
+            <div className="items-table-wrap ch-table-wrap">
+                <table className="items-table ch-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Activity</th>
+                            <th scope="col">Item</th>
+                            <th scope="col">Ticket</th>
+                            <th scope="col" className="is-num">Amount</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loaded && pageRows.map(event => (
+                            <tr key={event.id} className={event.kind} onClick={() => onOpenItem(event.itemId)}>
+                                <td>
+                                    <strong className="ch-date">{dateLabel(event.date)}</strong>
+                                    <small className="ch-time">{timeLabel(event.date)}</small>
+                                </td>
+                                <td>
+                                    <span className={`ch-kind ${event.kind}`}>
+                                        <IonIcon icon={KIND_META[event.kind].icon} aria-hidden="true" />
+                                        {KIND_META[event.kind].label}
+                                    </span>
+                                </td>
+                                <td data-label="Item"><strong className="ch-item">{event.itemName}</strong></td>
+                                <td className="ch-ticket" data-label="Ticket">#{event.ticket}</td>
+                                <td className="is-num ch-amount" data-label="Amount">{event.amount !== null ? moneyExact(event.amount) : '—'}</td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        className="item-view-btn"
+                                        onClick={clickEvent => { clickEvent.stopPropagation(); onOpenItem(event.itemId); }}
+                                        aria-label={`View ${event.itemName}`}
+                                    >
+                                        <IonIcon icon={eyeOutline} aria-hidden="true" />View
+                                    </button>
+                                </td>
+                            </tr>
                         ))}
-                    </div>
-                </div>
-            ))}
-
-            {loaded && months.length === 0 && (
-                <p className="notice-empty">{events.length === 0 ? 'No pawn activity on your account yet.' : 'Nothing matches your search.'}</p>
-            )}
+                    </tbody>
+                </table>
+                {!loaded && <SkeletonList rows={5} />}
+                {loaded && visible.length === 0 && (
+                    <p className="notice-empty">{events.length === 0 ? 'No pawn activity on your account yet.' : 'Nothing matches your search.'}</p>
+                )}
+            </div>
 
             {loaded && <Pager pager={pager} label="events" />}
         </section>

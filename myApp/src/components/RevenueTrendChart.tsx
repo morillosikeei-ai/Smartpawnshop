@@ -3,6 +3,7 @@ import { moneyExact } from '../data/pawnshopStore';
 import { buildAreaPath, buildLinePath, type ChartPoint } from './smoothPath';
 import { Skeleton } from './Skeleton';
 import './RevenueTrendChart.css';
+import ChartTableButton, { signedChange } from './ChartTableButton';
 
 /**
  * One day of collected revenue, exactly as the API's `revenue_trend` sends it.
@@ -132,6 +133,7 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ points, loading =
   }
 
   return (
+    <>
     <div
       className="revenue-chart"
       ref={setContainer}
@@ -225,6 +227,24 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ points, loading =
 
       {!hasRevenue && <p className="revenue-chart-empty">No collections recorded in this period.</p>}
     </div>
+    <div className="chart-table-row">
+      <ChartTableButton
+        title="Revenue by day"
+        fileName="revenue-by-day"
+        changeKey="change"
+        columns={[
+          { key: 'date', label: 'Date' },
+          { key: 'revenue', label: 'Revenue', align: 'right' },
+          { key: 'change', label: 'Change', align: 'right' },
+        ]}
+        rows={points.map((point, index) => ({
+          date: weekdayLabel(point.date),
+          revenue: moneyExact(point.revenue),
+          change: signedChange(point.revenue, points[index - 1]?.revenue, moneyExact),
+        })).reverse()}
+      />
+    </div>
+    </>
   );
 };
 

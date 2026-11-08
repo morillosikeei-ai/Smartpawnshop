@@ -64,22 +64,25 @@
   line-height: 1.5;
 }
 
-:is(.staff-page, .admin-page) .due-calendar-day.normal { background: #ecfdf3; }
-:is(.staff-page, .admin-page) .due-calendar-day.normal :is(.staff-page, .admin-page) .due-calendar-count { background: #15803d; }
-:is(.staff-page, .admin-page) .due-calendar-day.medium { background: #fffbeb; }
-:is(.staff-page, .admin-page) .due-calendar-day.medium :is(.staff-page, .admin-page) .due-calendar-count { background: #ca8a04; }
-:is(.staff-page, .admin-page) .due-calendar-day.high { background: #fef3f2; }
-:is(.staff-page, .admin-page) .due-calendar-day.high :is(.staff-page, .admin-page) .due-calendar-count { background: #b42318; }
+/* Each level is a clear tint with a matching edge, and the count badge is
+   the solid level colour, so the three read apart on a white card. The badge
+   text needs !important: a theme rule greys every span in a staff panel. */
+:is(.staff-page, .admin-page) .due-calendar-day.normal { border-color: #86efac; background: #dcfce7; color: #14532d; }
+:is(.staff-page, .admin-page) .due-calendar-day.normal .due-calendar-count { background: #15803d; color: #fff !important; }
+:is(.staff-page, .admin-page) .due-calendar-day.medium { border-color: #fcd34d; background: #fef3c7; color: #713f12; }
+:is(.staff-page, .admin-page) .due-calendar-day.medium .due-calendar-count { background: #a16207; color: #fff !important; }
+:is(.staff-page, .admin-page) .due-calendar-day.high { border-color: #fca5a5; background: #fee2e2; color: #7f1d1d; }
+:is(.staff-page, .admin-page) .due-calendar-day.high .due-calendar-count { background: #b42318; color: #fff !important; }
 
 :is(.staff-page, .admin-page) .due-calendar-day.today { border-color: #d4a72c; box-shadow: inset 0 0 0 1px #d4a72c; }
-:is(.staff-page, .admin-page) .due-calendar-day.today :is(.staff-page, .admin-page) .due-calendar-date { color: #a16207; font-weight: 800; }
+:is(.staff-page, .admin-page) .due-calendar-day.today .due-calendar-date { color: #a16207; font-weight: 800; }
 :is(.staff-page, .admin-page) .due-calendar-day.selected { border-color: #1d4ed8; box-shadow: 0 0 0 2px rgba(29, 78, 216, .25); }
 
 :is(.staff-page, .admin-page) .due-calendar-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 :is(.staff-page, .admin-page) .due-calendar-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-11); }
 :is(.staff-page, .admin-page) .due-calendar-legend i { width: 10px; height: 10px; border-radius: 50%; }
 :is(.staff-page, .admin-page) .due-calendar-legend i.normal { background: #15803d; }
-:is(.staff-page, .admin-page) .due-calendar-legend i.medium { background: #ca8a04; }
+:is(.staff-page, .admin-page) .due-calendar-legend i.medium { background: #a16207; }
 :is(.staff-page, .admin-page) .due-calendar-legend i.high { background: #b42318; }
 
 /* Details panel */
@@ -114,7 +117,7 @@
   font-weight: 700;
   cursor: pointer;
 }
-:is(.staff-page, .admin-page) .due-calendar-view:hover { background: #1d4ed8; color: #fff; }
+:is(.staff-page, .admin-page) .due-calendar-view:hover { background: #1d4ed8; color: #fff !important; }
 
 @media (max-width: 1000px) {
   :is(.staff-page, .admin-page) .due-calendar { grid-template-columns: 1fr; }

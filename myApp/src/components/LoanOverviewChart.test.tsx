@@ -35,6 +35,13 @@ describe('loanBalanceSeries', () => {
     expect(series[19]).toMatchObject({ due: 10000, principal: 10000 });
   });
 
+  it('charges at least the minimum interest days, like the API', () => {
+    const series = loanBalanceSeries([loan({ minimumInterestDays: 30 })], 30, TODAY);
+    // Held 10 days but charged 30: 10,000 + 10,000 x 0.05 x 30/30, from the pawn day on.
+    expect(series[29].due).toBe(10500);
+    expect(series[19].due).toBe(10500);
+  });
+
   it('stops counting a loan from the day it was redeemed', () => {
     const series = loanBalanceSeries([loan({ pawnedIso: daysAgo(20), redeemedIso: daysAgo(5), open: false })], 30, TODAY);
     expect(series[29].due).toBe(0);

@@ -64,8 +64,16 @@ export type ApiTransaction = {
   /** Every GCash renewal raised against this pawn, oldest first. Absent from an older API. */
   renewal_requests?: ApiRenewalRequest[];
   created_at: string;
+  /** When the PD 114 written notice of public auction was sent, if it has been. */
+  auction_notice_sent_at?: string | null;
+  /** The last day to redeem or renew: due date plus the redemption (grace) period. */
+  last_redemption_date?: string | null;
   /** Payoff figures computed by the API, so no client re-derives interest. */
   days_elapsed: number;
+  /** Days of interest charged: days_elapsed, but never under minimum_interest_days. */
+  interest_days: number;
+  /** The shop's minimum_interest_days setting, for the balance graph's past days. */
+  minimum_interest_days: number;
   interest_due: number;
   total_payable: number;
   days_until_due: number;
@@ -97,7 +105,12 @@ export type ApiCustomer = {
   name: string;
   email?: string;
   contact_number?: string;
+  /** The complete address. Built from the parts below when they were picked from the PSGC list. */
   address?: string;
+  province?: string | null;
+  city_municipality?: string | null;
+  barangay?: string | null;
+  street?: string | null;
   valid_id_type?: string;
   valid_id_number?: string;
   /** Data URL of the scanned ID, stored as a string by the API. */
@@ -105,7 +118,6 @@ export type ApiCustomer = {
   /** Whether staff have a face reference on file for identity checks at redemption. */
   has_face_reference?: boolean;
   is_activated?: boolean;
-  activation_email_sent?: boolean;
   user?: { users_id: number; name: string; email: string } | null;
   active_items_count?: number;
   total_items_count?: number;
@@ -139,6 +151,9 @@ export type NotificationType =
   | 'staff_high_risk'
   | 'staff_overdue'
   | 'staff_forfeited'
+  | 'staff_listed_for_sale'
+  | 'staff_pawn_extended'
+  | 'staff_auction_notice'
   | 'item_created'
   | 'value_changed'
   | 'risk_notice'
@@ -146,6 +161,11 @@ export type NotificationType =
   | 'redeem_confirmed'
   | 'redemption_complete'
   | 'forfeited'
+  | 'overdue'
+  | 'listed_for_sale'
+  | 'pawn_extended'
+  | 'auction_notice'
+  | 'auction_sold'
   | 'renewal_confirmed'
   | 'renewal_rejected'
   | 'staff_item_reserved'
@@ -171,14 +191,22 @@ export const NOTIFICATION_TITLES: Record<NotificationType, string> = {
   staff_renewal_payment: 'GCash renewal payment',
   staff_high_risk: 'High risk item',
   staff_overdue: 'Pawn is overdue',
-  staff_forfeited: 'Item expired/unclaimed',
+  staff_forfeited: 'Item for public auction',
+  staff_listed_for_sale: 'Item listed for sale',
+  staff_pawn_extended: 'Pawn extended',
+  staff_auction_notice: 'Auction notice sent',
   item_created: 'Item recorded',
   value_changed: 'Item value changed',
   risk_notice: 'Value close to your pawn amount',
   due_soon: 'Payment due soon',
   redeem_confirmed: 'Redemption confirmed',
   redemption_complete: 'Redemption complete',
-  forfeited: 'Item expired/unclaimed',
+  forfeited: 'Item set for public auction',
+  overdue: 'Pawn is overdue',
+  auction_notice: 'Notice of public auction',
+  auction_sold: 'Sold at public auction',
+  listed_for_sale: 'Item put up for sale',
+  pawn_extended: 'Pawn extended',
   renewal_confirmed: 'Renewal confirmed',
   renewal_rejected: 'Renewal not confirmed',
   staff_item_reserved: 'Item reserved',
@@ -507,6 +535,20 @@ export async function getCustomerAccessQr(customerId: number) {
 export async function searchCustomers(searchTerm: string) { return request<ApiCustomer[]>(`/customers?search=${encodeURIComponent(searchTerm)}`); }
 export async function getCustomers() { return request<ApiCustomer[]>('/customers'); }
 export async function createCustomer(payload: Record<string, unknown>) { return request<ApiCustomer>('/customers', { method: 'POST', body: JSON.stringify(payload) }); }
+
+/** One place in the PSGC list (a province, or a city or municipality). */
+export type PsgcPlace = { code: string; name: string };
+/** The province code the API uses for Metro Manila, which has no province. */
+export const METRO_MANILA_CODE = 'NCR';
+// The PSGC list never changes while the app is open, so each list is fetched once.
+const psgcCache = new Map<string, Promise<unknown>>();
+const psgcList = <T,>(path: string): Promise<T> => {
+  if (!psgcCache.has(path)) psgcCache.set(path, request<T>(path).catch((error) => { psgcCache.delete(path); throw error; }));
+  return psgcCache.get(path) as Promise<T>;
+};
+export const getPsgcProvinces = () => psgcList<PsgcPlace[]>('/psgc/provinces');
+export const getPsgcCities = (provinceCode: string) => psgcList<PsgcPlace[]>(`/psgc/provinces/${encodeURIComponent(provinceCode)}/cities`);
+export const getPsgcBarangays = (cityCode: string) => psgcList<string[]>(`/psgc/cities/${encodeURIComponent(cityCode)}/barangays`);
 /** Staff correcting a customer's details. The email is the sign-in and is not sent. */
 export async function updateCustomer(id: number, payload: { name: string; contact_number: string; address: string; valid_id_type: string; valid_id_number: string; valid_id_photo: string | null }) {
   return request<ApiCustomer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -542,9 +584,23 @@ export async function askChatAssistant(messages: ChatTurn[]) { return (await req
 export type MetalType = 'gold' | 'silver';
 export type ApiEstimate = { metal_type: MetalType; karat: string; weight_grams: number; purity: number; price_per_gram: number; price_date: string; estimate_date: string; estimated_value: number };
 /** karat is a gold karat ("18k") for gold, or a silver fineness ("925") for silver. */
+/** The shop's rating for the landing page. Reviews carry initials only. */
+export type ApiPublicRatings = {
+  total: number;
+  average_rating: number | null;
+  rating_counts: Record<string, number>;
+  reviews: Array<{ rating: number; comment: string; initials: string; submitted_at: string | null }>;
+};
+export async function getPublicRatings() { return request<ApiPublicRatings>('/ratings', {}, false); }
+
 export async function getEstimate(karat: string, weightGrams: number, metalType: MetalType = 'gold') { return request<ApiEstimate>('/estimate', { method: 'POST', body: JSON.stringify({ metal_type: metalType, karat, weight_grams: weightGrams }) }, false); }
 export async function getForSaleItems() { return request<SaleItem[]>('/items/for-sale', {}, false); }
-export async function markItemForSale(itemId: number, salePrice: number) { return request(`/items/${itemId}/for-sale`, { method: 'POST', body: JSON.stringify({ sale_price: salePrice }) }); }
+/** An item unsold at its public auction (PD 114), listed on Items for Sale at the typed price. */
+export async function markItemForSale(itemId: number, salePrice: number, auctionDate: string) { return request(`/items/${itemId}/for-sale`, { method: 'POST', body: JSON.stringify({ sale_price: salePrice, auction_date: auctionDate }) }); }
+/** The item sold at its public auction: the auction date and the price it fetched. */
+export async function recordAuctionSale(itemId: number, auctionDate: string, soldPrice: number) { return request(`/items/${itemId}/auction-result`, { method: 'POST', body: JSON.stringify({ auction_date: auctionDate, sold_price: soldPrice }) }); }
+/** Reopen a pawn set for auction with a new due date (staff review, instead of auctioning it). */
+export async function extendForfeitedPawn(transactionId: number) { return request<ApiTransaction>(`/transactions/${transactionId}/extend`, { method: 'POST' }); }
 /** Replace an item's photos with `photos`, in order. An empty list removes them all. */
 export async function updateItemPhotos(itemId: number, photos: string[]) { return request<ApiItemDetail>(`/items/${itemId}/photos`, { method: 'PUT', body: JSON.stringify({ photos }) }); }
 export async function markItemSold(itemId: number) { return request(`/items/${itemId}/sold`, { method: 'POST' }); }
@@ -642,6 +698,9 @@ export type ApiOnlineRenewalInfo = {
   renewable: boolean;
   /** The renta owed today, computed by the API. */
   interest_due: number;
+  days_elapsed: number;
+  /** Days the renta is charged on, at least the shop's minimum. */
+  interest_days: number;
   due_date: string;
   renewal_term_days: number;
   /** The shop's GCash number or account name, empty until an admin sets it. */

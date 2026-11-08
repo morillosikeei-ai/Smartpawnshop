@@ -723,3 +723,8 @@
     flex-basis: 260px !important;
   }
 }
+
+/* Phones turned sideways (a short screen): a shorter top bar leaves more room for content. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .portal-page .portal-topbar { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
+}

@@ -32,10 +32,11 @@ class RunDailyPawnLifecycle extends Command
         GoldPrice::updateOrCreate(['price_date' => today()], ['price_per_gram' => $price, 'predicted_next_price' => $prediction, 'source' => $source]);
         $threshold = (float) (SystemSetting::where('setting_key', 'risk_threshold_percent')->value('setting_value') ?: 80);
         $dueSoonDays = $notifications->dueSoonNoticeDays();
+        $noticeDays = $notifications->auctionNoticeDays();
         // Silver items follow the latest recorded silver price, never the gold
         // price above. The silver price itself is recorded by gold:update-price.
         $silverPrice = (float) SilverPrice::latest('price_date')->value('price_per_gram');
-        Item::with(['transactions', 'customer'])->whereIn('status', ['active', 'overdue'])->each(function (Item $item) use ($price, $silverPrice, $threshold, $notifications, $dueSoonDays) {
+        Item::with(['transactions', 'customer'])->whereIn('status', ['active', 'overdue'])->each(function (Item $item) use ($price, $silverPrice, $threshold, $notifications, $dueSoonDays, $noticeDays) {
             $transaction = $item->transactions()->where('status', 'active')->latest('transactions_id')->first();
 
             // Watches, cellphones, and bulky items are not valued from the gold
@@ -71,24 +72,50 @@ class RunDailyPawnLifecycle extends Command
             }
 
             if (!$transaction) return;
-            if (now()->startOfDay()->gt($transaction->due_date->copy()->addDays($transaction->grace_period_days))) {
+            $transaction->setRelation('item', $item);
+            $today = now()->startOfDay();
+
+            // PD 114: past the redemption period (due date + grace period) the
+            // item goes to public auction, but only once the written auction
+            // notice has had auction_notice_days to reach the customer. A
+            // notice that never went out (the job was down, or the pawn is
+            // older than this rule) is sent now and the item waits for it.
+            if ($today->gt($transaction->forfeitureDate()->startOfDay())) {
+                if (! $transaction->auction_notice_sent_at) {
+                    $this->sendAuctionNotice($transaction, $notifications);
+                    return;
+                }
+                if ($transaction->auction_notice_sent_at->copy()->startOfDay()->addDays($noticeDays)->gt($today)) {
+                    return;
+                }
                 $transaction->update(['status' => 'forfeited']);
                 $item->update(['status' => 'forfeited']);
-                $transaction->setRelation('item', $item);
                 $notifications->itemForfeitedForStaff($transaction);
                 $notifications->itemForfeitedForCustomer($transaction);
                 return;
             }
 
-            $transaction->setRelation('item', $item);
+            // The written notice goes out auction_notice_days before the
+            // redemption period ends, once per period. A due date moved
+            // forward (renewed, or extended) starts a period that needs its own.
+            $inNoticeWindow = $transaction->days_until_forfeiture <= $noticeDays;
+            if (! $inNoticeWindow && $transaction->auction_notice_sent_at) $transaction->update(['auction_notice_sent_at' => null]);
+            if ($inNoticeWindow && ! $transaction->auction_notice_sent_at) $this->sendAuctionNotice($transaction, $notifications);
+
             $daysUntilDue = $transaction->days_until_due;
 
-            // Past the due date but still inside the grace period: staff can
-            // still arrange a renewal before the item is lost.
+            // Past the due date but still inside the grace period (the
+            // Extension Period): the item shows as Overdue. The transaction
+            // stays active, so it can still be redeemed or renewed.
             if ($daysUntilDue < 0) {
+                if ($item->status !== 'overdue') $item->update(['status' => 'overdue']);
                 $notifications->loanOverdue($transaction, $transaction->days_until_forfeiture);
+                $notifications->loanOverdueForCustomer($transaction, $transaction->days_until_forfeiture);
                 return;
             }
+
+            // A due date moved forward (renewed, or extended) is no longer overdue.
+            if ($item->status === 'overdue') $item->update(['status' => 'active']);
 
             if ($daysUntilDue <= $dueSoonDays) $notifications->dueDateApproaching($transaction, $daysUntilDue);
         });
@@ -99,5 +126,13 @@ class RunDailyPawnLifecycle extends Command
 
         $this->info('Daily pawnshop lifecycle completed.');
         return self::SUCCESS;
+    }
+
+    /** Send the PD 114 auction notice and record when it went out. */
+    private function sendAuctionNotice(Transaction $transaction, NotificationService $notifications): void
+    {
+        $transaction->loadMissing('customer.user');
+        $notifications->auctionNotice($transaction);
+        $transaction->update(['auction_notice_sent_at' => now()]);
     }
 }

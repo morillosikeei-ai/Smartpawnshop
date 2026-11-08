@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Start A Worker When Needed
+    |--------------------------------------------------------------------------
+    |
+    | When true, queuing an account email also starts a short-lived worker in
+    | the background (App\Support\QueueWorker), for setups that run no worker
+    | of their own. Set to false where a worker already runs.
+    |
+    */
+
+    'auto_work' => env('QUEUE_AUTO_WORK', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |

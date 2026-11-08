@@ -1,0 +1,18 @@
+/* Pawner's rights (P.D. 114) and privacy notice (R.A. 10173) on the customer Profile. */
+.rights-notice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.rights-card { padding: 20px 22px; border: 1px solid #dbe2ec; border-radius: 12px; background: #fff; color: #061028; }
+.rights-card h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-16); }
+.rights-card h3 ion-icon { color: #b8860b; font-size: 1.2rem; }
+.rights-law { margin: 4px 0 14px; color: #64748b; font-size: var(--fs-12); font-weight: 700; }
+.rights-card ol { display: grid; gap: 10px; margin: 0; padding-left: 18px; font-size: var(--fs-13); line-height: 1.55; }
+.rights-card dl { display: grid; gap: 4px; margin: 0; font-size: var(--fs-13); line-height: 1.55; }
+.rights-card dt { margin-top: 6px; font-weight: 800; }
+.rights-card dd { margin: 0; color: #334155; }
+.rights-contact { margin: 14px 0 0; color: #64748b; font-size: var(--fs-12); }
+@media (max-width: 800px) { .rights-notice { grid-template-columns: 1fr; } }
+
+html[data-theme="dark"] .rights-card { border-color: #293b5b; background: #15233c; color: #e6ebf5; }
+html[data-theme="dark"] .rights-card h3 ion-icon { color: #f5c842; }
+html[data-theme="dark"] .rights-law,
+html[data-theme="dark"] .rights-contact { color: #a3afc2; }
+html[data-theme="dark"] .rights-card dd { color: #cbd5e1; }

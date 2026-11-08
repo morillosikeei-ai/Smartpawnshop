@@ -48,7 +48,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'overdue',
     keywords: ['due date', 'overdue', 'late', 'expire', 'forfeit', 'grace', 'extension', 'unclaimed', 'lapas', 'nalapas', 'dili maka bayad', 'what happens if'],
     answer:
-      'Naa kay 7 ka adlaw nga extension period human sa due date. Sulod ana, pwede pa ka mobayad o mo-renew. If the extension period passes without payment or renewal, the item becomes expired/unclaimed and may be put up for sale. Please talk to our staff before the due date so we can arrange a renewal.',
+      'Human sa due date, naa pa kay 90 ka adlaw nga redemption period (P.D. 114). Sulod ana, pwede pa ka mobayad o mo-renew; padayon ang interest hangtod mobayad ka. 7 ka adlaw una matapos ang period, padalhan ka namo ug written notice (sa portal ug email). If the period ends without payment or renewal, the item goes to a public auction. It is never sold straight away. Please talk to our staff early so we can arrange a renewal.',
     action: 'items',
   },
   {

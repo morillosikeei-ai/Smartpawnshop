@@ -314,7 +314,7 @@
 .staff-page .loan-tool-row.single-field { grid-template-columns: minmax(0, 1fr); }
 .staff-page .loan-tool-row ion-input, .staff-page .loan-tool-row ion-select { min-height: 42px; border: 1px solid #d7e2da; border-radius: 8px; --padding-start: 12px; --padding-end: 12px; background: #fff; }
 .staff-page .loan-tool-row .type-select input { width: 100%; min-height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #d7e2da; border-radius: 8px; background: #fff; color: #061028; font: inherit; font-size: var(--fs-14); }
-.staff-page .loan-table { border: 1px solid #d7e2da; border-radius: 10px; background: #fff; overflow: hidden; }
+.staff-page .loan-table { border: 1px solid #d7e2da; border-radius: 10px; background: #fff; overflow-x: auto; overflow-y: hidden; }
 .staff-page .loan-table-head { display: grid; grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1.1fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(90px, .7fr) 82px; gap: 12px; align-items: center; padding: 12px 14px; background: #f4f7fb; color: #52627b; font-size: var(--fs-11); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .staff-page .loan-table-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1.1fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(90px, .7fr) 82px; gap: 12px; align-items: center; min-height: 64px; padding: 12px 14px; border-top: 1px solid #e0e9e2; }
 .staff-page .loan-table-row span { overflow: hidden; color: #061028; font-size: var(--fs-12); text-overflow: ellipsis; white-space: nowrap; }
@@ -1273,3 +1273,8 @@ ion-modal .payment-col > * { margin-top: 0; margin-bottom: 0; }
   ion-modal .payment-col-summary .payment-summary { grid-template-columns: 1fr 1fr; }
   ion-modal .payment-col-summary .payment-summary > div:last-child { grid-column: 1 / -1; }
 }
+
+/* Review of an expired/unclaimed item: Extend is the secondary choice beside Confirm for Sale. */
+.workflow-actions button.workflow-extend { background: transparent; border: 1px solid currentColor; color: #1d4ed8; }
+.workflow-actions button:disabled { opacity: .5; cursor: not-allowed; }
+html[data-theme="dark"] .workflow-actions button.workflow-extend { color: #8fb0ff; }

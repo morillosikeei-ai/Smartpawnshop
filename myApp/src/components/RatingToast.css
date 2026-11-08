@@ -1,0 +1,99 @@
+/* Floating rating badge on the landing page (RatingToast.tsx).
+   Fixed at the top right, just under the 76px navbar and in line with its
+   side padding, so it clears the hero buttons (left) and the chat button
+   (bottom right). */
+.rating-toast {
+  --rt-navy: #0F172A;
+  --rt-gold: #E4B737;
+  position: fixed;
+  top: calc(76px + 12px);
+  right: clamp(18px, 5vw, 72px);
+  z-index: 90; /* under the navbar (100), over the page */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 340px;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid rgba(228, 183, 55, .55);
+  border-radius: 14px;
+  background: var(--rt-navy);
+  color: #e6ecf5;
+  font-family: inherit;
+  box-shadow: 0 14px 34px rgba(3, 10, 28, .35);
+}
+
+.rating-toast-score { color: var(--rt-gold); font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.rating-toast-copy { display: grid; gap: 4px; min-width: 0; }
+.rating-toast-stars { display: inline-flex; gap: 2px; color: var(--rt-gold); font-size: 1rem; }
+.rating-toast-copy small { color: #cbd5e1; font-size: var(--fs-12, 12px); line-height: 1.35; }
+
+.rating-toast-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: flex-start;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+.rating-toast-close:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.rating-toast-close:focus-visible { outline: 2px solid var(--rt-gold); outline-offset: 2px; }
+
+/* Fade and a small slide, only while the motion toggle is on and the visitor
+   has not asked for reduced motion. Otherwise it appears and goes at once. */
+@keyframes rating-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes rating-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .rating-toast { animation: rating-toast-in .4s ease both; }
+  html[data-motion="on"] .rating-toast.is-leaving { animation: rating-toast-out .4s ease both; }
+}
+
+/* Phones: full width under the navbar, with the page's 12px gutter. */
+@media (max-width: 575.98px) {
+  .rating-toast { left: 12px; right: 12px; max-width: none; }
+}
+
+/* The folded badge: a small star button in the same corner. It opens the
+   badge again; × on the badge folds it back here. */
+.rating-toast-toggle {
+  position: fixed;
+  top: calc(76px + 12px);
+  right: clamp(18px, 5vw, 72px);
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(228, 183, 55, .55);
+  border-radius: 999px;
+  background: #0F172A;
+  color: #E4B737;
+  font: inherit;
+  font-size: var(--fs-14, 14px);
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(3, 10, 28, .35);
+  cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.rating-toast-toggle ion-icon { font-size: 1.1rem; }
+.rating-toast-toggle:hover { border-color: #E4B737; transform: translateY(-1px); }
+.rating-toast-toggle:focus-visible { outline: 2px solid #E4B737; outline-offset: 3px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .rating-toast-toggle { animation: rating-toast-in .4s ease both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rating-toast-toggle { transition: none; }
+}
+/* Phones: the button stays small at the right, under the navbar. */
+@media (max-width: 575.98px) {
+  .rating-toast-toggle { right: 12px; }
+}

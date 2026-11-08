@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildAreaPath, buildLinePath, type ChartPoint } from './smoothPath';
 import { Skeleton } from './Skeleton';
 import './ModelPerformanceChart.css';
+import ChartTableButton, { signedChange } from './ChartTableButton';
 
 /** One reading on the accuracy series: a short axis label and a percentage. */
 export type ModelPerformancePoint = {
@@ -138,6 +139,7 @@ const ModelPerformanceChart: React.FC<ModelPerformanceChartProps> = ({ points, l
   }
 
   return (
+    <>
     <div
       className="model-chart"
       ref={setContainer}
@@ -227,6 +229,25 @@ const ModelPerformanceChart: React.FC<ModelPerformanceChartProps> = ({ points, l
         </div>
       )}
     </div>
+    <div className="chart-table-row">
+      <ChartTableButton
+        title="Model accuracy history"
+        subtitle={rangeLabel}
+        fileName="model-accuracy-history"
+        changeKey="change"
+        columns={[
+          { key: 'period', label: 'Period' },
+          { key: 'accuracy', label: 'Accuracy', align: 'right' },
+          { key: 'change', label: 'Change', align: 'right' },
+        ]}
+        rows={points.map((point, index) => ({
+          period: point.caption || point.label,
+          accuracy: `${point.value.toFixed(1)}%`,
+          change: signedChange(point.value, points[index - 1]?.value, (value) => `${value.toFixed(1)} pts`),
+        })).reverse()}
+      />
+    </div>
+    </>
   );
 };
 

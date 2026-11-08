@@ -226,3 +226,19 @@ html[data-motion="on"] .staff-page .staff-shell::before {
 		animation: none;
 	}
 }
+
+/* Dark mode while paused: no rain, only the mesh as a quiet dot pattern. The
+   rain shows only once the play button turns the animation on. */
+html[data-theme="dark"]:not([data-motion="on"]) .portal-page .portal-shell::before,
+html[data-theme="dark"]:not([data-motion="on"]) .admin-page .admin-shell::before,
+html[data-theme="dark"]:not([data-motion="on"]) .staff-page .staff-shell::before {
+	background-image: none;
+	background-color: #1a2b4a;
+}
+
+html[data-theme="dark"]:not([data-motion="on"]) .portal-page .portal-shell::after,
+html[data-theme="dark"]:not([data-motion="on"]) .admin-page .admin-shell::after,
+html[data-theme="dark"]:not([data-motion="on"]) .staff-page .staff-shell::after {
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+}

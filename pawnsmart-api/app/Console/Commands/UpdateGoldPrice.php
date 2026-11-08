@@ -154,7 +154,8 @@ class UpdateGoldPrice extends Command
         $riskThresholdPercent = $this->riskThresholdPercent();
 
         // chunkById keeps memory flat when the shop holds many items.
-        Item::where('status', 'active')->where('group', Item::GROUP_JEWELRY)->chunkById(200, function ($items) use ($pricePerGram, $meltPrices, $silverPricePerGram, $silverMeltPrices, $riskThresholdPercent, &$counts) {
+        // Overdue items are still open pawns, so their value keeps following the price.
+        Item::whereIn('status', ['active', 'overdue'])->where('group', Item::GROUP_JEWELRY)->chunkById(200, function ($items) use ($pricePerGram, $meltPrices, $silverPricePerGram, $silverMeltPrices, $riskThresholdPercent, &$counts) {
             foreach ($items as $item) {
                 $isSilver = $item->metal_type === Item::METAL_SILVER;
                 $itemPricePerGram = $isSilver ? $silverPricePerGram : $pricePerGram;

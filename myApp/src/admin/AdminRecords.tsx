@@ -327,7 +327,7 @@ const OverdueTab: React.FC<{ initialSearch?: string }> = ({ initialSearch }) => 
   const filters: Array<{ id: OverdueFilter; label: string; count: number }> = [
     { id: 'all', label: 'All', count: overdue.length + forfeited.length },
     { id: 'overdue', label: 'Overdue', count: overdue.length },
-    { id: 'forfeited', label: 'Expired/Unclaimed', count: forfeited.length },
+    { id: 'forfeited', label: 'For Auction', count: forfeited.length },
   ];
 
   return (
@@ -335,7 +335,7 @@ const OverdueTab: React.FC<{ initialSearch?: string }> = ({ initialSearch }) => 
       <Summary items={[
         { label: 'Overdue pawns', value: String(overdue.length), tone: 'gold' },
         { label: 'Overdue amount due', value: moneyExact(overdue.reduce((total, row) => total + Number(row.total_payable), 0)), tone: 'gold' },
-        { label: 'Expired/Unclaimed', value: String(forfeited.length), tone: 'red' },
+        { label: 'For Auction', value: String(forfeited.length), tone: 'red' },
         { label: 'Principal in forfeited', value: moneyExact(forfeited.reduce((total, row) => total + Number(row.loan_amount), 0)), tone: 'red' },
       ]} />
       <DataTable

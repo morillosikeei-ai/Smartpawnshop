@@ -94,9 +94,10 @@ html[data-theme="dark"] .modal-sections {
 
 @keyframes ms-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-/* Phones and narrow tablets: tabs across the top that scroll sideways, and the
-   section below grows with its content (the modal body scrolls instead). */
-@media (max-width: 720px) {
+/* Phones, narrow tablets and phones turned sideways: tabs across the top that
+   scroll sideways, and the section below grows with its content (the modal
+   body scrolls instead). */
+@media (max-width: 720px), (orientation: landscape) and (max-height: 500px) {
   /* Full height here: the modal body scrolls, so the section must not shrink
      into the space below it. */
   .modal-sections { grid-template-columns: 1fr; gap: 12px; flex: none; }

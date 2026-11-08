@@ -20,13 +20,15 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\ChatAssistantService;
 use App\Services\GoldPriceService;
-use App\Services\MailDelivery;
+use App\Jobs\SendAccountMail;
 use App\Services\NotificationService;
 use App\Services\ReservationService;
 use App\Mail\ActivationMail;
 use App\Mail\PasswordResetMail;
 use App\Support\FrontendUrl;
 use App\Support\MediaUrl;
+use App\Support\Psgc;
+use App\Support\QueueWorker;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -145,13 +147,15 @@ class ApiController extends Controller
         // A mail server that is down or misconfigured must not be reported back
         // to an anonymous caller, because the reply would then reveal which
         // addresses have accounts. MailDelivery retries and logs instead, so a
-        // failed reset is findable in storage/logs rather than silent.
-        MailDelivery::send(
+        // failed reset is findable in storage/logs rather than silent. It runs
+        // queued: the SMTP handshake alone takes seconds.
+        SendAccountMail::dispatch(
             $user->email,
             new PasswordResetMail($token, $user->name, self::PASSWORD_RESET_EXPIRY_MINUTES),
             'Password reset',
             ['user_id' => $user->users_id]
         );
+        QueueWorker::kick();
 
         return $genericResponse;
     }
@@ -470,9 +474,9 @@ class ApiController extends Controller
     public function storeCustomer(Request $request): JsonResponse
     {
         $data = $request->validate(['name' => ['required', 'string'], 'email' => ['required', 'email:rfc,dns', 'unique:users,email'], 'password' => ['nullable', 'string', 'min:8'], 'contact_number' => ['required', 'string'], 'address' => ['nullable', 'string'], 'valid_id_type' => ['required', 'string'], 'valid_id_number' => ['required', 'string'], 'valid_id_photo' => ['nullable', 'string', 'max:8000000']]);
+        $data = [...$data, ...$this->addressParts($request)];
         $customer = DB::transaction(function () use ($data, $request) {
             $activationToken = Str::random(64);
-            $activationEmailSent = false;
             $user = User::create([
                 'name' => $data['name'],
                 'email' => strtolower($data['email']),
@@ -488,22 +492,85 @@ class ApiController extends Controller
                 'user_id' => $user->users_id,
                 'registered_by_staff_id' => $request->user()->users_id,
             ]);
-            // The customer is registered either way. Losing the whole
-            // registration because the mail server hiccuped would be worse
-            // than an activation link the staff can resend.
-            $activationEmailSent = MailDelivery::send(
+            // Queued, so staff do not wait on the mail server (around 10
+            // seconds per attempt), and sent only once the registration is
+            // committed. The customer is registered either way; a failed
+            // email is logged by MailDelivery and the link can be resent.
+            SendAccountMail::dispatch(
                 $user->email,
                 new ActivationMail($activationToken, $user->name),
                 'Activation',
                 ['user_id' => $user->users_id]
             );
 
-            $customer->setAttribute('activation_email_sent', $activationEmailSent);
-
             return $customer->load('user');
         });
+        QueueWorker::kick();
 
         return response()->json($customer, 201);
+    }
+
+    /**
+     * The address picked from the PSGC list, checked against it.
+     *
+     * The app sends the province and city codes with the barangay name and the
+     * street. The names saved are the official ones looked up from the codes,
+     * and the complete address is built here, so it always matches its parts.
+     * A request without a province keeps the plain address field, as before.
+     *
+     * @return array<string, string|null>
+     */
+    private function addressParts(Request $request): array
+    {
+        $data = $request->validate([
+            'province_code' => ['nullable', 'string', 'max:20'],
+            'city_code' => ['required_with:province_code', 'nullable', 'string', 'max:20'],
+            'barangay' => ['required_with:province_code', 'nullable', 'string', 'max:255'],
+            'street' => ['nullable', 'string', 'max:255'],
+        ]);
+        if (empty($data['province_code'])) {
+            return [];
+        }
+
+        $province = Psgc::provinceName($data['province_code']);
+        $city = $province ? Psgc::cityName($data['province_code'], (string) $data['city_code']) : null;
+        $barangay = $city ? collect(Psgc::barangays((string) $data['city_code']))->first(fn ($name) => $name === $data['barangay']) : null;
+        if (! $province) throw ValidationException::withMessages(['province_code' => 'Pick a province from the list.']);
+        if (! $city) throw ValidationException::withMessages(['city_code' => 'Pick a city or municipality in '.$province.'.']);
+        if (! $barangay) throw ValidationException::withMessages(['barangay' => 'Pick a barangay in '.$city.'.']);
+
+        $street = isset($data['street']) ? trim($data['street']) : null;
+
+        return [
+            'province' => $province,
+            'city_municipality' => $city,
+            'barangay' => $barangay,
+            'street' => $street !== '' ? $street : null,
+            'address' => Psgc::completeAddress($street, $barangay, $city, $province),
+        ];
+    }
+
+    /** PSGC provinces, with Metro Manila listed as one. For the address pickers. */
+    public function psgcProvinces(): JsonResponse
+    {
+        return response()->json(Psgc::provinces())->header('Cache-Control', 'private, max-age=86400');
+    }
+
+    /** Cities and municipalities in a province (or in Metro Manila, code NCR). */
+    public function psgcCities(string $province): JsonResponse
+    {
+        abort_unless(Psgc::provinceName($province), 404, 'Unknown province.');
+
+        return response()->json(Psgc::cities($province))->header('Cache-Control', 'private, max-age=86400');
+    }
+
+    /** Barangay names in a city or municipality. */
+    public function psgcBarangays(string $city): JsonResponse
+    {
+        $barangays = Psgc::barangays($city);
+        abort_if($barangays === [], 404, 'Unknown city or municipality.');
+
+        return response()->json($barangays)->header('Cache-Control', 'private, max-age=86400');
     }
 
     /**
@@ -800,7 +867,7 @@ class ApiController extends Controller
         do {
             $ticketNumber = 'PT-'.now()->format('YmdHis').random_int(10, 99);
         } while (Transaction::where('ticket_number', $ticketNumber)->exists());
-        $transaction = Transaction::create(['item_id' => $item->items_id, 'customer_id' => $data['customer_id'], 'ticket_number' => $ticketNumber, 'loan_amount' => $data['loan_amount'], 'interest_rate' => $interestRate, 'loan_to_value_percent' => $data['loan_to_value_percent'], 'due_date' => $data['due_date'], 'grace_period_days' => $data['grace_period_days'], 'status' => 'active']);
+        $transaction = Transaction::create(['item_id' => $item->items_id, 'customer_id' => $data['customer_id'], 'ticket_number' => $ticketNumber, 'loan_amount' => $data['loan_amount'], 'interest_rate' => $interestRate, 'loan_to_value_percent' => $data['loan_to_value_percent'], 'due_date' => $data['due_date'], 'grace_period_days' => $this->gracePeriodDays(), 'status' => 'active']);
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Created pawn ticket', 'ticket_number' => $transaction->ticket_number, 'reason' => $data['adjustment_reason'] ?? null]);
         $notifications->itemRecorded($item->load('customer'), $transaction);
         return response()->json($transaction->load('item', 'customer'), 201);
@@ -904,6 +971,8 @@ class ApiController extends Controller
         abort_unless($transaction->status === 'active' && $request->user()->role === 'staff', 422, 'Pawn transaction cannot be redeemed.');
         $interest = $transaction->interestDue();
         $totalPayable = $transaction->totalPayable();
+        $daysElapsed = $transaction->daysElapsed();
+        $interestDays = $transaction->interestDays();
 
         $method = trim($data['payment_method'] ?? '') ?: 'Cash';
         $reference = trim($data['payment_reference'] ?? '');
@@ -950,7 +1019,7 @@ class ApiController extends Controller
             'reason' => $method.' '.number_format($collected, 2).($reference !== '' ? ' - ref '.$reference : ''),
         ]);
         $notifications->redemptionCompleted($transaction->load('item', 'customer'));
-        return response()->json(['transaction' => $transaction->fresh()->load('item', 'customer'), 'principal' => $transaction->loan_amount, 'interest' => $interest, 'total_payable' => $totalPayable, 'receipt_number' => 'RC-'.now()->format('YmdHis')]);
+        return response()->json(['transaction' => $transaction->fresh()->load('item', 'customer'), 'principal' => $transaction->loan_amount, 'interest' => $interest, 'days_elapsed' => $daysElapsed, 'interest_days' => $interestDays, 'total_payable' => $totalPayable, 'receipt_number' => 'RC-'.now()->format('YmdHis')]);
     }
 
     /**
@@ -1583,6 +1652,57 @@ class ApiController extends Controller
         ]);
     }
 
+    /** Most reviews the landing page shows. */
+    private const PUBLIC_REVIEW_LIMIT = 6;
+
+    /**
+     * The shop's rating for the public landing page: the average, how many
+     * ratings it rests on, the spread, and a few recent good reviews.
+     *
+     * Nothing here points at a person: a review carries the customer's
+     * initials only, no name, ticket or item. Only 4 and 5 star reviews with a
+     * written comment are quoted; every rating still counts in the average.
+     */
+    public function publicRatings(): JsonResponse
+    {
+        $all = Feedback::query();
+        $total = (clone $all)->count();
+
+        $reviews = Feedback::with('customer:customers_id,name')
+            ->where('rating', '>=', 4)
+            ->whereNotNull('comment')
+            ->where('comment', '!=', '')
+            ->latest('feedback_id')
+            ->limit(self::PUBLIC_REVIEW_LIMIT)
+            ->get()
+            ->map(fn (Feedback $row) => [
+                'rating' => $row->rating,
+                'comment' => mb_strimwidth($row->comment, 0, 280, '…'),
+                'initials' => $this->initials($row->customer?->name),
+                'submitted_at' => $row->created_at?->toIso8601String(),
+            ])
+            ->all();
+
+        return response()->json([
+            'total' => $total,
+            'average_rating' => $total > 0 ? round((float) (clone $all)->avg('rating'), 1) : null,
+            'rating_counts' => collect(range(1, 5))
+                ->mapWithKeys(fn (int $star) => [$star => (clone $all)->where('rating', $star)->count()])
+                ->all(),
+            'reviews' => $reviews,
+        ]);
+    }
+
+    /** "Maria Dela Cruz" becomes "M. D." ; no name becomes an empty string. */
+    private function initials(?string $name): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $first = $parts[0] ?? '';
+        $last = count($parts) > 1 ? $parts[count($parts) - 1] : '';
+
+        return trim(collect([$first, $last])->filter()->map(fn (string $part) => mb_strtoupper(mb_substr($part, 0, 1)).'.')->implode(' '));
+    }
+
     /** One rating, as both portals read it. */
     private function feedbackPayload(Feedback $feedback): array
     {
@@ -1772,6 +1892,8 @@ class ApiController extends Controller
             'ticket_number' => $transaction->ticket_number,
             'renewable' => $transaction->status === 'active',
             'interest_due' => $transaction->interestDue(),
+            'days_elapsed' => $transaction->daysElapsed(),
+            'interest_days' => $transaction->interestDays(),
             'due_date' => $transaction->due_date->toDateString(),
             'renewal_term_days' => $notifications->renewalTermDays(),
             'gcash_payment_info' => $notifications->gcashPaymentInfo(),
@@ -1891,7 +2013,12 @@ class ApiController extends Controller
         $transaction->update([
             'due_date' => $transaction->due_date->copy()->addDays($termDays),
             'interest_paid_until' => now(),
+            'auction_notice_sent_at' => null,
         ]);
+        // A renewal paid during the extension period ends the Overdue stage.
+        if ($transaction->item?->status === 'overdue' && $transaction->due_date->gte(today())) {
+            $transaction->item->update(['status' => 'active']);
+        }
 
         $this->closeRenewalRequest($renewalRequest, 'confirmed', $request->user()->users_id, null);
 
@@ -2172,6 +2299,9 @@ class ApiController extends Controller
     public function saveSetting(Request $request): JsonResponse
     {
         $data = $request->validate(['setting_key' => ['required', 'string'], 'setting_value' => ['required', 'string']]);
+        if ($data['setting_key'] === Transaction::MINIMUM_INTEREST_DAYS_KEY && ! preg_match('/^\d{1,3}$/', trim($data['setting_value']))) {
+            throw ValidationException::withMessages(['setting_value' => 'Minimum interest days must be a whole number of days, from 0 to 999.']);
+        }
         $setting = SystemSetting::updateOrCreate(['setting_key' => $data['setting_key']], ['setting_value' => $data['setting_value']]);
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => "Changed setting {$data['setting_key']}", 'reason' => "New value: {$data['setting_value']}"]);
 
@@ -2209,13 +2339,93 @@ class ApiController extends Controller
         return response()->json($activityFlag->fresh()->load('customer:customers_id,name,contact_number'));
     }
 
-    public function markForSale(Request $request, Item $item): JsonResponse
+    /**
+     * The grace period (redemption period after the due date) a new pawn gets,
+     * from the admin's grace_period_days setting. Read here, not from the
+     * request, so a pawner always gets the period the shop publishes.
+     */
+    private function gracePeriodDays(): int
     {
-        abort_unless($item->status === 'forfeited', 422, 'Only expired/unclaimed items can be listed for sale.');
-        $data = $request->validate(['sale_price' => ['required', 'numeric', 'gt:0']]);
-        $item->update(['sale_price' => $data['sale_price'], 'status' => 'for_sale']);
-        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Listed expired/unclaimed item for sale']);
+        $value = SystemSetting::where('setting_key', 'grace_period_days')->value('setting_value');
+
+        return is_numeric($value) ? max(0, (int) $value) : 90;
+    }
+
+    /**
+     * An item that went unsold at its public auction is listed on Items for
+     * Sale at the price staff typed. PD 114 requires the auction first, so the
+     * auction date is required; nothing else moves an item to for_sale.
+     */
+    public function markForSale(Request $request, Item $item, NotificationService $notifications): JsonResponse
+    {
+        abort_unless($item->status === 'forfeited', 422, 'Only an item that went to public auction can be listed for sale.');
+        $data = $request->validate([
+            'sale_price' => ['required', 'numeric', 'gt:0'],
+            'auction_date' => ['required', 'date', 'before_or_equal:today'],
+        ]);
+        $item->update(['sale_price' => $data['sale_price'], 'auction_date' => $data['auction_date'], 'status' => 'for_sale']);
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Listed item unsold at auction for sale', 'reason' => 'Auction '.$data['auction_date'].' - selling price '.number_format((float) $data['sale_price'], 2)]);
+        $notifications->itemListedForSale($item->fresh('customer'));
         return response()->json($item->fresh());
+    }
+
+    /**
+     * Record the result of the public auction for an item that was sold there:
+     * the auction date and the price it fetched. The item becomes sold.
+     */
+    public function recordAuctionSale(Request $request, Item $item, NotificationService $notifications): JsonResponse
+    {
+        abort_unless($item->status === 'forfeited', 422, 'Only an item set for public auction can have an auction result.');
+        $data = $request->validate([
+            'auction_date' => ['required', 'date', 'before_or_equal:today'],
+            'sold_price' => ['required', 'numeric', 'gt:0'],
+        ]);
+        $item->update([
+            'auction_date' => $data['auction_date'],
+            'auction_price' => $data['sold_price'],
+            'sale_price' => $data['sold_price'],
+            'status' => 'sold',
+        ]);
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Recorded public auction sale', 'reason' => 'Auction '.$data['auction_date'].' - sold for '.number_format((float) $data['sold_price'], 2)]);
+        $notifications->itemSoldAtAuction($item->fresh('customer'));
+        return response()->json($item->fresh());
+    }
+
+    /**
+     * "Extend": staff review an expired/unclaimed pawn and reopen it instead
+     * of selling it. The pawn is active again with a new due date of today
+     * plus the renewal term. No payment is taken here; the interest owed
+     * keeps counting and is collected at redemption.
+     */
+    public function extendForfeited(Request $request, Transaction $transaction, NotificationService $notifications): JsonResponse
+    {
+        $transaction->load('item', 'customer');
+        abort_unless($transaction->status === 'forfeited' && $transaction->item?->status === 'forfeited', 422, 'Only an expired/unclaimed pawn that is not yet for sale can be extended.');
+        // Only the item's latest pawn can be reopened.
+        $latestId = Transaction::where('item_id', $transaction->item_id)->max('transactions_id');
+        abort_unless((int) $latestId === (int) $transaction->transactions_id, 422, 'Only the latest pawn on this item can be extended.');
+
+        $oldDue = $transaction->due_date->toDateString();
+        DB::transaction(function () use ($transaction, $notifications) {
+            $transaction->update([
+                'status' => 'active',
+                'due_date' => today()->addDays($notifications->renewalTermDays()),
+                // A new period gets its own auction notice before it ends.
+                'auction_notice_sent_at' => null,
+            ]);
+            $transaction->item->update(['status' => 'active']);
+        });
+
+        $transaction->refresh()->load('item', 'customer');
+        AuditLog::create([
+            'user_id' => $request->user()->users_id,
+            'action' => 'Extended expired/unclaimed pawn',
+            'ticket_number' => $transaction->ticket_number,
+            'reason' => 'Due date '.$oldDue.' -> '.$transaction->due_date->toDateString(),
+        ]);
+        $notifications->pawnExtended($transaction);
+
+        return response()->json($transaction);
     }
 
     /**

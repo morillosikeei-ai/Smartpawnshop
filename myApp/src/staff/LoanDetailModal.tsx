@@ -221,7 +221,7 @@ const LoanDetailModal: React.FC<Props> = ({ loan, item, customer, itemTypeLabel,
                         <Field label="Due date" value={<>{loan.dueDate} <em className="ldm-muted">({dueLabel(loan.daysUntilDue, loan.status)})</em></>} />
                         <Field label="Interest (Renta)"value={transaction ? `${(Number(transaction.interest_rate) * 100).toFixed(2)}% monthly` : '-'} />
                         <Field label="Pawn-to-value" value={transaction ? `${Number(transaction.loan_to_value_percent).toFixed(0)}%` : '-'} />
-                        <Field label="Extension Period"value={transaction ? `${transaction.grace_period_days} days` : '-'} />
+                        <Field label="Redemption Period"value={transaction ? `${transaction.grace_period_days} days` : '-'} />
                         <Field label="Principal" value={moneyExact(loan.loanAmount)} />
                         <Field label="Interest due" value={moneyExact(loan.interestDue)} />
                         <Field label="Total payable" value={<strong>{moneyExact(loan.totalPayable)}</strong>} />

@@ -304,3 +304,22 @@
   font-stretch: normal;
   letter-spacing: 0;
 }
+
+/* Phones: the motion and theme buttons sit side by side, so the header stays one row. */
+@media (max-width: 600px) {
+  .staff-page .staff-header-actions { gap: 8px; }
+  .staff-page .staff-action-wrap:first-child { display: flex; flex: none; gap: 8px; }
+  .staff-page .staff-top-user { white-space: nowrap; }
+}
+
+/* Phones turned sideways (a short screen): the sidebar becomes the slide-in
+   drawer, as under 800px, and it scrolls; the top bar and action bar are shorter. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .staff-sidebar { position: fixed; z-index: 20; inset: 0 auto 0 0; overflow-y: auto; transform: translateX(-100%); transition: transform .25s; box-shadow: 12px 0 30px rgba(16, 26, 47, .25); }
+  .staff-sidebar.open { transform: translateX(0); }
+  .staff-backdrop { position: fixed; z-index: 19; inset: 0; background: rgba(16, 26, 47, .5); opacity: 0; pointer-events: none; }
+  .staff-backdrop.open { opacity: 1; pointer-events: auto; }
+  .staff-page .staff-menu-toggle { display: flex; align-items: center; justify-content: center; }
+  .staff-page .staff-topbar { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
+  .staff-page .tx-actionbar { gap: 8px; margin-top: 12px; padding: 8px 14px; }
+}

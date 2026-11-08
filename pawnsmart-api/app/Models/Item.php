@@ -12,8 +12,8 @@ class Item extends Model
     use HasFactory;
 
     protected $primaryKey = 'items_id';
-    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'item_details', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'status'];
-    protected $casts = ['item_details' => 'array', 'weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2'];
+    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'item_details', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'auction_date', 'auction_price', 'status'];
+    protected $casts = ['item_details' => 'array', 'weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2', 'auction_date' => 'date', 'auction_price' => 'decimal:2'];
 
     /**
      * total_value is sent with every item so each screen shows the same total:

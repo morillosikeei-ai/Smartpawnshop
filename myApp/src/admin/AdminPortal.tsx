@@ -84,6 +84,7 @@ const NOTIFICATION_RECORDS: Partial<Record<ApiNotification['type'], RecordsTab>>
   staff_renewal_request: 'transactions',
   staff_overdue: 'overdue',
   staff_forfeited: 'overdue',
+  staff_pawn_extended: 'transactions',
 };
 
 const overviewStats = [
@@ -1047,11 +1048,13 @@ const SETTING_LABEL: Record<string, string> = {
   bulky_item_rate: 'Monthly Interest (Renta) — bulky items (%)',
   default_loan_to_value: 'Default pawn-to-value (%)',
   loan_term_days: 'Pawn term (days)',
-  grace_period_days: 'Extension period (days)',
+  grace_period_days: 'Redemption period after the due date (days) — PD 114: 90',
+  auction_notice_days: 'Auction notice, days before the redemption period ends',
   due_soon_notice_days: 'Due date reminder (days before)',
   value_change_notice_percent: 'Value change notice (%)',
   redemption_visit_days: 'Redemption hold (days)',
   renewal_term_days: 'Online renewal extension (days)',
+  minimum_interest_days: 'Minimum interest charged (days)',
   gcash_payment_info: 'GCash number/account shown to customers',
   shop_open_days: 'Open days (1 = Monday … 7 = Sunday)',
   shop_opens_at: 'Opening time (24h, e.g. 09:00)',
@@ -1215,7 +1218,7 @@ const Activity: React.FC = () => {
 const EXPORTS: Array<{ id: string; title: string; detail: string; run: () => Promise<number> }> = [
   { id: 'transactions', title: 'All pawn transactions', detail: 'Every ticket with amounts, due date and status.', run: async () => { const rows = await getTransactions(); transactionsCsv(rows); return rows.length; } },
   { id: 'payments', title: 'Payments collected', detail: 'Redemptions with principal, interest and total paid.', run: async () => { const rows = (await getTransactions()).filter(isPayment); paymentsCsv(rows); return rows.length; } },
-  { id: 'overdue', title: 'Overdue and expired/unclaimed', detail: 'Active pawns past due, plus forfeited pawns.', run: async () => { const rows = (await getTransactions()).filter(row => isOverdue(row) || row.status === 'forfeited'); overdueCsv(rows); return rows.length; } },
+  { id: 'overdue', title: 'Overdue and for auction', detail: 'Active pawns past due, plus pawns set for public auction.', run: async () => { const rows = (await getTransactions()).filter(row => isOverdue(row) || row.status === 'forfeited'); overdueCsv(rows); return rows.length; } },
   { id: 'customers', title: 'Customer records', detail: 'Profile, valid ID and pawn counts per customer.', run: async () => { const rows = await getCustomers(); customersCsv(rows); return rows.length; } },
   { id: 'activity', title: 'Staff activity log', detail: 'The latest 200 recorded staff and admin actions.', run: async () => { const rows = await getAuditLogs(200); activityCsv(rows); return rows.length; } },
 ];
@@ -1304,6 +1307,38 @@ const FeedbackPanel: React.FC = () => {
   );
 };
 
+/** The report summary as grouped table rows: what each figure is, and what it means. */
+const REPORT_GROUPS = (summary: ApiReportSummary): Array<{ title: string; rows: Array<{ label: string; value: string; note: string }> }> => {
+  const change = summary.monthly_loan_volume_change_percent;
+  return [
+    {
+      title: 'Pawns',
+      rows: [
+        { label: 'Monthly pawn volume', value: money(summary.monthly_loan_volume), note: change === null || change === undefined ? 'No pawns last month to compare' : `${change > 0 ? '+' : ''}${change.toFixed(1)}% vs last month` },
+        { label: 'Active pawns', value: String(summary.active_loans), note: 'Pawns open today' },
+        { label: 'Average pawn amount', value: money(summary.average_loan), note: `Across ${summary.active_loans} active pawns` },
+        { label: 'Redemption rate', value: percent(summary.redemption_rate_percent), note: 'Redeemed out of all closed pawns' },
+      ],
+    },
+    {
+      title: 'Collections',
+      rows: [
+        { label: 'Total collected', value: money(summary.total_collected), note: 'Principal plus interest from redemptions' },
+        { label: 'Renewal income this month', value: money(summary.renewal_income_this_month), note: `${money(summary.renewal_income_total)} since the shop opened` },
+        { label: 'Renewals this month', value: String(summary.renewals_this_month), note: `${summary.pending_renewals} waiting to be checked` },
+      ],
+    },
+    {
+      title: 'Inventory and risk',
+      rows: [
+        { label: 'Inventory value', value: money(summary.inventory_value), note: 'Current value of items the shop holds' },
+        { label: 'Items for sale value', value: money(summary.items_for_sale_value), note: 'Asking price of listed items' },
+        { label: 'Open risk alerts', value: String(summary.open_risk_alerts), note: `${summary.high_risk_alerts} high risk` },
+      ],
+    },
+  ];
+};
+
 const Reports: React.FC = () => {
   const modal = useModal();
   const [tab, setTab] = useState<Tab>('analytics');
@@ -1339,41 +1374,62 @@ const Reports: React.FC = () => {
       <div className="admin-panel">
         {tab === 'feedback' ? <FeedbackPanel /> : tab === 'analytics' ? (
           summaryError ? <p className="admin-form-error">{summaryError}</p> : !summary ? <SkeletonText lines={4} /> : (
-            <div className="report-grid">
-              <Metric label="Monthly pawn volume" value={money(summary.monthly_loan_volume)} detail={change === null || change === undefined ? 'No pawns last month to compare' : `${change > 0 ? '+' : ''}${change}% vs last month`} />
-              <Metric label="Redemption rate" value={percent(summary.redemption_rate_percent)} detail="Redeemed out of all closed pawns" />
-              <Metric label="Average pawn amount" value={money(summary.average_loan)} detail={`Across ${summary.active_loans} active pawns`} />
-              <Metric label="Risk alerts" value={String(summary.open_risk_alerts)} detail={`${summary.high_risk_alerts} high risk`} />
-              <Metric label="Total collected" value={money(summary.total_collected)} detail="Principal plus interest from redemptions" />
-              <Metric label="Inventory value" value={money(summary.inventory_value)} detail={`For-sale items: ${money(summary.items_for_sale_value)}`} />
-              {/* Renewals are renta collected without the pawn closing, so
-                  they are counted apart from redemptions rather than folded
-                  into Total collected. */}
-              <Metric label="Renewals this month" value={String(summary.renewals_this_month)} detail={`${summary.pending_renewals} waiting to be checked`} />
-              <Metric label="Renewal income" value={money(summary.renewal_income_this_month)} detail={`${money(summary.renewal_income_total)} since the shop opened`} />
-            </div>
+            <>
+              {/* The four figures the shop is run on, then everything in one
+                  table grouped by what it measures, so it reads top to bottom. */}
+              <div className="report-kpis">
+                <Metric label="Monthly pawn volume" value={money(summary.monthly_loan_volume)} detail={change === null || change === undefined ? 'No pawns last month to compare' : `${change > 0 ? '+' : ''}${change}% vs last month`} />
+                <Metric label="Total collected" value={money(summary.total_collected)} detail="Principal plus interest from redemptions" />
+                <Metric label="Redemption rate" value={percent(summary.redemption_rate_percent)} detail="Redeemed out of all closed pawns" />
+                <Metric label="Inventory value" value={money(summary.inventory_value)} detail={`For-sale items: ${money(summary.items_for_sale_value)}`} />
+              </div>
+
+              <div className="report-table-wrap">
+                <table className="report-table">
+                  <caption>Shop summary</caption>
+                  <thead>
+                    <tr><th scope="col">Measure</th><th scope="col" className="is-num">Value</th><th scope="col">What it means</th></tr>
+                  </thead>
+                  {REPORT_GROUPS(summary).map(group => (
+                    <tbody key={group.title}>
+                      <tr className="report-group"><th scope="rowgroup" colSpan={3}>{group.title}</th></tr>
+                      {group.rows.map(row => (
+                        <tr key={row.label}>
+                          <th scope="row">{row.label}</th>
+                          <td className="is-num">{row.value}</td>
+                          <td className="report-note">{row.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  ))}
+                </table>
+              </div>
+            </>
           )
         ) : (
-          <div className="export-list">
-            <div className="admin-table-head export-table-head">
-              <span>Report</span>
-              <span>Contents</span>
-              <span>Action</span>
-            </div>
-
-            {EXPORTS.map((entry) => (
-              <div className="export-row" key={entry.id}>
-                <IonIcon icon={documentTextOutline} />
-                <div>
-                  <strong>{entry.title}</strong>
-                  <small>{entry.detail}</small>
-                </div>
-                <IonButton fill="outline" onClick={() => runExport(entry)} disabled={exporting !== ''} aria-busy={exporting === entry.id}>
-                  {exporting === entry.id ? <Spinner /> : <IonIcon slot="start" icon={downloadOutline} />}
-                  Export CSV
-                </IonButton>
-              </div>
-            ))}
+          <div className="report-table-wrap">
+            <table className="report-table export-table">
+              <caption>Downloads</caption>
+              <thead>
+                <tr><th scope="col">Report</th><th scope="col">Contents</th><th scope="col" className="is-action">Action</th></tr>
+              </thead>
+              <tbody>
+                {EXPORTS.map((entry) => (
+                  <tr key={entry.id}>
+                    <th scope="row">
+                      <span className="export-name"><IonIcon icon={documentTextOutline} aria-hidden="true" />{entry.title}</span>
+                    </th>
+                    <td className="report-note">{entry.detail}</td>
+                    <td className="is-action">
+                      <IonButton fill="outline" size="small" onClick={() => runExport(entry)} disabled={exporting !== ''} aria-busy={exporting === entry.id}>
+                        {exporting === entry.id ? <Spinner /> : <IonIcon slot="start" icon={downloadOutline} />}
+                        Export CSV
+                      </IonButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

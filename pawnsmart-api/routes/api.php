@@ -17,6 +17,8 @@ Route::get('/items/for-sale', [ApiController::class, 'forSale']);
 // Public gold value estimate for the landing page. Read only: it computes a
 // figure from the latest gold price and never writes to the database.
 Route::post('/estimate', [ApiController::class, 'estimate'])->middleware('throttle:30,1');
+// The shop's customer rating for the landing page. Anonymous: initials only.
+Route::get('/ratings', [ApiController::class, 'publicRatings'])->middleware('throttle:30,1');
 // FAQ chat answered by Google Gemini. Public, because the chat also runs on the
 // landing page; the throttle caps what one visitor can spend.
 Route::post('/chat', [ApiController::class, 'chat'])->middleware('throttle:10,1');
@@ -37,6 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{user}', [ApiController::class, 'updateUser'])->middleware('role:admin');
     Route::get('/customers', [ApiController::class, 'customers']);
     Route::post('/customers', [ApiController::class, 'storeCustomer'])->middleware('role:staff,admin');
+    // The PSGC address list behind the customer address pickers.
+    Route::get('/psgc/provinces', [ApiController::class, 'psgcProvinces']);
+    Route::get('/psgc/provinces/{province}/cities', [ApiController::class, 'psgcCities'])->where('province', '[A-Za-z0-9]+');
+    Route::get('/psgc/cities/{city}/barangays', [ApiController::class, 'psgcBarangays'])->where('city', '[0-9]+');
     // Staff correcting a walk-in's details at the counter. The email is the
     // customer's sign-in and is not changed here.
     Route::put('/customers/{customer}', [ApiController::class, 'updateCustomer'])->middleware('role:staff,admin');
@@ -51,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/items/{item}/for-sale', [ApiController::class, 'markForSale'])->middleware('role:staff,admin');
     Route::put('/items/{item}/photos', [ApiController::class, 'updateItemPhotos'])->middleware('role:staff,admin');
     Route::post('/items/{item}/sold', [ApiController::class, 'markSold'])->middleware('role:staff,admin');
+    // PD 114: the result of the public auction for an item set for auction.
+    Route::post('/items/{item}/auction-result', [ApiController::class, 'recordAuctionSale'])->middleware('role:staff,admin');
     // Customers hold an item for sale for two open days; staff see and cancel holds.
     Route::post('/items/{item}/reserve', [ApiController::class, 'reserveItem'])->middleware(['role:customer', 'throttle:10,1']);
     Route::get('/reservations', [ApiController::class, 'reservations']);
@@ -58,6 +66,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [ApiController::class, 'transactions']);
     Route::post('/transactions', [ApiController::class, 'storeTransaction'])->middleware('role:staff,admin');
     Route::post('/transactions/{transaction}/redeem', [ApiController::class, 'redeem'])->middleware('role:staff,admin');
+    // Staff review of an expired/unclaimed pawn: reopen it with a new due date.
+    // The other review outcome is POST /items/{item}/for-sale.
+    Route::post('/transactions/{transaction}/extend', [ApiController::class, 'extendForfeited'])->middleware('role:staff,admin');
     // The customer raises a redemption request; staff accepts it. The payment
     // itself still runs through /redeem above.
     Route::post('/transactions/{transaction}/ready-to-redeem', [ApiController::class, 'requestRedemption'])->middleware('role:customer');

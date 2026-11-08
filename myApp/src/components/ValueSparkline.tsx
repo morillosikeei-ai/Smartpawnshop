@@ -1,6 +1,8 @@
 import React from 'react';
 import { buildLinePath } from './smoothPath';
 import './ValueSparkline.css';
+import ChartTableButton, { signedChange } from './ChartTableButton';
+import { shortDate } from '../data/pawnshopStore';
 
 export type ValuePoint = { date: string; value: number };
 
@@ -75,6 +77,7 @@ const ValueSparkline: React.FC<Props> = ({ points, formatValue }) => {
   const changeLabel = `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
 
   return (
+    <>
     <div className="value-sparkline">
       <div className="value-sparkline-copy">
         <span>Daily value · last {series.length} days</span>
@@ -91,6 +94,25 @@ const ValueSparkline: React.FC<Props> = ({ points, formatValue }) => {
       </svg>
       <b className={`value-sparkline-change ${tone}`}>{changeLabel}</b>
     </div>
+    <div className="chart-table-row">
+      <ChartTableButton
+        title="Item value history"
+        subtitle={`Last ${series.length} recorded days`}
+        fileName="item-value-history"
+        changeKey="change"
+        columns={[
+          { key: 'date', label: 'Date' },
+          { key: 'value', label: 'Value', align: 'right' },
+          { key: 'change', label: 'Change', align: 'right' },
+        ]}
+        rows={series.map((point, index) => ({
+          date: shortDate(point.date),
+          value: formatValue(point.value),
+          change: signedChange(point.value, series[index - 1]?.value, formatValue),
+        })).reverse()}
+      />
+    </div>
+    </>
   );
 };
 

@@ -3,6 +3,7 @@ import { money, parseDay, shortDate } from '../data/pawnshopStore';
 import { buildAreaPath, buildLinePath, type ChartPoint } from './smoothPath';
 import { Skeleton } from './Skeleton';
 import './GoldPriceChart.css';
+import ChartTableButton, { signedChange } from './ChartTableButton';
 
 /** One recorded day from the gold_prices table. */
 export type GoldPricePoint = {
@@ -23,6 +24,8 @@ type GoldPriceChartProps = {
    * the price is the headline; a page that leads with the chart passes more.
    */
   height?: number;
+  /** Offer the "View table" button. Off where the history table is already shown beside the chart. */
+  showTable?: boolean;
 };
 
 /**
@@ -42,7 +45,7 @@ const PADDING = { top: 10, right: 10, bottom: 20, left: 10 };
  * project carries no charting dependency and a single mini series does not
  * justify adding one.
  */
-const GoldPriceChart: React.FC<GoldPriceChartProps> = ({ points, loading = false, error = '', height = CHART_HEIGHT }) => {
+const GoldPriceChart: React.FC<GoldPriceChartProps> = ({ points, loading = false, error = '', height = CHART_HEIGHT, showTable = true }) => {
   // Held in state rather than a ref because the chart is not mounted during
   // the loading and error states, so a ref taken on first mount stays null.
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -139,6 +142,7 @@ const GoldPriceChart: React.FC<GoldPriceChartProps> = ({ points, loading = false
   }
 
   return (
+    <>
     <div
       className="gold-chart"
       ref={setContainer}
@@ -204,6 +208,25 @@ const GoldPriceChart: React.FC<GoldPriceChartProps> = ({ points, loading = false
         </div>
       )}
     </div>
+    {showTable && <div className="chart-table-row">
+      <ChartTableButton
+        title="Gold price history"
+        subtitle="Price per gram"
+        fileName="gold-price-history"
+        changeKey="change"
+        columns={[
+          { key: 'date', label: 'Date' },
+          { key: 'price', label: 'Price / gram', align: 'right' },
+          { key: 'change', label: 'Change', align: 'right' },
+        ]}
+        rows={points.map((point, index) => ({
+          date: shortDate(point.date),
+          price: money(point.price),
+          change: signedChange(point.price, points[index - 1]?.price, money),
+        })).reverse()}
+      />
+    </div>}
+    </>
   );
 };
 

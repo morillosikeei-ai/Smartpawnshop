@@ -42,6 +42,7 @@ import FaqChatbot from '../components/FaqChatbot';
 import BranchMap from '../components/BranchMap';
 import ItemsSlider from '../components/ItemsSlider';
 import GoldEstimate from '../components/GoldEstimate';
+import RatingToast from '../components/RatingToast';
 import './Landing.css';
 import './LandingPolish.css';
 import '../theme/ridge-button.css';
@@ -696,6 +697,7 @@ const Landing: React.FC = () => {
                 <ForgotPasswordModal isOpen={showForgotPassword} onClose={closeForgotPassword} onBackToLogin={openLogin} />
 
                 <FaqChatbot openSignal={chatOpenSignal} />
+                <RatingToast />
             </IonContent>
         </IonPage>
     );

@@ -75,10 +75,11 @@ export const longDate = (value?: string | null) =>
   value ? parseDay(value).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }) : '-';
 
 /**
- * What the portals call the API's 'forfeited' status. The stored value stays
- * 'forfeited'; only the text people read changes.
+ * What the portals call the API's 'forfeited' status: under PD 114 an item
+ * not redeemed within the redemption period goes to public auction. The
+ * stored value stays 'forfeited'; only the text people read changes.
  */
-export const FORFEITED_LABEL = 'Expired/Unclaimed';
+export const FORFEITED_LABEL = 'For Auction';
 
 /** Status text as the portals show it, from the API's lowercase value. */
 export const statusLabel = (status?: string | null) => {

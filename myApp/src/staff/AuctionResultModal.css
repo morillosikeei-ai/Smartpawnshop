@@ -1,0 +1,46 @@
+/* Auction result dialog (AuctionResultModal.tsx), in the style of the other staff dialogs. */
+ion-modal.auction-modal { --width: min(520px, calc(100vw - 24px)); --height: auto; --border-radius: 16px; }
+.auction-box { display: grid; gap: 16px; padding: 22px 24px; background: #fff; color: #061028; }
+.auction-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.auction-head small { display: inline-flex; align-items: center; gap: 6px; color: #8a6100; font-size: var(--fs-11); font-weight: 800; letter-spacing: .1em; }
+.auction-head h3 { margin: 4px 0 2px; font-size: var(--fs-20); }
+.auction-head p { margin: 0; color: #64748b; font-size: var(--fs-13); }
+.auction-close { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #e0e6f0; border-radius: 50%; background: #fff; color: #061028; font-size: 1.1rem; cursor: pointer; }
+
+.auction-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; border: 0; }
+.auction-choice legend { margin-bottom: 6px; font-size: var(--fs-12); font-weight: 700; }
+.auction-choice label { display: flex; gap: 10px; padding: 12px; border: 1px solid #dfe5ee; border-radius: 10px; cursor: pointer; }
+.auction-choice label.is-on { border-color: #d4a72c; box-shadow: 0 0 0 3px rgba(212, 167, 44, .14); }
+.auction-choice input { margin-top: 3px; accent-color: #d4a72c; }
+.auction-choice span { display: grid; gap: 2px; }
+.auction-choice strong { font-size: var(--fs-13); }
+.auction-choice small { color: #64748b; font-size: var(--fs-11); }
+
+.auction-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.auction-fields label { display: grid; gap: 4px; padding: 8px 12px; border: 1px solid #dfe5ee; border-radius: 10px; }
+.auction-fields span { font-size: var(--fs-12); font-weight: 700; }
+.auction-fields input { border: 0; outline: none; background: transparent; color: inherit; font: inherit; font-size: var(--fs-14); font-weight: 600; }
+.auction-hint { margin: -8px 0 0; color: #b42318; font-size: var(--fs-12); }
+.auction-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.auction-actions .primary-button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 520px) {
+  .auction-choice, .auction-fields { grid-template-columns: 1fr; }
+}
+
+html[data-theme="dark"] .auction-box { background: #131c2e; color: #e6ebf5; }
+html[data-theme="dark"] .auction-head small { color: #f5d979; }
+html[data-theme="dark"] .auction-head p,
+html[data-theme="dark"] .auction-choice small { color: #a3afc2; }
+html[data-theme="dark"] .auction-close { border-color: #2a3650; background: #1a2539; color: #e6ebf5; }
+html[data-theme="dark"] .auction-choice label,
+html[data-theme="dark"] .auction-fields label { border-color: #2a3650; background: #1a2539; }
+html[data-theme="dark"] .auction-fields input { color-scheme: dark; }
+html[data-theme="dark"] .auction-hint { color: #f0928a; }
+
+/* The dialog renders outside .staff-page, so it carries its own button look. */
+.auction-actions button { border-radius: 10px; padding: 11px 18px; font: inherit; font-size: var(--fs-12); font-weight: 800; cursor: pointer; }
+.auction-actions .primary-button { border: 1px solid #061028; background: linear-gradient(135deg, #061028 0%, #102549 100%); color: #fff; }
+.auction-actions .secondary-button { border: 1px solid #dfe5ee; background: #fff; color: #061028; }
+html[data-theme="dark"] .auction-actions .primary-button { border-color: #d4a72c; background: #d4a72c; color: #061028; }
+html[data-theme="dark"] .auction-actions .secondary-button { border-color: #2a3650; background: #1a2539; color: #e6ebf5; }

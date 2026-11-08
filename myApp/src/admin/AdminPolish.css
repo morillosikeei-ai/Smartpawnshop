@@ -527,3 +527,21 @@
 @media (max-width: 480px) {
   .admin-page .notification-dropdown { width: calc(100vw - 24px); max-height: 62vh; }
 }
+
+/* Phones: the motion and theme buttons sit side by side, so the header stays one row. */
+@media (max-width: 600px) {
+  .admin-page .admin-header-actions { gap: 8px; }
+  .admin-page .admin-action-wrap:first-child { display: flex; flex: none; gap: 8px; }
+  .admin-page .admin-user-menu { white-space: nowrap; }
+}
+
+/* Phones turned sideways (a short screen): the sidebar becomes the slide-in
+   drawer, as under 800px, and it scrolls; the top bar is shorter. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .admin-sidebar { position: fixed; z-index: 20; inset: 0 auto 0 0; overflow-y: auto; transform: translateX(-100%); transition: transform .25s; }
+  .admin-sidebar.open { transform: translateX(0); }
+  .admin-backdrop { position: fixed; z-index: 19; inset: 0; background: rgba(16, 26, 47, .5); opacity: 0; pointer-events: none; }
+  .admin-backdrop.open { opacity: 1; pointer-events: auto; }
+  .admin-menu-toggle { display: flex; align-items: center; justify-content: center; }
+  .admin-page .admin-topbar { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
+}

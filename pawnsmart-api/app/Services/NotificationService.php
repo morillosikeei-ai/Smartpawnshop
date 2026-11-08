@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Jobs\SendAccountMail;
+use App\Mail\AuctionNoticeMail;
+use App\Support\QueueWorker;
 use App\Models\Customer;
 use App\Models\Item;
 use App\Models\ItemReservation;
@@ -47,6 +50,15 @@ class NotificationService
     /** A loan passed its grace period and the item was forfeited. */
     public const TYPE_STAFF_FORFEITED = 'staff_forfeited';
 
+    /** An item unsold at its public auction was listed for sale at a typed price. */
+    public const TYPE_STAFF_LISTED_FOR_SALE = 'staff_listed_for_sale';
+
+    /** Staff extended a pawn set for auction back to active. */
+    public const TYPE_STAFF_PAWN_EXTENDED = 'staff_pawn_extended';
+
+    /** The written auction notice went to a customer: the item may soon go to auction. */
+    public const TYPE_STAFF_AUCTION_NOTICE = 'staff_auction_notice';
+
     /** A customer reserved an item for sale. */
     public const TYPE_STAFF_ITEM_RESERVED = 'staff_item_reserved';
 
@@ -76,6 +88,28 @@ class NotificationService
 
     /** The item was forfeited after the grace period. */
     public const TYPE_CUSTOMER_FORFEITED = 'forfeited';
+
+    /** The due date passed; the extension period is running. */
+    public const TYPE_CUSTOMER_OVERDUE = 'overdue';
+
+    /** The customer's item, unsold at auction, was put up for sale. */
+    public const TYPE_CUSTOMER_LISTED_FOR_SALE = 'listed_for_sale';
+
+    /** Staff reopened the customer's pawn set for auction with a new due date. */
+    public const TYPE_CUSTOMER_PAWN_EXTENDED = 'pawn_extended';
+
+    /** PD 114 written notice: redeem by the last day or the item goes to public auction. */
+    public const TYPE_CUSTOMER_AUCTION_NOTICE = 'auction_notice';
+
+    /** The item was sold at the public auction. */
+    public const TYPE_CUSTOMER_AUCTION_SOLD = 'auction_sold';
+
+    /**
+     * system_settings key for how many days before the redemption period ends
+     * the auction notice goes out, and the value used when the row is missing.
+     */
+    public const AUCTION_NOTICE_DAYS_KEY = 'auction_notice_days';
+    public const DEFAULT_AUCTION_NOTICE_DAYS = 7;
 
     /** Staff checked the GCash reference and extended the pawn. */
     public const TYPE_CUSTOMER_RENEWAL_CONFIRMED = 'renewal_confirmed';
@@ -237,7 +271,7 @@ class NotificationService
         $this->sendToStaff(
             self::TYPE_STAFF_OVERDUE,
             $this->itemName($item).' owned by '.$this->customerName($transaction->customer)
-                .' (Ticket #'.$transaction->ticket_number.') is overdue — '.$daysLeftBeforeForfeiture.' days left before it becomes expired/unclaimed.',
+                .' (Ticket #'.$transaction->ticket_number.') is overdue — '.$daysLeftBeforeForfeiture.' days left in the redemption period before it goes to public auction.',
             $transaction->item_id,
             self::REPEAT_AFTER_DAYS
         );
@@ -252,8 +286,11 @@ class NotificationService
             self::TYPE_STAFF_FORFEITED,
             $this->itemName($item).' owned by '.$this->customerName($transaction->customer)
                 .' (Ticket #'.$transaction->ticket_number.')'
-                ." is now expired/unclaimed — mark it as 'For Sale' if ready.",
-            $transaction->item_id
+                ." is now for public auction — record the auction result, or Extend.",
+            $transaction->item_id,
+            // A pawn extended after forfeiture can expire again later; a
+            // one-day window lets that second notice through.
+            1
         );
     }
 
@@ -354,8 +391,121 @@ class NotificationService
         $this->sendToCustomer(
             $transaction->customer,
             self::TYPE_CUSTOMER_FORFEITED,
-            'Your '.$this->itemName($transaction->item).' is now expired/unclaimed because it is past the due date and extension period.',
-            $transaction->item_id
+            'Your '.$this->itemName($transaction->item).' was not redeemed within the redemption period, so it is now set for public auction, as stated in the notice we sent. Please contact the shop if you have questions.',
+            $transaction->item_id,
+            1
+        );
+    }
+
+    /**
+     * The written notice PD 114 requires before a sale: in the bell, by email,
+     * and a copy for staff. The caller records when it was sent.
+     */
+    public function auctionNotice(Transaction $transaction): void
+    {
+        $item = $transaction->item;
+        $lastDay = $transaction->forfeitureDate()->format('F j, Y');
+        $this->sendToCustomer(
+            $transaction->customer,
+            self::TYPE_CUSTOMER_AUCTION_NOTICE,
+            'Notice: your '.$this->itemName($item).' (Ticket #'.$transaction->ticket_number.') must be redeemed or renewed by '.$lastDay
+                .'. If not, it will be sold at public auction (P.D. 114). Interest continues until you pay.',
+            $transaction->item_id,
+            1
+        );
+        $this->sendToStaff(
+            self::TYPE_STAFF_AUCTION_NOTICE,
+            'Auction notice sent to '.$this->customerName($transaction->customer).' for '.$this->itemName($item)
+                .' (Ticket #'.$transaction->ticket_number.'). Last day to redeem: '.$lastDay.'.',
+            $transaction->item_id,
+            1
+        );
+
+        $email = $transaction->customer?->user?->email;
+        if ($email) {
+            SendAccountMail::dispatch($email, new AuctionNoticeMail(
+                $this->customerName($transaction->customer),
+                $this->itemName($item),
+                (string) $transaction->ticket_number,
+                $transaction->due_date->format('F j, Y'),
+                $lastDay,
+                $this->peso($transaction->totalPayable()),
+            ), 'Auction notice', ['transaction_id' => $transaction->transactions_id]);
+            QueueWorker::kick();
+        }
+    }
+
+    /** The item was sold at the public auction. Customer copy. */
+    public function itemSoldAtAuction(Item $item): void
+    {
+        $item->loadMissing('customer');
+        $this->sendToCustomer(
+            $item->customer,
+            self::TYPE_CUSTOMER_AUCTION_SOLD,
+            'Your '.$this->itemName($item).' was sold at the public auction on '.$item->auction_date?->format('F j, Y').'.',
+            $item->items_id,
+            1
+        );
+    }
+
+    /** How many days before the redemption period ends the auction notice goes out. */
+    public function auctionNoticeDays(): int
+    {
+        return (int) $this->setting(self::AUCTION_NOTICE_DAYS_KEY, self::DEFAULT_AUCTION_NOTICE_DAYS);
+    }
+
+    /** The due date passed; the customer still has the extension period to redeem or renew. */
+    public function loanOverdueForCustomer(Transaction $transaction, int $daysLeftBeforeForfeiture): void
+    {
+        $this->sendToCustomer(
+            $transaction->customer,
+            self::TYPE_CUSTOMER_OVERDUE,
+            'Your '.$this->itemName($transaction->item).' (Ticket #'.$transaction->ticket_number.') is past its due date. '
+                .'You have '.$daysLeftBeforeForfeiture.' '.($daysLeftBeforeForfeiture === 1 ? 'day' : 'days')
+                .' left in the redemption period to redeem or renew before it goes to public auction.',
+            $transaction->item_id,
+            self::REPEAT_AFTER_DAYS
+        );
+    }
+
+    /** An item unsold at auction was listed for sale. Customer and staff copies. */
+    public function itemListedForSale(Item $item): void
+    {
+        $item->loadMissing('customer');
+        $this->sendToCustomer(
+            $item->customer,
+            self::TYPE_CUSTOMER_LISTED_FOR_SALE,
+            'Your '.$this->itemName($item).' was not sold at the public auction, so the shop has put it up for sale.',
+            $item->items_id,
+            1
+        );
+        $this->sendToStaff(
+            self::TYPE_STAFF_LISTED_FOR_SALE,
+            $this->itemName($item).' owned by '.$this->customerName($item->customer)
+                .' is now for sale at '.$this->peso((float) $item->sale_price).'.',
+            $item->items_id,
+            1
+        );
+    }
+
+    /** Staff extended a pawn set for auction. Customer and staff copies. */
+    public function pawnExtended(Transaction $transaction): void
+    {
+        $item = $transaction->item;
+        $due = $transaction->due_date->format('F j, Y');
+        $this->sendToCustomer(
+            $transaction->customer,
+            self::TYPE_CUSTOMER_PAWN_EXTENDED,
+            'Your '.$this->itemName($item).' (Ticket #'.$transaction->ticket_number.') is active again. The new due date is '.$due.'.',
+            $transaction->item_id,
+            1
+        );
+        $this->sendToStaff(
+            self::TYPE_STAFF_PAWN_EXTENDED,
+            $this->itemName($item).' owned by '.$this->customerName($transaction->customer)
+                .' (Ticket #'.$transaction->ticket_number.') was extended. New due date '.$due.'.',
+            $transaction->item_id,
+            1
         );
     }
 

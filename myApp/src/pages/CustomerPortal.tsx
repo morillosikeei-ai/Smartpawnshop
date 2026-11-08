@@ -39,6 +39,7 @@ import TrendSuggestionCard from '../components/TrendSuggestionCard';
 import ValueSparkline, { ValuePoint } from '../components/ValueSparkline';
 import LoanTermBar from '../components/LoanTermBar';
 import LoanOverviewChart, { type LoanRecord } from '../components/LoanOverviewChart';
+import RightsNotice from '../components/RightsNotice';
 import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
 import { SkeletonList, Spinner } from '../components/Skeleton';
 import Pager, { usePagedRows } from '../components/Pager';
@@ -72,8 +73,14 @@ type Item = {
     loan: string;
     loanAmount: number;
     interest: string;
+    /** Last day to redeem or renew (due date plus the redemption period), as shown. */
+    lastRedemption: string;
+    /** When the written notice of public auction was sent, as shown; '' before it is. */
+    auctionNoticeSent: string;
     /** interest_rate as stored: a fraction per month. Used by the Loan Overview graph. */
     monthlyRate: number;
+    /** The shop's minimum interest days, so the graph charges past days like the API. */
+    minimumInterestDays: number;
     totalPayable: number;
     interestDue: number;
     pawned: string;
@@ -153,12 +160,16 @@ const toItem = (item: ApiItemDetail): Item => {
         loanAmount: loan ? Number(loan.loan_amount) : 0,
         interest: loan ? `${(Number(loan.interest_rate) * 100).toFixed(2)}% monthly` : '-',
         monthlyRate: loan ? Number(loan.interest_rate) || 0 : 0,
+        minimumInterestDays: loan ? Number(loan.minimum_interest_days) || 0 : 0,
         totalPayable: loan ? Number(loan.total_payable) : 0,
         interestDue: loan ? Number(loan.interest_due) : 0,
         pawned: longDate(loan?.created_at),
         pawnedIso: loan?.created_at || '',
         due: longDate(loan?.due_date),
         dueIso: loan?.due_date || '',
+        // PD 114: the last day to redeem or renew, and when the auction notice went out.
+        lastRedemption: loan?.last_redemption_date ? longDate(loan.last_redemption_date) : '',
+        auctionNoticeSent: loan?.auction_notice_sent_at ? longDate(loan.auction_notice_sent_at) : '',
         redeemedIso: loan?.redeemed_at || '',
         photoUrl: item.photo_urls?.[0] || null,
         photos: item.photo_urls || [],
@@ -215,7 +226,7 @@ const rememberAskedFeedback = (transactionId: number) => {
 };
 
 /** Notification types the flash shows with the warning icon rather than the clock. */
-const ALERT_NOTIFICATIONS: ApiNotification['type'][] = ['risk_notice', 'forfeited'];
+const ALERT_NOTIFICATIONS: ApiNotification['type'][] = ['risk_notice', 'forfeited', 'overdue', 'auction_notice'];
 
 /** Most ids kept. The API builds notifications from live loans, so the list
  *  stays small; the cap only stops the entry growing without bound. */
@@ -559,6 +570,7 @@ const Dashboard: React.FC<{ active: Item[]; items: Item[]; dashboard: ApiDashboa
             open: item.status === 'Active' || item.status === 'Overdue',
             principal: item.loanAmount,
             monthlyRate: item.monthlyRate,
+            minimumInterestDays: item.minimumInterestDays,
         }));
 
     return <section className="portal-content dashboard-content">
@@ -621,7 +633,7 @@ const Items: React.FC<{ items: Item[]; visible: Item[]; filter: 'All' | Status; 
         <div className="items-table-wrap">
             <table className="items-table">
                 <thead><tr><th>Item</th><th>Pawn amount</th><th>Date pawned</th><th>Due date</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody>{pageRows.map(item => <tr key={item.id} onClick={() => setSelected(item)}><td><div className="table-item"><ItemThumbViewer photos={item.photos} name={item.name} /><span><strong>{item.name}</strong><small>{item.description}</small></span></div></td><td>{item.loan}</td><td>{item.pawned}</td><td>{item.due}</td><td><em className={`pill ${statusClass(item.status)}`}>{item.status}</em></td><td><button type="button" className="item-view-btn" onClick={event => { event.stopPropagation(); setSelected(item); }} aria-label={`View details for ${item.name}`}><IonIcon icon={eyeOutline} />View</button></td></tr>)}</tbody>
+                <tbody>{pageRows.map(item => <tr key={item.id} onClick={() => setSelected(item)}><td><div className="table-item"><ItemThumbViewer photos={item.photos} name={item.name} /><span><strong>{item.name}</strong><small>{item.description}</small></span></div></td><td data-label="Pawn amount">{item.loan}</td><td data-label="Date pawned">{item.pawned}</td><td data-label="Due date">{item.due}</td><td data-label="Status"><em className={`pill ${statusClass(item.status)}`}>{item.status}</em></td><td><button type="button" className="item-view-btn" onClick={event => { event.stopPropagation(); setSelected(item); }} aria-label={`View details for ${item.name}`}><IonIcon icon={eyeOutline} />View</button></td></tr>)}</tbody>
             </table>
             {!loaded && <SkeletonList rows={4} />}
             {loaded && visible.length === 0 && <p className="notice-empty">No items match this filter.</p>}
@@ -753,6 +765,18 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
                                         <strong>{item.due}</strong>
                                         {loanOpen && <LoanTermBar className="item-timeline-term" pawnedIso={item.pawnedIso} dueIso={item.dueIso} />}
                                     </li>
+                                    {loanOpen && item.lastRedemption && (
+                                        <li className={item.status === 'Overdue' ? 'is-alert' : 'is-next'}>
+                                            <span className="item-timeline-dot" aria-hidden="true" />
+                                            <span className="item-timeline-label">Last day to redeem or renew</span>
+                                            <strong>{item.lastRedemption}</strong>
+                                            <small>
+                                                {item.auctionNoticeSent
+                                                    ? `Notice of public auction sent ${item.auctionNoticeSent}. Redeem or renew by this day.`
+                                                    : 'After this day the item goes to a public auction (P.D. 114).'}
+                                            </small>
+                                        </li>
+                                    )}
                                     <li className={item.status === 'Overdue' || item.status === FORFEITED_LABEL ? 'is-alert' : 'is-current'}>
                                         <span className="item-timeline-dot" aria-hidden="true" />
                                         <span className="item-timeline-label">Current status</span>
@@ -906,6 +930,8 @@ const FeedbackDialog: React.FC<{
                 disabled={sending}
             />
         </label>
+        {/* The landing page quotes good reviews; say so before anyone writes one. */}
+        <p className="feedback-public-note">Your rating and comment may appear on our website with your initials only, never your name or ticket.</p>
 
         {error && <p className="feedback-error">{error}</p>}
 
@@ -1184,7 +1210,12 @@ const RenewOnlinePanel: React.FC<{ transactionId: number; itemName: string; onFl
             <div className="renew-online-amount">
                 <span>Renta Due</span>
                 <strong>{moneyExact(info.interest_due)}</strong>
-                <small>Interest computed to today. Paying it extends your due date by {info.renewal_term_days} days.</small>
+                <small>
+                    {info.interest_days > info.days_elapsed
+                        ? `Minimum renta of ${info.interest_days} days (held ${info.days_elapsed} ${info.days_elapsed === 1 ? 'day' : 'days'}).`
+                        : `Interest for ${info.interest_days} days, computed to today.`}
+                    {' '}Paying it extends your due date by {info.renewal_term_days} days.
+                </small>
             </div>
 
             <div className="renew-online-gcash">
@@ -1405,6 +1436,7 @@ const Profile: React.FC<{ me: ApiMe | null; logout: () => void; onAccountChanged
                 <IonButton className="profile-logout" fill="outline" color="danger" onClick={logout}><IonIcon icon={logOutOutline} slot="start" />Log out</IonButton>
             </Panel>
         </div>
+        <RightsNotice />
     </section>;
 };
 

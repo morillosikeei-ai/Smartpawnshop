@@ -142,3 +142,7 @@
 @media (max-width: 560px) {
   .gold-price-current { font-size: var(--fs-22); }
 }
+
+/* Dark mode: the chosen metal is gold with dark text, so it stands out from
+   the muted option beside it. */
+html[data-theme="dark"] .gold-metal-toggle button.active { background: #d4a72c !important; color: #061028 !important; }

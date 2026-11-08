@@ -662,7 +662,7 @@
 .portal-page .item-row>i{background:var(--gold);color:var(--ink);border:1px solid rgba(255,255,255,.7);box-shadow:0 4px 10px rgba(16,26,47,.12)}
 .portal-page .portal-alert strong{color:#6b4b00!important}.portal-page .portal-alert span{color:#765f2b!important}
 .portal-page .profile-logout{margin-top:12px}
-@media(max-width:800px){.portal-mobile-menu{display:flex}.portal-sidebar{position:fixed!important;z-index:20;top:0;bottom:0;left:0;width:268px!important;flex-basis:268px!important;padding:28px 16px 20px;transform:translateX(-100%)!important;transition:transform .25s ease;box-shadow:12px 0 30px rgba(16,26,47,.22)}.portal-sidebar.mobile-open{transform:translateX(0)!important}.portal-sidebar .portal-brand{justify-content:flex-start;padding:0 10px 34px}.portal-sidebar .portal-brand div,.portal-sidebar .portal-menu-label,.portal-sidebar .portal-nav span,.portal-sidebar .portal-nav b,.portal-sidebar .portal-logout span,.portal-sidebar .portal-user div{display:flex}.portal-sidebar .portal-nav button{justify-content:flex-start;padding:12px}.portal-sidebar .portal-user{justify-content:flex-start;padding:12px}.portal-mobile-backdrop{display:block;position:fixed;z-index:19;inset:0;background:rgba(16,26,47,.48);opacity:0;pointer-events:none;transition:opacity .25s ease}.portal-mobile-backdrop.open{opacity:1;pointer-events:auto}}
+@media(max-width:800px),(orientation:landscape) and (max-height:500px){.portal-mobile-menu{display:flex}.portal-sidebar{position:fixed!important;z-index:20;top:0;bottom:0;left:0;width:268px!important;flex-basis:268px!important;padding:28px 16px 20px;transform:translateX(-100%)!important;transition:transform .25s ease;box-shadow:12px 0 30px rgba(16,26,47,.22)}.portal-sidebar.mobile-open{transform:translateX(0)!important}.portal-sidebar .portal-brand{justify-content:flex-start;padding:0 10px 34px}.portal-sidebar .portal-brand div,.portal-sidebar .portal-menu-label,.portal-sidebar .portal-nav span,.portal-sidebar .portal-nav b,.portal-sidebar .portal-logout span,.portal-sidebar .portal-user div{display:flex}.portal-sidebar .portal-nav button{justify-content:flex-start;padding:12px}.portal-sidebar .portal-user{justify-content:flex-start;padding:12px}.portal-mobile-backdrop{display:block;position:fixed;z-index:19;inset:0;background:rgba(16,26,47,.48);opacity:0;pointer-events:none;transition:opacity .25s ease}.portal-mobile-backdrop.open{opacity:1;pointer-events:auto}}
 @media(max-width:480px){.portal-sidebar{width:258px!important;flex-basis:258px!important}}
 
 /* Customer dashboard */
@@ -1475,10 +1475,16 @@
 .portal-page .item-modal-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 12px; padding: 12px 0; }
 .portal-page .item-modal .item-modal-actions .redeem-request { margin: 0; padding: 0; }
 .portal-page .item-modal .renew-online { margin: 0; }
+/* The three actions (ready to pay, pickup code, renew) are one height, so
+   they line up side by side; on a phone each fills the width, one per row. */
+.portal-page .item-modal-actions .redeem-request-button,
+.portal-page .item-modal-actions .pickup-code-button,
+.portal-page .item-modal-actions .renew-online-open { box-sizing: border-box; min-height: 44px; }
 @media (max-width: 520px) {
   .portal-page .item-modal-actions > * { flex: 1 0 100%; }
   .portal-page .item-modal-actions .redeem-request-button,
-  .portal-page .item-modal-actions .renew-online-open { width: 100%; justify-content: center; }
+  .portal-page .item-modal-actions .pickup-code-button,
+  .portal-page .item-modal-actions .renew-online-open { width: 100%; justify-self: stretch; justify-content: center; }
 }
 .portal-page .item-modal .trend-suggestion { margin: 14px 0 0; }
 
@@ -1601,4 +1607,41 @@
 @media (min-width: 760px) {
   .portal-page .action-dialog:has(.renew-online-columns) { max-width: 780px; }
   .portal-page .renew-online-columns { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; }
+}
+
+.portal-page .feedback-public-note { margin: 4px 0 0; color: #64748b; font-size: var(--fs-11); line-height: 1.45; }
+html[data-theme="dark"] .portal-page .feedback-public-note { color: #94a3b8; }
+
+/* Phones: each table row becomes a card, so every column (and the View button)
+   shows without swiping sideways. Cells carry their column name in data-label. */
+@media (max-width: 600px) {
+  .portal-page .items-table-wrap .items-table { display: block; min-width: 0; }
+  .portal-page .items-table-wrap .items-table thead { display: none; }
+  .portal-page .items-table-wrap .items-table tbody { display: block; }
+  .portal-page .items-table-wrap .items-table tbody tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px;
+    padding: 14px 16px; border-bottom: 1px solid rgba(100, 116, 139, .22);
+  }
+  .portal-page .items-table-wrap .items-table tbody tr:last-child { border-bottom: 0; }
+  .portal-page .items-table-wrap .items-table td {
+    display: grid; align-content: start; gap: 3px; min-width: 0;
+    padding: 0; border: 0; text-align: left; white-space: normal;
+  }
+  .portal-page .items-table-wrap .items-table td[data-label]::before {
+    content: attr(data-label); color: #64748b;
+    font-size: var(--fs-10); font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .portal-page .items-table-wrap .items-table td:first-child,
+  .portal-page .items-table-wrap .items-table td:last-child { grid-column: 1 / -1; }
+  .portal-page .items-table-wrap .items-table .table-item { min-width: 0; }
+  .portal-page .items-table-wrap .items-table .item-view-btn { justify-content: center; width: 100%; min-height: 40px; }
+  html[data-theme="dark"] .portal-page .items-table-wrap .items-table td[data-label]::before { color: #94a3b8; }
+}
+
+/* Phones turned sideways (a short screen): the menu is the slide-in drawer
+   (see the 800px rules), the drawer scrolls. The shorter top bar is in theme/portal-ui.css. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .portal-page .portal-sidebar { overflow-y: auto; }
+  .portal-page .portal-brand { padding-bottom: 16px !important; }
+  .portal-page .portal-brand img { width: 150px !important; height: 72px !important; }
 }

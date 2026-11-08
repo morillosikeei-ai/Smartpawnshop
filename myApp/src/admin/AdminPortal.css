@@ -1163,3 +1163,46 @@
 @media (max-width: 720px) {
   .admin-schedule-modal .sched-remove { justify-self: start; }
 }
+
+/* ---- Reports: headline figures, then grouped tables ---- */
+.report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+.report-table-wrap { margin-top: 20px; overflow-x: auto; border: 1px solid #e2e8ef; border-radius: 12px; background: #fff; }
+.report-kpis + .report-table-wrap { margin-top: 20px; }
+.export-table { min-width: 620px; }
+.report-table { width: 100%; border-collapse: collapse; color: var(--admin-ink, #061028); font-size: var(--fs-13); }
+.report-table caption { padding: 14px 18px 10px; color: var(--admin-ink, #061028); font-size: var(--fs-14); font-weight: 800; text-align: left; }
+.report-table thead th {
+  padding: 10px 18px; border-top: 1px solid #e2e8ef; border-bottom: 1px solid #e2e8ef; background: #f6f8fb;
+  color: #52627b; font-size: var(--fs-11); font-weight: 800; letter-spacing: .06em; text-align: left; text-transform: uppercase;
+}
+.report-table tbody th,
+.report-table td { padding: 12px 18px; border-top: 1px solid #eef2f7; text-align: left; vertical-align: middle; }
+.report-table tbody th { font-weight: 700; }
+.report-table .is-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.report-table .is-action { width: 1%; text-align: right; white-space: nowrap; }
+.report-table .report-note { color: #52627b; font-size: var(--fs-12); }
+/* A group heading row: Pawns, Collections, Inventory and risk. */
+.report-table tr.report-group th {
+  padding: 9px 18px; background: #f4f7fb; color: #1d4ed8;
+  font-size: var(--fs-11); font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+}
+.report-table .export-name { display: inline-flex; align-items: center; gap: 10px; }
+.report-table .export-name ion-icon { flex: none; color: #1d4ed8; font-size: 1.15rem; }
+
+html[data-theme="dark"] .report-table-wrap { border-color: #2a3650; background: #131c2e; }
+html[data-theme="dark"] .report-table,
+html[data-theme="dark"] .report-table caption { color: #e6ebf5; }
+html[data-theme="dark"] .report-table thead th { border-color: #2a3650; background: #16223a; color: #a3afc2; }
+html[data-theme="dark"] .report-table tbody th,
+html[data-theme="dark"] .report-table td { border-top-color: #22304a; }
+html[data-theme="dark"] .report-table .report-note { color: #a3afc2; }
+html[data-theme="dark"] .report-table tr.report-group th { background: #16223a; color: #93b4ff; }
+html[data-theme="dark"] .report-table .export-name ion-icon { color: #93b4ff; }
+
+@media (max-width: 1100px) { .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .report-kpis { grid-template-columns: 1fr; }
+  .report-table .report-note { min-width: 160px; }
+}
+.report-table .is-action ion-button { min-width: 128px; white-space: nowrap; }

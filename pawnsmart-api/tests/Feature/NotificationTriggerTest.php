@@ -187,7 +187,7 @@ class NotificationTriggerTest extends TestCase
         $this->artisan('pawnshop:daily-lifecycle', ['--price' => 3560])->assertSuccessful();
 
         $this->assertSame(
-            'Gold ring owned by Maria Cruz (Ticket #'.$loan->ticket_number.') is overdue — 5 days left before it becomes expired/unclaimed.',
+            'Gold ring owned by Maria Cruz (Ticket #'.$loan->ticket_number.') is overdue — 5 days left in the redemption period before it goes to public auction.',
             Notification::where('user_id', $this->staff->users_id)
                 ->where('type', NotificationService::TYPE_STAFF_OVERDUE)
                 ->firstOrFail()->message
@@ -196,19 +196,20 @@ class NotificationTriggerTest extends TestCase
 
     public function test_the_daily_job_tells_both_sides_when_an_item_is_forfeited(): void
     {
-        $this->loan($this->item(), ['due_date' => today()->subDays(30)]);
+        // Past the redemption period, with the auction notice sent 10 days ago.
+        $this->loan($this->item(), ['due_date' => today()->subDays(30), 'auction_notice_sent_at' => now()->subDays(10)]);
 
         $this->artisan('pawnshop:daily-lifecycle', ['--price' => 3560])->assertSuccessful();
 
         $this->assertStringContainsString(
-            "mark it as 'For Sale' if ready",
+            'is now for public auction — record the auction result, or Extend.',
             Notification::where('user_id', $this->staff->users_id)
                 ->where('type', NotificationService::TYPE_STAFF_FORFEITED)
                 ->firstOrFail()->message
         );
 
         $this->assertStringContainsString(
-            'is now expired/unclaimed because it is past the due date and extension period',
+            'is now set for public auction, as stated in the notice we sent',
             Notification::where('user_id', $this->customerUser->users_id)
                 ->where('type', NotificationService::TYPE_CUSTOMER_FORFEITED)
                 ->firstOrFail()->message

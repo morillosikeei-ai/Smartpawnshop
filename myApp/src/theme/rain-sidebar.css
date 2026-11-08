@@ -20,8 +20,9 @@ html:not([data-theme="dark"]) .portal-page .portal-sidebar {
 }
 
 /* Desktop rails are static, so they need a positioning context. On narrow
-   screens they are already position: fixed, which is one, and must stay so. */
-@media (min-width: 801px) {
+   screens, and on phones turned sideways (a short screen), they are already
+   position: fixed, which is one, and must stay so. */
+@media (min-width: 801px) and (min-height: 501px), (min-width: 801px) and (orientation: portrait) {
 	html:not([data-theme="dark"]) .admin-page .admin-sidebar,
 	html:not([data-theme="dark"]) .staff-page .staff-sidebar,
 	html:not([data-theme="dark"]) .portal-page .portal-sidebar {
@@ -179,4 +180,14 @@ html:not([data-theme="dark"]) .staff-page .staff-sidebar::after,
 html:not([data-theme="dark"]) .portal-page .portal-sidebar::after {
 	background-image: radial-gradient(ellipse 1.5px 2px at 1.5px 50%, #0000 0, #0000 90%, #000 100%);
 	background-size: 25px 8px;
+}
+
+/* Phones turned sideways: the drawer is taller than the screen, so it scrolls. */
+@media (orientation: landscape) and (max-height: 500px) {
+	html:not([data-theme="dark"]) .admin-page .admin-sidebar,
+	html:not([data-theme="dark"]) .staff-page .staff-sidebar,
+	html:not([data-theme="dark"]) .portal-page .portal-sidebar {
+		overflow-x: hidden;
+		overflow-y: auto;
+	}
 }

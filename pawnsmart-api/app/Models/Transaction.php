@@ -11,8 +11,8 @@ class Transaction extends Model
     use HasFactory;
 
     protected $primaryKey = 'transactions_id';
-    protected $fillable = ['item_id', 'customer_id', 'ticket_number', 'loan_amount', 'interest_rate', 'loan_to_value_percent', 'due_date', 'grace_period_days', 'status', 'redeemed_at', 'redeemed_by', 'ready_to_redeem_at', 'redemption_confirmed_at', 'interest_paid_until', 'pickup_code', 'pickup_code_expires_at', 'payment_method', 'payment_reference', 'amount_collected', 'cash_received', 'locked_by', 'locked_at'];
-    protected $casts = ['loan_amount' => 'decimal:2', 'interest_rate' => 'decimal:4', 'loan_to_value_percent' => 'decimal:2', 'due_date' => 'date', 'redeemed_at' => 'datetime', 'ready_to_redeem_at' => 'datetime', 'redemption_confirmed_at' => 'datetime', 'interest_paid_until' => 'datetime', 'pickup_code_expires_at' => 'datetime', 'amount_collected' => 'decimal:2', 'cash_received' => 'decimal:2', 'locked_at' => 'datetime'];
+    protected $fillable = ['item_id', 'customer_id', 'ticket_number', 'loan_amount', 'interest_rate', 'loan_to_value_percent', 'due_date', 'grace_period_days', 'auction_notice_sent_at', 'status', 'redeemed_at', 'redeemed_by', 'ready_to_redeem_at', 'redemption_confirmed_at', 'interest_paid_until', 'pickup_code', 'pickup_code_expires_at', 'payment_method', 'payment_reference', 'amount_collected', 'cash_received', 'locked_by', 'locked_at'];
+    protected $casts = ['loan_amount' => 'decimal:2', 'interest_rate' => 'decimal:4', 'loan_to_value_percent' => 'decimal:2', 'due_date' => 'date', 'redeemed_at' => 'datetime', 'ready_to_redeem_at' => 'datetime', 'redemption_confirmed_at' => 'datetime', 'interest_paid_until' => 'datetime', 'auction_notice_sent_at' => 'datetime', 'pickup_code_expires_at' => 'datetime', 'amount_collected' => 'decimal:2', 'cash_received' => 'decimal:2', 'locked_at' => 'datetime'];
 
     /**
      * The pickup code never leaves the model on its own.
@@ -31,7 +31,24 @@ class Transaction extends Model
      *
      * @var list<string>
      */
-    protected $appends = ['days_elapsed', 'interest_due', 'total_payable', 'days_until_due'];
+    protected $appends = ['days_elapsed', 'interest_days', 'minimum_interest_days', 'interest_due', 'total_payable', 'days_until_due', 'last_redemption_date'];
+
+    /** system_settings key for the fewest days of interest a pawn is charged, and its default. */
+    public const MINIMUM_INTEREST_DAYS_KEY = 'minimum_interest_days';
+    public const DEFAULT_MINIMUM_INTEREST_DAYS = 30;
+
+    /**
+     * The fewest days of interest charged, from system_settings. Read once per
+     * request: reports call interestDue() for every transaction they total.
+     */
+    public static function minimumInterestDays(): int
+    {
+        return once(function () {
+            $value = SystemSetting::where('setting_key', self::MINIMUM_INTEREST_DAYS_KEY)->value('setting_value');
+
+            return is_numeric($value) ? max(0, (int) $value) : self::DEFAULT_MINIMUM_INTEREST_DAYS;
+        });
+    }
 
     /**
      * Whole days the loan has been outstanding. Interest accrues over these.
@@ -60,15 +77,25 @@ class Transaction extends Model
     }
 
     /**
-     * Interest owed so far.
+     * Days of interest charged: the days elapsed, but never fewer than the
+     * minimum_interest_days setting. A pawn redeemed the same day or after two
+     * days still pays the minimum; past it, every day counts.
+     */
+    public function interestDays(?CarbonInterface $asOf = null): int
+    {
+        return max($this->daysElapsed($asOf), self::minimumInterestDays());
+    }
+
+    /**
+     * Interest owed so far. The one place interest is worked out: redemption,
+     * the GCash renewal amount, the portals, receipts and reports all read it.
      *
-     * interest_rate is a fraction per month, so a loan held for half a month
-     * owes half the monthly interest. A 30 day month keeps the arithmetic the
-     * same as the redemption receipt.
+     * interest_rate is a fraction per month and a month is 30 days, so the
+     * charge is loan x monthly rate x (charged days / 30).
      */
     public function interestDue(?CarbonInterface $asOf = null): float
     {
-        return round((float) $this->loan_amount * (float) $this->interest_rate * ($this->daysElapsed($asOf) / 30), 2);
+        return round((float) $this->loan_amount * (float) $this->interest_rate * ($this->interestDays($asOf) / 30), 2);
     }
 
     /**
@@ -82,6 +109,17 @@ class Transaction extends Model
     public function getDaysElapsedAttribute(): int
     {
         return $this->daysElapsed();
+    }
+
+    public function getInterestDaysAttribute(): int
+    {
+        return $this->interestDays();
+    }
+
+    /** Sent so the customer's balance graph can draw past days the same way. */
+    public function getMinimumInterestDaysAttribute(): int
+    {
+        return self::minimumInterestDays();
     }
 
     public function getInterestDueAttribute(): float
@@ -109,6 +147,12 @@ class Transaction extends Model
     public function forfeitureDate(): CarbonInterface
     {
         return $this->due_date->copy()->addDays($this->grace_period_days);
+    }
+
+    /** The last day to redeem or renew, as a date, for the portals. */
+    public function getLastRedemptionDateAttribute(): ?string
+    {
+        return $this->due_date ? $this->forfeitureDate()->toDateString() : null;
     }
 
     /** Whole days until forfeiture. Never negative, so a message reads sensibly. */

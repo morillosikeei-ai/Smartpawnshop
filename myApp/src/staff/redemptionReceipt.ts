@@ -16,8 +16,10 @@ export type RedemptionReceipt = {
   principal: number;
   /** Monthly interest rate as a percentage, e.g. 5 for 5% a month. */
   ratePercent: number;
-  /** Days the pawn ran, which the interest is charged on (rate per 30 days). */
+  /** Days the pawn ran. */
   daysElapsed: number;
+  /** Days the interest is charged on (rate per 30 days): daysElapsed, but at least the shop's minimum. */
+  interestDays: number;
   interest: number;
   totalPayable: number;
   method: string;
@@ -33,9 +35,15 @@ const peso = (value: number) =>
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] as string));
 
-/** The interest line as a person reads it: "5% / month × 42 days". */
-export const interestBasis = (ratePercent: number, daysElapsed: number) =>
-  `${Number(ratePercent.toFixed(2))}% / month × ${daysElapsed} ${daysElapsed === 1 ? 'day' : 'days'}`;
+const dayCount = (days: number) => `${days} ${days === 1 ? 'day' : 'days'}`;
+
+/**
+ * The interest line as a person reads it: "5% / month × 42 days", or, when the
+ * minimum applies, "5% / month × 30 days (minimum; held 2 days)".
+ */
+export const interestBasis = (ratePercent: number, daysElapsed: number, interestDays = daysElapsed) =>
+  `${Number(ratePercent.toFixed(2))}% / month × ${dayCount(interestDays)}`
+  + (interestDays > daysElapsed ? ` (minimum; held ${dayCount(daysElapsed)})` : '');
 
 /**
  * Open the receipt and print it.
@@ -104,7 +112,7 @@ export function printRedemptionReceipt(receipt: RedemptionReceipt): boolean {
           <div class="section">
             <h4>Breakdown</h4>
             ${row('Principal (pawn amount)', peso(receipt.principal))}
-            ${row(`Interest (${interestBasis(receipt.ratePercent, receipt.daysElapsed)})`, peso(receipt.interest))}
+            ${row(`Interest (${interestBasis(receipt.ratePercent, receipt.daysElapsed, receipt.interestDays)})`, peso(receipt.interest))}
             ${row('Total payable', peso(receipt.totalPayable), 'total')}
           </div>
 

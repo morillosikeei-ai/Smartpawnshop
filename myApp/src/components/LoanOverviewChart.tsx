@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { money } from '../data/pawnshopStore';
 import { buildAreaPath, buildLinePath } from './smoothPath';
 import './LoanOverviewChart.css';
+import ChartTableButton, { signedChange } from './ChartTableButton';
+import { shortDate } from '../data/pawnshopStore';
 
 /** One of the customer's loans, reduced to what the balance over time needs. */
 export type LoanRecord = {
@@ -14,6 +16,8 @@ export type LoanRecord = {
   principal: number;
   /** interest_rate as the API stores it: a fraction per month, e.g. 0.05. */
   monthlyRate: number;
+  /** The shop's minimum_interest_days: fewer days held are charged as this many. */
+  minimumInterestDays?: number;
 };
 
 export type LoanPoint = {
@@ -50,7 +54,8 @@ const dayKey = (time: number) => {
  * What the customer owed on each of the last `days` days, today included.
  *
  * Mirrors Transaction::interestDue on the API: principal x monthly rate x
- * days held / 30. A loan counts from the day it was pawned until the day it was
+ * days charged / 30, where days charged is the days held but at least the
+ * shop's minimum. A loan counts from the day it was pawned until the day it was
  * redeemed. A closed loan with no redemption date (forfeited) cannot be placed
  * in time, so it is left out. There are no payment records, so the figure is
  * an estimate of the balance, not a statement.
@@ -73,7 +78,8 @@ export const loanBalanceSeries = (loans: LoanRecord[], days: number, today: Date
 
       const held = Math.round((day - start) / DAY_MS);
       principal += loan.principal;
-      due += loan.principal + loan.principal * loan.monthlyRate * (held / 30);
+      const charged = Math.max(held, loan.minimumInterestDays ?? 0);
+      due += loan.principal + loan.principal * loan.monthlyRate * (charged / 30);
     });
 
     points.push({ date: dayKey(day), due: Math.round(due * 100) / 100, principal: Math.round(principal * 100) / 100 });
@@ -138,6 +144,7 @@ const LoanOverviewChart: React.FC<{ loans: LoanRecord[]; loading?: boolean }> = 
   };
 
   return (
+    <>
     <div className="loan-overview">
       <div className="loan-overview-head">
         <div>
@@ -223,6 +230,26 @@ const LoanOverviewChart: React.FC<{ loans: LoanRecord[]; loading?: boolean }> = 
         <small>Estimate from your pawns' interest. The exact amount is confirmed at redemption.</small>
       </div>
     </div>
+      <div className="chart-table-row">
+        <ChartTableButton
+          title="Amount due over time"
+          subtitle={LOAN_RANGES.find((option) => option.days === range)?.label}
+          fileName="amount-due-history"
+          columns={[
+            { key: 'date', label: 'Date' },
+            { key: 'due', label: 'Amount due', align: 'right' },
+            { key: 'principal', label: 'Principal', align: 'right' },
+            { key: 'interest', label: 'Interest', align: 'right' },
+          ]}
+          rows={series.map((point) => ({
+            date: shortDate(point.date),
+            due: money(point.due),
+            principal: money(point.principal),
+            interest: money(Math.max(0, point.due - point.principal)),
+          })).reverse()}
+        />
+      </div>
+    </>
   );
 };
 

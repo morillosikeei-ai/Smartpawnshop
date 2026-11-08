@@ -81,3 +81,26 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-page .rec-row, .admin-page .rec-export { transition: none !important; }
 }
+
+/* Dark mode: light text on the dark cards and table, so every figure reads. */
+html[data-theme="dark"] .admin-page .rec-export { border-color: #2a3650; background: #131c2e; color: #93b4ea; }
+html[data-theme="dark"] .admin-page .rec-export:hover:not(:disabled) { border-color: #d4a72c; background: #1a2539; }
+html[data-theme="dark"] .admin-page .rec-select { color: #cbd5e1; }
+html[data-theme="dark"] .admin-page .rec-select input,
+html[data-theme="dark"] .admin-page .rec-select select { border-color: #2a3650; background: #131c2e; color: #e2e8f0; }
+html[data-theme="dark"] .admin-page .rec-table { border-color: #2a3650; }
+html[data-theme="dark"] .admin-page .rec-head { border-bottom-color: #2a3650; background: #172238; color: #cbd5e1; }
+html[data-theme="dark"] .admin-page .rec-row { border-bottom-color: #222e45; color: #e2e8f0; }
+html[data-theme="dark"] .admin-page .rec-row:hover { background: #1a2539; }
+html[data-theme="dark"] .admin-page .rec-row .rpt-num,
+html[data-theme="dark"] .admin-page .rec-row .rpt-num strong,
+html[data-theme="dark"] .admin-page .rec-row .rec-wide { color: #e2e8f0; }
+html[data-theme="dark"] .admin-page .rpt-status.overdue,
+html[data-theme="dark"] .admin-user-modal .rpt-status.overdue { background: rgba(212, 167, 44, .16); color: #f5d979; }
+html[data-theme="dark"] .admin-page .rec-summary-card { border-color: #2a3650; background: #131c2e; }
+html[data-theme="dark"] .admin-page .rec-summary-card span { color: #a3afc2; }
+html[data-theme="dark"] .admin-page .rec-summary-card strong { color: #f1f5f9; }
+html[data-theme="dark"] .admin-page .rec-note { color: #a3afc2; }
+html[data-theme="dark"] .admin-user-modal .rec-id-photo { border-color: #2a3650; }
+html[data-theme="dark"] .admin-user-modal .rec-history-row { border-bottom-color: #222e45; color: #e2e8f0; }
+html[data-theme="dark"] .admin-user-modal .rec-history-row .rpt-item small { color: #a3afc2; }

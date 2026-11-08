@@ -255,3 +255,10 @@
   .faq-chatbot { right: 14px; bottom: 14px; }
   .faq-panel { height: min(72vh, calc(100vh - 110px)); }
 }
+
+/* Phones turned sideways: the panel sits beside the bubble, so it can use the
+   whole height between the landing navbar and the bottom of the screen. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .faq-chatbot { flex-direction: row; align-items: flex-end; }
+  .faq-panel { height: calc(100vh - 100px); }
+}
