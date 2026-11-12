@@ -30,16 +30,20 @@ return new class extends Migration
             ->whereIn('karat', ['925', '999'])
             ->update(['fineness' => DB::raw('karat'), 'metal_type' => 'silver', 'karat' => null]);
 
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('karat', ['10k', '14k', '18k', '21k', '22k', '24k'])->nullable()->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('karat', ['10k', '14k', '18k', '21k', '22k', '24k'])->nullable()->change();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('karat', ['10k', '14k', '18k', '21k', '22k', '24k', '925', '999'])->nullable()->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('karat', ['10k', '14k', '18k', '21k', '22k', '24k', '925', '999'])->nullable()->change();
+            });
+        }
 
         // Only 925 and 999 fit back into karat; 800 and 950 have no slot there.
         DB::table('items')
@@ -50,7 +54,9 @@ return new class extends Migration
         DB::table('items')->where('karat', '22k')->update(['karat' => null]);
 
         Schema::table('items', function (Blueprint $table) {
-            $table->enum('karat', ['10k', '14k', '18k', '21k', '24k', '925', '999'])->nullable()->change();
+            if (DB::getDriverName() !== 'pgsql') {
+                $table->enum('karat', ['10k', '14k', '18k', '21k', '24k', '925', '999'])->nullable()->change();
+            }
             $table->dropColumn('fineness');
         });
     }

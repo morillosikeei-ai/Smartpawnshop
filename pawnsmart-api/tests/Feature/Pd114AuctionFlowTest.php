@@ -229,6 +229,30 @@ class Pd114AuctionFlowTest extends TestCase
         $this->assertSame(90, Transaction::latest('transactions_id')->first()->grace_period_days);
     }
 
+    public function test_the_due_date_comes_from_the_shop_clock_not_the_device(): void
+    {
+        SystemSetting::updateOrCreate(['setting_key' => 'loan_term_days'], ['setting_value' => '60']);
+        // 8:00 AM on Nov 1 in UTC is already 4:00 PM on Nov 1 in Manila.
+        Sanctum::actingAs($this->staff);
+
+        $this->postJson('/api/transactions', [
+            'customer_id' => $this->customer->customers_id,
+            'group' => Item::GROUP_BULKY,
+            'category' => 'aircon',
+            'brand_model' => 'LG 1.5HP',
+            'description' => 'Window aircon',
+            'condition' => 'good',
+            'interest_rate' => 6,
+            'appraised_value' => 10000,
+            'loan_amount' => 7000,
+            'loan_to_value_percent' => 70,
+            // A device with a wrong clock sent a due date before the pawn date.
+            'due_date' => '2026-09-11',
+        ])->assertCreated();
+
+        $this->assertSame('2026-12-31', Transaction::latest('transactions_id')->first()->due_date->toDateString());
+    }
+
     public function test_the_migration_set_the_90_day_period_and_the_7_day_notice(): void
     {
         $this->assertSame('90', SystemSetting::where('setting_key', 'grace_period_days')->value('setting_value'));

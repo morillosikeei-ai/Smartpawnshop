@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HidesFromCustomers;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
-    use HasFactory;
+    use HasFactory, HidesFromCustomers;
 
     protected $primaryKey = 'transactions_id';
     protected $fillable = ['item_id', 'customer_id', 'ticket_number', 'loan_amount', 'interest_rate', 'loan_to_value_percent', 'due_date', 'grace_period_days', 'auction_notice_sent_at', 'status', 'redeemed_at', 'redeemed_by', 'ready_to_redeem_at', 'redemption_confirmed_at', 'interest_paid_until', 'pickup_code', 'pickup_code_expires_at', 'payment_method', 'payment_reference', 'amount_collected', 'cash_received', 'locked_by', 'locked_at'];
@@ -26,12 +27,18 @@ class Transaction extends Model
     protected $hidden = ['pickup_code', 'pickup_code_expires_at'];
 
     /**
+     * Loan-to-value with the loan amount gives the appraised value, which is
+     * for the shop only, so a customer does not get it.
+     */
+    protected array $customerHidden = ['loan_to_value_percent'];
+
+    /**
      * Money owed today, sent with every transaction so a client never has to
      * recompute interest from a rate it may read differently.
      *
      * @var list<string>
      */
-    protected $appends = ['days_elapsed', 'interest_days', 'minimum_interest_days', 'interest_due', 'total_payable', 'days_until_due', 'last_redemption_date'];
+    protected $appends = ['days_elapsed', 'interest_days', 'minimum_interest_days', 'interest_due', 'total_payable', 'days_until_due', 'last_redemption_date', 'pickup_ready_until', 'amount_paid'];
 
     /** system_settings key for the fewest days of interest a pawn is charged, and its default. */
     public const MINIMUM_INTEREST_DAYS_KEY = 'minimum_interest_days';
@@ -111,6 +118,27 @@ class Transaction extends Model
         return $this->daysElapsed();
     }
 
+    /**
+     * What the customer actually paid to redeem this pawn: the amount staff
+     * recorded at the counter, or the total payable for an older redemption
+     * saved before that was recorded. Null for a pawn not redeemed. Revenue
+     * is summed from this, so a past redemption keeps the amount it really
+     * brought in even after interest rules change.
+     */
+    public function amountPaid(): ?float
+    {
+        if ($this->status !== 'redeemed') {
+            return null;
+        }
+
+        return $this->amount_collected !== null ? (float) $this->amount_collected : $this->totalPayable();
+    }
+
+    public function getAmountPaidAttribute(): ?float
+    {
+        return $this->amountPaid();
+    }
+
     public function getInterestDaysAttribute(): int
     {
         return $this->interestDays();
@@ -147,6 +175,25 @@ class Transaction extends Model
     public function forfeitureDate(): CarbonInterface
     {
         return $this->due_date->copy()->addDays($this->grace_period_days);
+    }
+
+    /**
+     * Until when an item staff set aside for pickup is held for the customer:
+     * redemption_visit_days after staff marked it ready. Null when it is not.
+     */
+    public function pickupReadyUntil(): ?CarbonInterface
+    {
+        if (! $this->redemption_confirmed_at || $this->status !== 'active') {
+            return null;
+        }
+        $days = once(fn () => (int) (SystemSetting::where('setting_key', 'redemption_visit_days')->value('setting_value') ?: 3));
+
+        return $this->redemption_confirmed_at->copy()->addDays($days);
+    }
+
+    public function getPickupReadyUntilAttribute(): ?string
+    {
+        return $this->pickupReadyUntil()?->toIso8601String();
     }
 
     /** The last day to redeem or renew, as a date, for the portals. */

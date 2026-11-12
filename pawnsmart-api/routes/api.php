@@ -33,6 +33,12 @@ Route::post('/reset-password', [ApiController::class, 'resetPassword'])->middlew
 Route::get('/qr-access/{code}', [ApiController::class, 'qrAccessCheck'])->middleware('throttle:20,1')->where('code', '[A-Za-z0-9]+');
 Route::post('/qr-access/verify', [ApiController::class, 'qrAccessVerify'])->middleware('throttle:10,1');
 
+Route::get('/cron/{token}', function ($token) {
+    abort_unless(hash_equals((string) env('CRON_TOKEN'), $token), 403);
+    \Illuminate\Support\Facades\Artisan::call('schedule:run');
+    return 'ok';
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [ApiController::class, 'users'])->middleware('role:admin');
     Route::post('/users', [ApiController::class, 'storeUser'])->middleware('role:admin');

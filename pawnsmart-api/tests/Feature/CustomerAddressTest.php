@@ -36,6 +36,7 @@ class CustomerAddressTest extends TestCase
             'contact_number' => '09170000000',
             'valid_id_type' => 'National ID',
             'valid_id_number' => 'ID-123',
+            'birthdate' => '1990-01-15',
             ...$address,
         ]);
     }
@@ -103,6 +104,17 @@ class CustomerAddressTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors(['city_code', 'barangay']);
 
         $this->assertSame(0, Customer::count());
+    }
+
+    public function test_the_birthday_is_required_and_the_customer_must_be_18(): void
+    {
+        $this->postJson('/api/customers', ['name' => 'Kid Santos', 'email' => 'kid.santos.address@gmail.com', 'contact_number' => '0917', 'valid_id_type' => 'National ID', 'valid_id_number' => 'X'])
+            ->assertStatus(422)->assertJsonValidationErrors('birthdate');
+        $this->register(['birthdate' => now()->subYears(17)->toDateString()])
+            ->assertStatus(422)->assertJsonPath('errors.birthdate.0', 'The customer must be at least 18 years old to pawn.');
+        $this->register(['birthdate' => '1990-01-15', 'address' => 'Somewhere'])->assertCreated();
+
+        $this->assertSame('1990-01-15', Customer::firstOrFail()->birthdate->toDateString());
     }
 
     public function test_a_plain_address_without_parts_still_saves(): void

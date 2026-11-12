@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -15,9 +16,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('karat', ['10k', '14k', '18k', '21k', '24k', '925', '999'])->nullable()->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('karat', ['10k', '14k', '18k', '21k', '24k', '925', '999'])->nullable()->change();
+            });
+        }
     }
 
     public function down(): void
@@ -25,8 +28,10 @@ return new class extends Migration
         // Silver rows cannot keep a silver fineness under the old list.
         Schema::getConnection()->table('items')->whereIn('karat', ['925', '999'])->update(['karat' => null]);
 
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('karat', ['10k', '14k', '18k', '21k', '24k'])->nullable()->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('karat', ['10k', '14k', '18k', '21k', '24k'])->nullable()->change();
+            });
+        }
     }
 };

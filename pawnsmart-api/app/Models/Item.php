@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HidesFromCustomers;
 use App\Support\MediaUrl;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,11 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, HidesFromCustomers;
 
     protected $primaryKey = 'items_id';
-    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'item_details', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'auction_date', 'auction_price', 'status'];
-    protected $casts = ['item_details' => 'array', 'weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2', 'auction_date' => 'date', 'auction_price' => 'decimal:2'];
+    protected $fillable = ['customer_id', 'staff_id', 'group', 'category', 'custom_item_type', 'description', 'brand_model', 'item_details', 'karat', 'metal_type', 'fineness', 'weight_grams', 'has_gemstone', 'gemstone_value', 'gemstone_type', 'gemstone_weight', 'gemstone_details', 'condition', 'photo_path', 'appraised_value', 'adjusted_value', 'adjustment_reason', 'sale_price', 'auction_date', 'auction_price', 'status'];
+    protected $casts = ['item_details' => 'array', 'weight_grams' => 'decimal:3', 'has_gemstone' => 'boolean', 'gemstone_value' => 'decimal:2', 'gemstone_weight' => 'decimal:3', 'appraised_value' => 'decimal:2', 'adjusted_value' => 'decimal:2', 'sale_price' => 'decimal:2', 'auction_date' => 'date', 'auction_price' => 'decimal:2'];
 
     /**
      * total_value is sent with every item so each screen shows the same total:
@@ -26,6 +27,12 @@ class Item extends Model
      * photo in each response twice.
      */
     protected $hidden = ['photo_path'];
+
+    /**
+     * The appraised value is for the shop only. A customer gets none of the
+     * value fields, nor the daily value history.
+     */
+    protected array $customerHidden = ['appraised_value', 'adjusted_value', 'adjustment_reason', 'total_value', 'gemstone_value', 'value_logs'];
 
     /** Most photos one item keeps. */
     public const MAX_PHOTOS = 4;
@@ -118,6 +125,8 @@ class Item extends Model
      */
     public const METAL_GOLD = 'gold';
     public const METAL_SILVER = 'silver';
+    /** No metal: a loose diamond or a pearl strand, valued from the stone alone. */
+    public const METAL_NONE = 'none';
 
     /**
      * The item group for watches and cellphones. Valued by hand.
@@ -189,6 +198,12 @@ class Item extends Model
     public const KARAT_PURITY = ['10k' => 0.417, '14k' => 0.583, '18k' => 0.75, '21k' => 0.875, '22k' => 0.917, '24k' => 1.0];
 
     /**
+     * Karats a new item or an estimate may use. The shop no longer takes 10k;
+     * it stays in KARAT_PURITY only so 10k items already pawned keep their value.
+     */
+    public const KARATS_ACCEPTED = ['14k', '18k', '21k', '22k', '24k'];
+
+    /**
      * Silver purity by fineness, as a fraction of pure silver. 925 is sterling
      * silver (92.5 percent), 999 is fine silver. Stored in the fineness column,
      * never in karat, which holds gold karats only.
@@ -200,7 +215,17 @@ class Item extends Model
      * stone, so gemstone_type is not limited to these. The specifics (carat,
      * cut) stay in the free-text gemstone_details.
      */
-    public const GEMSTONE_TYPES = ['diamond', 'ruby', 'sapphire', 'emerald', 'pearl', 'other'];
+    public const GEMSTONE_TYPES = ['natural_diamond', 'pearl', 'diamond', 'ruby', 'sapphire', 'emerald', 'other'];
+
+    /**
+     * Gemstones priced from an admin reference setting: type => [setting key,
+     * unit of gemstone_weight]. A natural diamond is priced per carat, a pearl
+     * per gram. Other stones have no reference, so staff type their value.
+     */
+    public const GEMSTONE_REFERENCE_PRICES = [
+        'natural_diamond' => ['natural_diamond_1ct_price', 'ct'],
+        'pearl' => ['pearl_price_per_gram', 'g'],
+    ];
 
     /**
      * The structured details kept in item_details, per watch_phone item type.
@@ -313,7 +338,8 @@ class Item extends Model
      */
     public function usesGoldPriceValuation(): bool
     {
-        return $this->group === self::GROUP_JEWELRY;
+        // Stone-only jewelry has no metal to follow a price.
+        return $this->group === self::GROUP_JEWELRY && $this->metal_type !== self::METAL_NONE;
     }
 
     /**

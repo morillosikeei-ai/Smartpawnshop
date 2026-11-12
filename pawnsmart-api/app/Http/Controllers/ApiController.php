@@ -28,6 +28,7 @@ use App\Mail\PasswordResetMail;
 use App\Support\FrontendUrl;
 use App\Support\MediaUrl;
 use App\Support\Psgc;
+use App\Support\SettingRules;
 use App\Support\QueueWorker;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +45,15 @@ use Throwable;
 
 class ApiController extends Controller
 {
+    /**
+     * Date of birth as typed from the valid ID: required, a real date, and at
+     * least 18 years ago, since only an adult may pawn.
+     */
+    private const BIRTHDATE_RULES = ['required', 'date', 'before_or_equal:-18 years', 'after:1900-01-01'];
+
+    /** The shop's own clock, for counting days the way the shop does. */
+    private const SHOP_TIMEZONE = 'Asia/Manila';
+
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
@@ -473,7 +483,7 @@ class ApiController extends Controller
 
     public function storeCustomer(Request $request): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string'], 'email' => ['required', 'email:rfc,dns', 'unique:users,email'], 'password' => ['nullable', 'string', 'min:8'], 'contact_number' => ['required', 'string'], 'address' => ['nullable', 'string'], 'valid_id_type' => ['required', 'string'], 'valid_id_number' => ['required', 'string'], 'valid_id_photo' => ['nullable', 'string', 'max:8000000']]);
+        $data = $request->validate(['name' => ['required', 'string'], 'email' => ['required', 'email:rfc,dns', 'unique:users,email'], 'password' => ['nullable', 'string', 'min:8'], 'contact_number' => ['required', 'string'], 'address' => ['nullable', 'string'], 'valid_id_type' => ['required', 'string'], 'valid_id_number' => ['required', 'string'], 'valid_id_photo' => ['nullable', 'string', 'max:8000000'], 'birthdate' => self::BIRTHDATE_RULES], ['birthdate.before_or_equal' => 'The customer must be at least 18 years old to pawn.']);
         $data = [...$data, ...$this->addressParts($request)];
         $customer = DB::transaction(function () use ($data, $request) {
             $activationToken = Str::random(64);
@@ -591,7 +601,8 @@ class ApiController extends Controller
             'valid_id_type' => ['sometimes', 'required', 'string', 'max:100'],
             'valid_id_number' => ['sometimes', 'required', 'string', 'max:100'],
             'valid_id_photo' => ['sometimes', 'nullable', 'string', 'max:8000000'],
-        ]);
+            'birthdate' => ['sometimes', ...self::BIRTHDATE_RULES],
+        ], ['birthdate.before_or_equal' => 'The customer must be at least 18 years old to pawn.']);
 
         // The app sends back the link it was given when the ID photo did not
         // change; only a new image (or null, to remove it) replaces the photo.
@@ -713,6 +724,12 @@ class ApiController extends Controller
         // fineness (925, 999) rather than a karat, so the accepted values follow
         // the metal.
         $isSilver = $isJewelry && $request->input('metal_type') === Item::METAL_SILVER;
+        // Stone only: a pure natural diamond or pearl with no metal. No karat
+        // and no metal weight; the value is the gemstone's alone.
+        $isStoneOnly = $isJewelry && $request->input('metal_type') === Item::METAL_NONE;
+        if ($isStoneOnly) {
+            $request->merge(['karat' => null, 'fineness' => null, 'weight_grams' => null]);
+        }
 
         // Silver purity goes in fineness; karat is for gold only. A client that
         // still sends the silver fineness as karat is read the same way, so the
@@ -752,23 +769,25 @@ class ApiController extends Controller
             'item_details.imei' => ['nullable', 'regex:/^\d{15}$/'],
             'item_details.battery_health' => ['nullable', 'integer', 'min:0', 'max:100'],
             'item_details.*' => ['nullable'],
-            'metal_type' => ['nullable', Rule::in([Item::METAL_GOLD, Item::METAL_SILVER])],
-            'karat' => [$isJewelry && ! $isSilver ? 'required' : 'nullable', Rule::in(array_map('strval', array_keys(Item::KARAT_PURITY)))],
+            'metal_type' => ['nullable', Rule::in([Item::METAL_GOLD, Item::METAL_SILVER, Item::METAL_NONE])],
+            'karat' => [$isJewelry && ! $isSilver && ! $isStoneOnly ? 'required' : 'nullable', Rule::in(Item::KARATS_ACCEPTED)],
             'fineness' => [$isSilver ? 'required' : 'nullable', Rule::in(array_map('strval', array_keys(Item::SILVER_PURITY)))],
-            'weight_grams' => [$isJewelry ? 'required' : 'nullable', 'numeric', 'gt:0', 'max:10000'],
+            'weight_grams' => [$isJewelry && ! $isStoneOnly ? 'required' : 'nullable', 'numeric', 'gt:0', 'max:10000'],
             // Suggested conditions arrive as good, fair, or damaged; the staff
             // may also type a custom condition, which is stored as typed.
             'condition' => ['required', 'string', 'max:100'],
             // Non jewelry has no gold price to compute from, so the appraising
             // staff must type the value in.
             'appraised_value' => [$isJewelry ? 'nullable' : 'required', 'numeric', 'gt:0'],
-            // Jewelry may carry a gemstone or diamond. Its value is the staff's
-            // own estimate and is required once the box is ticked; the details
-            // are a note for reference only.
+            // Jewelry may carry a gemstone. A natural diamond (carats) or pearl
+            // (grams) with a weight is valued from the admin's reference price
+            // when no value is sent; any other stone needs the staff's value.
+            // The details are a note for reference only.
             'has_gemstone' => ['nullable', 'boolean'],
-            'gemstone_value' => ['nullable', 'required_if_accepted:has_gemstone', 'numeric', 'gt:0'],
+            'gemstone_value' => ['nullable', 'numeric', 'gt:0'],
             // One of Item::GEMSTONE_TYPES, or any other stone the staff typed.
             'gemstone_type' => ['nullable', 'string', 'max:50'],
+            'gemstone_weight' => ['nullable', 'numeric', 'gt:0', 'max:10000'],
             'gemstone_details' => ['nullable', 'string', 'max:255'],
             'photo_path' => ['nullable', 'string'],
             // Item photos from intake, each a downscaled JPEG data URL, stored
@@ -782,18 +801,26 @@ class ApiController extends Controller
             'adjustment_reason' => ['nullable', 'string'],
             'loan_amount' => ['required', 'numeric', 'gt:0'],
             'loan_to_value_percent' => ['required', 'numeric', 'gt:0'],
-            'due_date' => ['required', 'date'],
-            'grace_period_days' => ['required', 'integer', 'min:0'],
+            // Sent by older apps; the API sets the due date and grace period
+            // itself from the admin's settings (see dueDateForNewPawn()).
+            'due_date' => ['nullable', 'date'],
+            'grace_period_days' => ['nullable', 'integer', 'min:0'],
         ]);
 
         // Only jewelry is worth what its metal content is worth today: gold from
         // gold_prices, silver from silver_prices. For the other two groups the
         // staff entered value is the item's value.
-        $data['metal_type'] = $isSilver ? Item::METAL_SILVER : Item::METAL_GOLD;
+        $data['metal_type'] = $isStoneOnly ? Item::METAL_NONE : ($isSilver ? Item::METAL_SILVER : Item::METAL_GOLD);
         // Each metal keeps only its own purity column filled.
-        $data['karat'] = $isJewelry && ! $isSilver ? $data['karat'] : null;
+        $data['karat'] = $isJewelry && ! $isSilver && ! $isStoneOnly ? $data['karat'] : null;
         $data['fineness'] = $isSilver ? $data['fineness'] : null;
-        if ($isJewelry) {
+        if ($isStoneOnly) {
+            // Valued from the stone below; there is no metal portion.
+            if (empty($data['has_gemstone'])) {
+                throw ValidationException::withMessages(['has_gemstone' => 'A stone-only item needs its gemstone: natural diamond, pearl, or other.']);
+            }
+            $appraisedValue = 0.0;
+        } elseif ($isJewelry) {
             $price = ($isSilver ? SilverPrice::query() : GoldPrice::query())->latest('price_date')->firstOrFail()->price_per_gram;
             $purity = $isSilver ? Item::SILVER_PURITY[$data['fineness']] : Item::KARAT_PURITY[$data['karat']];
             $appraisedValue = $data['weight_grams'] * $purity * $price;
@@ -828,8 +855,12 @@ class ApiController extends Controller
         // without one, the gemstone fields are stored empty.
         $hasGemstone = $isJewelry && ! empty($data['has_gemstone']);
         $data['has_gemstone'] = $isJewelry ? $hasGemstone : null;
-        $data['gemstone_value'] = $hasGemstone ? $data['gemstone_value'] : null;
         $data['gemstone_type'] = $hasGemstone && filled($data['gemstone_type'] ?? null) ? trim($data['gemstone_type']) : null;
+        $data['gemstone_weight'] = $hasGemstone && filled($data['gemstone_weight'] ?? null) ? $data['gemstone_weight'] : null;
+        $data['gemstone_value'] = $hasGemstone ? ($data['gemstone_value'] ?? $this->gemstoneReferenceValue($data['gemstone_type'], $data['gemstone_weight'])) : null;
+        if ($hasGemstone && $data['gemstone_value'] === null) {
+            throw ValidationException::withMessages(['gemstone_value' => 'Enter the gemstone value, or its weight when the admin has set a reference price.']);
+        }
         $data['gemstone_details'] = $hasGemstone && filled($data['gemstone_details'] ?? null) ? trim($data['gemstone_details']) : null;
         $gemstoneValue = $hasGemstone ? (float) $data['gemstone_value'] : 0.0;
 
@@ -867,7 +898,7 @@ class ApiController extends Controller
         do {
             $ticketNumber = 'PT-'.now()->format('YmdHis').random_int(10, 99);
         } while (Transaction::where('ticket_number', $ticketNumber)->exists());
-        $transaction = Transaction::create(['item_id' => $item->items_id, 'customer_id' => $data['customer_id'], 'ticket_number' => $ticketNumber, 'loan_amount' => $data['loan_amount'], 'interest_rate' => $interestRate, 'loan_to_value_percent' => $data['loan_to_value_percent'], 'due_date' => $data['due_date'], 'grace_period_days' => $this->gracePeriodDays(), 'status' => 'active']);
+        $transaction = Transaction::create(['item_id' => $item->items_id, 'customer_id' => $data['customer_id'], 'ticket_number' => $ticketNumber, 'loan_amount' => $data['loan_amount'], 'interest_rate' => $interestRate, 'loan_to_value_percent' => $data['loan_to_value_percent'], 'due_date' => $this->dueDateForNewPawn(), 'grace_period_days' => $this->gracePeriodDays(), 'status' => 'active']);
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Created pawn ticket', 'ticket_number' => $transaction->ticket_number, 'reason' => $data['adjustment_reason'] ?? null]);
         $notifications->itemRecorded($item->load('customer'), $transaction);
         return response()->json($transaction->load('item', 'customer'), 201);
@@ -1052,10 +1083,11 @@ class ApiController extends Controller
     {
         $isSilver = $request->input('metal_type') === Item::METAL_SILVER;
         $purities = $isSilver ? Item::SILVER_PURITY : Item::KARAT_PURITY;
+        $accepted = $isSilver ? array_map('strval', array_keys(Item::SILVER_PURITY)) : Item::KARATS_ACCEPTED;
 
         $data = $request->validate([
             'metal_type' => ['nullable', Rule::in([Item::METAL_GOLD, Item::METAL_SILVER])],
-            'karat' => ['required', Rule::in(array_map('strval', array_keys($purities)))],
+            'karat' => ['required', Rule::in($accepted)],
             'weight_grams' => ['required', 'numeric', 'gt:0', 'max:10000'],
         ]);
 
@@ -1080,7 +1112,7 @@ class ApiController extends Controller
 
     public function goldPrices(): JsonResponse { return response()->json(GoldPrice::orderBy('price_date')->get()); }
     public function silverPrices(): JsonResponse { return response()->json(SilverPrice::orderBy('price_date')->get()); }
-    public function storeGoldPrice(Request $request): JsonResponse { $data = $request->validate(['price_per_gram' => ['required', 'numeric', 'gt:0']]); return response()->json(GoldPrice::updateOrCreate(['price_date' => today()], ['price_per_gram' => $data['price_per_gram'], 'source' => 'manual'])); }
+    public function storeGoldPrice(Request $request): JsonResponse { $data = $request->validate(['price_per_gram' => ['required', 'numeric', 'gt:0']]); return response()->json(GoldPrice::updateOrCreate(['price_date' => GoldPriceService::priceDate()], ['price_per_gram' => $data['price_per_gram'], 'source' => 'manual'])); }
     /**
      * Trend reading for the redeem or renew timing hint. Read only, so any
      * signed in role can call it.
@@ -1184,18 +1216,23 @@ class ApiController extends Controller
             ->get();
 
         $redeemed = $transactions->where('status', 'redeemed')->filter(fn ($transaction) => $transaction->redeemed_at);
+        // Days are the shop's days (Manila), so a redemption at 7 AM is
+        // counted on that day and not on the day before in UTC.
+        $shopDay = fn ($time) => $time->copy()->setTimezone(self::SHOP_TIMEZONE)->toDateString();
+        $shopToday = now(self::SHOP_TIMEZONE)->startOfDay();
         $revenueToday = $redeemed
-            ->filter(fn ($transaction) => $transaction->redeemed_at->isSameDay(now()))
-            ->sum(fn ($transaction) => $transaction->totalPayable());
+            ->filter(fn ($transaction) => $shopDay($transaction->redeemed_at) === $shopToday->toDateString())
+            ->sum(fn ($transaction) => $transaction->amountPaid());
 
         // One bucket per day for the last week, oldest first, so a chart can
-        // render the series without filling the gaps itself.
-        $revenueTrend = collect(range(6, 0))->map(function (int $daysAgo) use ($redeemed) {
-            $day = today()->subDays($daysAgo);
+        // render the series without filling the gaps itself. Each day is
+        // what was actually collected at the counter.
+        $revenueTrend = collect(range(6, 0))->map(function (int $daysAgo) use ($redeemed, $shopDay, $shopToday) {
+            $day = $shopToday->copy()->subDays($daysAgo)->toDateString();
 
             return [
-                'date' => $day->toDateString(),
-                'revenue' => round($redeemed->filter(fn ($transaction) => $transaction->redeemed_at->isSameDay($day))->sum(fn ($transaction) => $transaction->totalPayable()), 2),
+                'date' => $day,
+                'revenue' => round($redeemed->filter(fn ($transaction) => $shopDay($transaction->redeemed_at) === $day)->sum(fn ($transaction) => $transaction->amountPaid()), 2),
             ];
         })->values();
 
@@ -1211,7 +1248,7 @@ class ApiController extends Controller
             'risk_alerts' => $openRiskAlerts,
             'gold_prices' => GoldPrice::orderByDesc('price_date')->limit(30)->get(),
             'silver_prices' => SilverPrice::orderByDesc('price_date')->limit(30)->get(),
-            'revenue' => round($redeemed->sum(fn ($transaction) => $transaction->totalPayable()), 2),
+            'revenue' => round($redeemed->sum(fn ($transaction) => $transaction->amountPaid()), 2),
             'stats' => [
                 'active_loans' => $activeTransactions->count(),
                 'overdue_loans' => $activeTransactions->filter(fn ($transaction) => $transaction->days_until_due < 0)->count(),
@@ -1282,9 +1319,9 @@ class ApiController extends Controller
                 'total' => $redeemed->count(),
             ],
             'amount_collected' => [
-                'today' => round((float) $since($redeemed, 'redeemed_at', $dayStart)->sum(fn (Transaction $row) => $row->totalPayable()), 2),
-                'this_month' => round((float) $since($redeemed, 'redeemed_at', $monthStart)->sum(fn (Transaction $row) => $row->totalPayable()), 2),
-                'total' => round((float) $redeemed->sum(fn (Transaction $row) => $row->totalPayable()), 2),
+                'today' => round((float) $since($redeemed, 'redeemed_at', $dayStart)->sum(fn (Transaction $row) => $row->amountPaid()), 2),
+                'this_month' => round((float) $since($redeemed, 'redeemed_at', $monthStart)->sum(fn (Transaction $row) => $row->amountPaid()), 2),
+                'total' => round((float) $redeemed->sum(fn (Transaction $row) => $row->amountPaid()), 2),
             ],
             'renewals_confirmed' => [
                 'today' => $since($confirmedRenewals, 'reviewed_at', $dayStart)->count(),
@@ -1359,7 +1396,7 @@ class ApiController extends Controller
                     'ticket_number' => $row->ticket_number,
                     'customer' => $row->customer?->name,
                     'item' => $row->item?->description,
-                    'amount' => $row->totalPayable(),
+                    'amount' => $row->amountPaid(),
                     'note' => 'Principal '.number_format((float) $row->loan_amount, 2),
                 ]),
             default => RenewalRequest::with('transaction.item', 'customer')
@@ -1444,7 +1481,8 @@ class ApiController extends Controller
         abort_unless($request->user()->role === 'customer' && $transaction->customer_id === $customerId, 404);
         abort_unless($transaction->status === 'active', 422, 'Only an open pawn can be redeemed.');
 
-        $transaction->update(['ready_to_redeem_at' => now()]);
+        // A new request starts over: staff mark the item ready again for it.
+        $transaction->update(['ready_to_redeem_at' => now(), 'redemption_confirmed_at' => null]);
         $notifications->customerReadyToRedeem($transaction->load('item', 'customer'));
 
         return response()->json($transaction->fresh()->load('item', 'customer'));
@@ -2105,10 +2143,10 @@ class ApiController extends Controller
     }
 
     /**
-     * Staff accepts a customer's redemption request.
-     *
-     * The customer is asked to come to the shop; the payment itself still runs
-     * through redeem().
+     * "Item ready for pickup": staff took the item out of the vault for a
+     * customer who said they are coming. The customer is told the exact
+     * amount to bring and until when it is held; redemptions:expire releases
+     * it after redemption_visit_days. The payment still runs through redeem().
      */
     public function confirmRedemptionRequest(Request $request, Transaction $transaction, NotificationService $notifications): JsonResponse
     {
@@ -2117,7 +2155,7 @@ class ApiController extends Controller
 
         $transaction->update(['redemption_confirmed_at' => now()]);
         $notifications->redemptionRequestConfirmed($transaction->load('item', 'customer'));
-        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Confirmed redemption request', 'ticket_number' => $transaction->ticket_number]);
+        AuditLog::create(['user_id' => $request->user()->users_id, 'action' => 'Marked item ready for pickup', 'ticket_number' => $transaction->ticket_number]);
 
         return response()->json($transaction->fresh()->load('item', 'customer'));
     }
@@ -2230,7 +2268,7 @@ class ApiController extends Controller
         // counted apart from redemptions rather than folded into them.
         $renewalsThisMonth = RenewalRequest::where('status', 'confirmed')->where('reviewed_at', '>=', $monthStart);
         $renewalIncomeThisMonth = (float) (clone $renewalsThisMonth)->sum('amount');
-        $collected = Transaction::where('status', 'redeemed')->get()->sum(fn (Transaction $transaction) => $transaction->totalPayable());
+        $collected = Transaction::where('status', 'redeemed')->get()->sum(fn (Transaction $transaction) => $transaction->amountPaid());
 
         return response()->json([
             'monthly_loan_volume' => round($volumeThisMonth, 2),
@@ -2299,9 +2337,9 @@ class ApiController extends Controller
     public function saveSetting(Request $request): JsonResponse
     {
         $data = $request->validate(['setting_key' => ['required', 'string'], 'setting_value' => ['required', 'string']]);
-        if ($data['setting_key'] === Transaction::MINIMUM_INTEREST_DAYS_KEY && ! preg_match('/^\d{1,3}$/', trim($data['setting_value']))) {
-            throw ValidationException::withMessages(['setting_value' => 'Minimum interest days must be a whole number of days, from 0 to 999.']);
-        }
+        // Each setting has its own rule (see SettingRules); a bad value is
+        // refused with a message the form shows under that field.
+        $data['setting_value'] = SettingRules::clean($data['setting_key'], $data['setting_value'], SystemSetting::pluck('setting_value', 'setting_key')->all());
         $setting = SystemSetting::updateOrCreate(['setting_key' => $data['setting_key']], ['setting_value' => $data['setting_value']]);
         AuditLog::create(['user_id' => $request->user()->users_id, 'action' => "Changed setting {$data['setting_key']}", 'reason' => "New value: {$data['setting_value']}"]);
 
@@ -2340,10 +2378,38 @@ class ApiController extends Controller
     }
 
     /**
+     * A new pawn's due date: today on the shop's own clock plus the admin's
+     * loan_term_days. Worked out here rather than taken from the request,
+     * because a device with a wrong clock once sent a due date months before
+     * the day the item was pawned.
+     */
+    private function dueDateForNewPawn(): string
+    {
+        $termDays = SystemSetting::where('setting_key', 'loan_term_days')->value('setting_value');
+        $termDays = is_numeric($termDays) && (int) $termDays > 0 ? (int) $termDays : 60;
+
+        return now(self::SHOP_TIMEZONE)->startOfDay()->addDays($termDays)->toDateString();
+    }
+
+    /**
      * The grace period (redemption period after the due date) a new pawn gets,
      * from the admin's grace_period_days setting. Read here, not from the
      * request, so a pawner always gets the period the shop publishes.
      */
+    /**
+     * Suggested value of a natural diamond or pearl: its weight times the
+     * admin's reference price. Null when the type has no reference, the
+     * weight is missing, or the reference price is not set (0).
+     */
+    private function gemstoneReferenceValue(?string $type, mixed $weight): ?float
+    {
+        [$settingKey] = Item::GEMSTONE_REFERENCE_PRICES[$type] ?? [null];
+        if ($settingKey === null || ! is_numeric($weight) || (float) $weight <= 0) return null;
+        $price = (float) (SystemSetting::where('setting_key', $settingKey)->value('setting_value') ?? 0);
+
+        return $price > 0 ? round((float) $weight * $price, 2) : null;
+    }
+
     private function gracePeriodDays(): int
     {
         $value = SystemSetting::where('setting_key', 'grace_period_days')->value('setting_value');

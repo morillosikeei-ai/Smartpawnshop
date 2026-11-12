@@ -126,7 +126,8 @@ class NotificationTriggerTest extends TestCase
             ->where('type', NotificationService::TYPE_CUSTOMER_REDEEM_CONFIRMED)
             ->firstOrFail();
 
-        $this->assertStringContainsString('Staff has confirmed your redemption request for Gold ring', $customerRow->message);
+        $this->assertStringContainsString('Your Gold ring (Ticket #'.$loan->ticket_number.') is ready for pickup. Bring ₱', $customerRow->message);
+        $this->assertStringContainsString('your valid ID and your pickup code', $customerRow->message);
         $this->assertNotNull($loan->fresh()->redemption_confirmed_at);
     }
 
@@ -252,8 +253,9 @@ class NotificationTriggerTest extends TestCase
         // A 20% higher gold price moves the value well past the 5% threshold.
         $this->artisan('pawnshop:daily-lifecycle', ['--price' => 4272])->assertSuccessful();
 
-        $this->assertStringContainsString(
-            'The value of your Gold ring has changed to ₱',
+        // The appraised value is for the shop only, so no amount is given.
+        $this->assertSame(
+            'The value of your Gold ring has changed with the gold price.',
             Notification::where('user_id', $this->customerUser->users_id)
                 ->where('type', NotificationService::TYPE_CUSTOMER_VALUE_CHANGED)
                 ->firstOrFail()->message

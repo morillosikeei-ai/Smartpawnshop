@@ -12,6 +12,7 @@ use App\Services\GoldPriceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -37,6 +38,22 @@ class GoldApiUpdateTest extends TestCase
             'services.goldapi.silver_url' => 'https://www.goldapi.io/api/XAG/PHP',
             'services.goldapi.key' => 'test-key',
         ]);
+
+        // 8 PM UTC is already the next day in Manila, so a row filed under
+        // the UTC date would land on the wrong day.
+        Carbon::setTestNow('2026-11-10 20:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
+    /** Today in the Philippines, the day price rows are filed under. */
+    private function phToday(): Carbon
+    {
+        return GoldPriceService::priceDate();
     }
 
     private function jewelry(string $karat, string $metalType = Item::METAL_GOLD): Item
@@ -78,13 +95,24 @@ class GoldApiUpdateTest extends TestCase
 
         $this->artisan('gold:update-price')->assertSuccessful();
 
-        $row = GoldPrice::whereDate('price_date', today())->firstOrFail();
+        $row = GoldPrice::whereDate('price_date', $this->phToday())->firstOrFail();
         $this->assertSame('4000.00', $row->price_per_gram);
         $this->assertSame('api', $row->source);
         $this->assertEquals(3100, $row->melt_prices_json['18k']);
 
         Http::assertSent(fn (Request $request) => $request->hasHeader('x-access-token', 'test-key')
             && $request->url() === 'https://www.goldapi.io/api/XAU/PHP');
+    }
+
+    public function test_prices_are_filed_under_the_philippine_date(): void
+    {
+        Http::fake(['*' => Http::response(['metal' => 'XAU', 'currency' => 'PHP', 'melt_price_per_gram' => self::MELT])]);
+
+        $this->artisan('gold:update-price')->assertSuccessful();
+
+        // 2026-11-10 20:00 UTC is 2026-11-11 04:00 in Manila.
+        $this->assertSame('2026-11-11', GoldPrice::sole()->price_date->toDateString());
+        $this->assertSame('2026-11-11', SilverPrice::sole()->price_date->toDateString());
     }
 
     public function test_items_use_their_karat_melt_price_and_fall_back_for_missing_karats(): void
@@ -130,12 +158,12 @@ class GoldApiUpdateTest extends TestCase
     {
         Log::spy();
         Http::fake(['*' => $response]);
-        GoldPrice::create(['price_date' => today()->subDay(), 'price_per_gram' => 3560, 'source' => 'api']);
+        GoldPrice::create(['price_date' => $this->phToday()->subDay(), 'price_per_gram' => 3560, 'source' => 'api']);
         $item = $this->jewelry('18k');
 
         $this->artisan('gold:update-price')->assertSuccessful();
 
-        $row = GoldPrice::whereDate('price_date', today())->firstOrFail();
+        $row = GoldPrice::whereDate('price_date', $this->phToday())->firstOrFail();
         $this->assertSame('3560.00', $row->price_per_gram);
         $this->assertSame('manual', $row->source);
         $this->assertNull($row->melt_prices_json);
@@ -151,7 +179,7 @@ class GoldApiUpdateTest extends TestCase
 
         $this->artisan('gold:update-price', ['price' => 3800])->assertSuccessful();
 
-        $row = GoldPrice::whereDate('price_date', today())->firstOrFail();
+        $row = GoldPrice::whereDate('price_date', $this->phToday())->firstOrFail();
         $this->assertNull($row->melt_prices_json);
         $this->assertEquals(5 * 0.75 * 3800, $this->loggedValue($item));
         // The manual price is gold only, so only the silver endpoint is called.
@@ -164,18 +192,18 @@ class GoldApiUpdateTest extends TestCase
             '*XAU*' => Http::response(['melt_price_per_gram' => self::MELT]),
             '*XAG*' => Http::response(['metal' => 'XAG', 'melt_price_per_gram' => self::SILVER_MELT]),
         ]);
-        SilverPrice::create(['price_date' => today()->subDay(), 'price_per_gram' => 66, 'source' => 'api']);
+        SilverPrice::create(['price_date' => $this->phToday()->subDay(), 'price_per_gram' => 66, 'source' => 'api']);
 
         $this->artisan('gold:update-price')->assertSuccessful();
 
-        $row = SilverPrice::whereDate('price_date', today())->firstOrFail();
+        $row = SilverPrice::whereDate('price_date', $this->phToday())->firstOrFail();
         $this->assertSame('70.00', $row->price_per_gram);
         $this->assertSame('api', $row->source);
         $this->assertEquals(52.5, $row->melt_prices_json['18k']);
         // 7 day average of 66 and 70.
         $this->assertSame('68.00', $row->predicted_next_price);
         // Gold is untouched by the silver path.
-        $this->assertSame('4000.00', GoldPrice::whereDate('price_date', today())->value('price_per_gram'));
+        $this->assertSame('4000.00', GoldPrice::whereDate('price_date', $this->phToday())->value('price_per_gram'));
 
         Http::assertSent(fn (Request $request) => $request->hasHeader('x-access-token', 'test-key')
             && $request->url() === 'https://www.goldapi.io/api/XAG/PHP');
@@ -206,17 +234,17 @@ class GoldApiUpdateTest extends TestCase
             '*XAU*' => Http::response(['melt_price_per_gram' => self::MELT]),
             '*XAG*' => Http::response(['error' => 'Too many requests'], 429),
         ]);
-        SilverPrice::create(['price_date' => today()->subDay(), 'price_per_gram' => 66, 'source' => 'api']);
+        SilverPrice::create(['price_date' => $this->phToday()->subDay(), 'price_per_gram' => 66, 'source' => 'api']);
         $silver = $this->jewelry('999', Item::METAL_SILVER);
 
         $this->artisan('gold:update-price')->assertSuccessful();
 
-        $row = SilverPrice::whereDate('price_date', today())->firstOrFail();
+        $row = SilverPrice::whereDate('price_date', $this->phToday())->firstOrFail();
         $this->assertSame('66.00', $row->price_per_gram);
         $this->assertSame('manual', $row->source);
         $this->assertNull($row->melt_prices_json);
         $this->assertEquals(5 * 0.999 * 66, $this->loggedValue($silver));
-        $this->assertSame('api', GoldPrice::whereDate('price_date', today())->value('source'));
+        $this->assertSame('api', GoldPrice::whereDate('price_date', $this->phToday())->value('source'));
         Log::shouldHaveReceived('warning')->withArgs(fn ($message) => str_contains($message, 'Silver price update: API fetch failed'))->once();
     }
 

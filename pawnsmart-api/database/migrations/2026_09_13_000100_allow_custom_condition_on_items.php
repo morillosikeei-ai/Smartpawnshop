@@ -18,6 +18,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE items DROP CONSTRAINT IF EXISTS items_condition_check');
+        }
+
         Schema::table('items', function (Blueprint $table) {
             $table->string('condition', 100)->change();
         });
@@ -31,8 +35,10 @@ return new class extends Migration
             ->whereNotIn('condition', self::ENUM_CONDITIONS)
             ->update(['condition' => 'fair']);
 
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('condition', self::ENUM_CONDITIONS)->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('condition', self::ENUM_CONDITIONS)->change();
+            });
+        }
     }
 };

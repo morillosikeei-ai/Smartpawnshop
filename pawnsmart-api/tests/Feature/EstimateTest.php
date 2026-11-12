@@ -48,6 +48,13 @@ class EstimateTest extends TestCase
             ->assertJsonValidationErrors('karat');
     }
 
+    public function test_10k_gold_is_no_longer_accepted(): void
+    {
+        $this->postJson('/api/estimate', ['karat' => '10k', 'weight_grams' => 5])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('karat');
+    }
+
     public function test_no_recorded_silver_price_answers_503(): void
     {
         SilverPrice::query()->delete();

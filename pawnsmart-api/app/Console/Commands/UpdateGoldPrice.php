@@ -55,7 +55,7 @@ class UpdateGoldPrice extends Command
         // melt_prices_json is written every time, so a manual or carried
         // forward rerun clears per-karat prices that no longer apply.
         $goldPrice = GoldPrice::updateOrCreate(
-            ['price_date' => today()],
+            ['price_date' => GoldPriceService::priceDate()],
             ['price_per_gram' => $pricePerGram, 'melt_prices_json' => $meltPrices, 'source' => $source]
         );
 
@@ -79,7 +79,7 @@ class UpdateGoldPrice extends Command
         [$silverPricePerGram, $silverSource, $silverMeltPrices] = $this->resolveSilverPrice();
 
         $silverPrice = SilverPrice::updateOrCreate(
-            ['price_date' => today()],
+            ['price_date' => GoldPriceService::priceDate()],
             ['price_per_gram' => $silverPricePerGram, 'melt_prices_json' => $silverMeltPrices, 'source' => $silverSource]
         );
 
@@ -157,6 +157,8 @@ class UpdateGoldPrice extends Command
         // Overdue items are still open pawns, so their value keeps following the price.
         Item::whereIn('status', ['active', 'overdue'])->where('group', Item::GROUP_JEWELRY)->chunkById(200, function ($items) use ($pricePerGram, $meltPrices, $silverPricePerGram, $silverMeltPrices, $riskThresholdPercent, &$counts) {
             foreach ($items as $item) {
+                // Stone-only jewelry has no metal, so no price moves its value.
+                if (! $item->usesGoldPriceValuation()) continue;
                 $isSilver = $item->metal_type === Item::METAL_SILVER;
                 $itemPricePerGram = $isSilver ? $silverPricePerGram : $pricePerGram;
                 $itemMeltPrices = $isSilver ? $silverMeltPrices : $meltPrices;
@@ -166,7 +168,7 @@ class UpdateGoldPrice extends Command
                 $computedValue = $item->valueWithGold($item->goldValueAt($itemPricePerGram, $itemMeltPrices));
 
                 ItemValueLog::updateOrCreate(
-                    ['item_id' => $item->items_id, 'log_date' => today()],
+                    ['item_id' => $item->items_id, 'log_date' => GoldPriceService::priceDate()],
                     ['computed_value' => $computedValue, 'gold_price_used' => $itemPricePerGram]
                 );
 

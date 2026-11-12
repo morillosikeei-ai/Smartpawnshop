@@ -50,8 +50,10 @@ return new class extends Migration
                 'category' => 'others',
             ]);
 
-        Schema::table('items', function (Blueprint $table) {
-            $table->enum('category', self::ENUM_CATEGORIES)->change();
-        });
+        if (DB::getDriverName() !== 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->enum('category', self::ENUM_CATEGORIES)->change();
+            });
+        }
     }
 };

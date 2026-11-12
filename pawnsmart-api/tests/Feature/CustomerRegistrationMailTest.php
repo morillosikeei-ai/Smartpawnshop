@@ -32,6 +32,7 @@ class CustomerRegistrationMailTest extends TestCase
             'contact_number' => '09170000000',
             'valid_id_type' => 'National ID',
             'valid_id_number' => 'ID-123',
+            'birthdate' => '1990-01-15',
         ]);
     }
 

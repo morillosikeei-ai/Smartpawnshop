@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Models\GoldPrice;
+use App\Models\Item;
 use App\Models\SilverPrice;
+use App\Models\SystemSetting;
+use Illuminate\Support\Carbon;
 
 /**
  * Gold price forecasting.
@@ -24,6 +27,24 @@ class GoldPriceService
      * Number of recent records averaged to produce the forecast (the SMA window).
      */
     public const WINDOW_SIZE = 7;
+
+    /**
+     * Prices are recorded and forecast on Philippine days. The app clock runs
+     * in UTC, so without this a price fetched at 1 AM Manila time would be
+     * filed under the day before.
+     */
+    public const PRICE_TIMEZONE = 'Asia/Manila';
+
+    /**
+     * Today's date in the Philippines: the day a price row is filed under.
+     *
+     * Returned as midnight in the app timezone, the same shape as today(), so
+     * it matches the dates already stored and updateOrCreate finds the row.
+     */
+    public static function priceDate(): Carbon
+    {
+        return Carbon::parse(now(self::PRICE_TIMEZONE)->toDateString());
+    }
 
     /**
      * How many recorded days the suggestion shows behind itself. Wider than the
@@ -211,7 +232,80 @@ class GoldPriceService
             'sample_size' => $prices->count(),
             'confidence' => $confidence,
             'confidence_label' => $this->confidenceLabel($confidence),
+            // Today's price and the forecast for each karat and silver
+            // fineness, plus the admin's reference prices for pearl and a
+            // natural diamond, which have no market feed to forecast from.
+            'by_purity' => $this->pricesByPurity($currentPrice, $predictedPrice),
+            'references' => $this->referencePrices(),
         ];
+    }
+
+    /** Karats shown in the price breakdown, highest first. */
+    public const KARATS_SHOWN = ['24k', '22k', '21k', '18k', '14k'];
+
+    /** Silver finenesses shown, with the names the trade uses. */
+    public const SILVER_SHOWN = ['999' => 'Fine silver 999', '950' => 'Silver 950', '925' => 'Sterling silver 925'];
+
+    /**
+     * Per gram price of each karat and silver fineness, today and forecast.
+     *
+     * Gold karats are the 24K (pure) price times the karat's purity, the same
+     * way an item's metal value is worked out, so the table and an appraisal
+     * always agree. Silver is the fine silver price times the fineness, with
+     * its own moving-average forecast.
+     *
+     * @return array{gold: list<array<string, mixed>>, silver: list<array<string, mixed>>}
+     */
+    public function pricesByPurity(float $goldNow, float $goldNext): array
+    {
+        $gold = array_map(fn (string $karat) => [
+            'code' => $karat,
+            'label' => strtoupper($karat),
+            'purity' => Item::KARAT_PURITY[$karat],
+            'current' => round($goldNow * Item::KARAT_PURITY[$karat], 2),
+            'predicted' => round($goldNext * Item::KARAT_PURITY[$karat], 2),
+        ], self::KARATS_SHOWN);
+
+        $silverNow = (float) (SilverPrice::orderByDesc('price_date')->value('price_per_gram') ?? 0);
+        $silverNext = $silverNow > 0 ? $this->predictNextSilverPrice() : 0.0;
+        $silver = [];
+        foreach (self::SILVER_SHOWN as $fineness => $label) {
+            $purity = Item::SILVER_PURITY[(string) $fineness];
+            $silver[] = [
+                'code' => (string) $fineness,
+                'label' => $label,
+                'purity' => $purity,
+                'current' => round($silverNow * $purity, 2),
+                'predicted' => round($silverNext * $purity, 2),
+            ];
+        }
+
+        return ['gold' => $gold, 'silver' => $silver];
+    }
+
+    /** system_settings keys of the admin's reference prices, and what they price. */
+    public const REFERENCE_SETTINGS = [
+        'pearl_price_per_gram' => 'Pearl, per gram',
+        'natural_diamond_1ct_price' => 'Natural diamond, 1 carat',
+    ];
+
+    /**
+     * Reference prices the admin keeps in Settings. Pearls and diamonds are
+     * priced piece by piece (size, colour, clarity, lustre), and there is no
+     * free daily market feed for them, so they are shown as set, not
+     * forecast. Null when the admin has not set one.
+     *
+     * @return list<array{key: string, label: string, price: float|null}>
+     */
+    public function referencePrices(): array
+    {
+        $values = SystemSetting::whereIn('setting_key', array_keys(self::REFERENCE_SETTINGS))->pluck('setting_value', 'setting_key');
+
+        return array_map(fn (string $key) => [
+            'key' => $key,
+            'label' => self::REFERENCE_SETTINGS[$key],
+            'price' => is_numeric($values[$key] ?? null) && (float) $values[$key] > 0 ? round((float) $values[$key], 2) : null,
+        ], array_keys(self::REFERENCE_SETTINGS));
     }
 
     /**

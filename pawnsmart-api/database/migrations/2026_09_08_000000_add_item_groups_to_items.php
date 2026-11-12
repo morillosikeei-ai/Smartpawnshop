@@ -3,6 +3,7 @@
 use App\Models\Item;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -48,6 +49,22 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE items DROP CONSTRAINT IF EXISTS items_category_check');
+            DB::statement('ALTER TABLE items DROP CONSTRAINT IF EXISTS items_karat_check');
+
+            Schema::table('items', function (Blueprint $table) {
+                // Existing rows are all gold jewelry, so jewelry is the safe default.
+                $table->enum('group', ['jewelry', 'watch_phone', 'bulky'])->default('jewelry')->after('staff_id');
+                $table->string('karat')->nullable()->change();
+                $table->string('brand_model')->nullable()->after('description');
+                // Gold measurements only apply to the jewelry group.
+                $table->decimal('weight_grams', 12, 3)->nullable()->change();
+            });
+
+            return;
+        }
+
         Schema::table('items', function (Blueprint $table) {
             // Existing rows are all gold jewelry, so jewelry is the safe default.
             $table->enum('group', ['jewelry', 'watch_phone', 'bulky'])->default('jewelry')->after('staff_id');
@@ -76,6 +93,16 @@ return new class extends Migration
         Schema::getConnection()->table('items')->where('category', 'others')->update(['category' => 'ring']);
         Schema::getConnection()->table('items')->whereNull('karat')->update(['karat' => '18k']);
         Schema::getConnection()->table('items')->whereNull('weight_grams')->update(['weight_grams' => 0]);
+
+        if (DB::getDriverName() === 'pgsql') {
+            Schema::table('items', function (Blueprint $table) {
+                $table->dropColumn(['group', 'brand_model']);
+                $table->string('karat')->nullable(false)->change();
+                $table->decimal('weight_grams', 12, 3)->nullable(false)->change();
+            });
+
+            return;
+        }
 
         Schema::table('items', function (Blueprint $table) {
             $table->dropColumn(['group', 'brand_model']);

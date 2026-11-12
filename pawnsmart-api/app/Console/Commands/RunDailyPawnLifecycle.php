@@ -9,34 +9,45 @@ use App\Models\RiskAlert;
 use App\Models\SilverPrice;
 use App\Models\SystemSetting;
 use App\Models\Transaction;
+use App\Services\GoldPriceService;
 use App\Services\NotificationService;
+use App\Support\SimulatedClock;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 
 class RunDailyPawnLifecycle extends Command
 {
-    protected $signature = 'pawnshop:daily-lifecycle {--price= : Manual fallback price per gram}';
+    protected $signature = 'pawnshop:daily-lifecycle {--price= : Record this gold price per gram for today, as a manual reading}
+        {--ticket= : Only process this pawn ticket (for demos and testing)}';
     protected $description = 'Refresh gold prices, item values, risk alerts, and forfeitures.';
 
-    public function handle(NotificationService $notifications): int
+    public function handle(NotificationService $notifications, GoldPriceService $goldPrices): int
     {
-        $price = (float) ($this->option('price') ?: SystemSetting::where('setting_key', 'current_gold_price')->value('setting_value'));
-        $source = 'manual';
-        if (!$price) {
-            $response = Http::timeout(10)->get('https://www.goldapi.io/api/XAU/PHP');
-            if ($response->successful() && $response->json('price_gram_24k')) { $price = (float) $response->json('price_gram_24k'); $source = 'api'; }
+        // Today's gold price is recorded by gold:update-price (GoldAPI, run
+        // before this job). This job only reads the latest recorded price.
+        // It used to save the current_gold_price setting as the day's price,
+        // which wrote a fallback figure over the market history and revalued
+        // jewelry at it. Only an admin's --price is recorded here, as manual.
+        $manualPrice = $this->option('price');
+        if ($manualPrice !== null && is_numeric($manualPrice) && (float) $manualPrice > 0) {
+            $price = (float) $manualPrice;
+            $row = GoldPrice::updateOrCreate(['price_date' => GoldPriceService::priceDate()], ['price_per_gram' => $price, 'source' => 'manual']);
+            $row->update(['predicted_next_price' => $goldPrices->predictNextPrice()]);
+        } else {
+            $price = (float) (GoldPrice::latest('price_date')->value('price_per_gram')
+                ?: SystemSetting::where('setting_key', 'current_gold_price')->value('setting_value')
+                ?: GoldPriceService::DEFAULT_PRICE);
         }
-        if (!$price) { $price = (float) (GoldPrice::latest('price_date')->value('price_per_gram') ?: 3560); }
-        $history = GoldPrice::orderByDesc('price_date')->limit(7)->pluck('price_per_gram')->map(fn ($value) => (float) $value)->all();
-        $prediction = count($history) ? array_sum($history) / count($history) : $price;
-        GoldPrice::updateOrCreate(['price_date' => today()], ['price_per_gram' => $price, 'predicted_next_price' => $prediction, 'source' => $source]);
         $threshold = (float) (SystemSetting::where('setting_key', 'risk_threshold_percent')->value('setting_value') ?: 80);
         $dueSoonDays = $notifications->dueSoonNoticeDays();
         $noticeDays = $notifications->auctionNoticeDays();
         // Silver items follow the latest recorded silver price, never the gold
         // price above. The silver price itself is recorded by gold:update-price.
         $silverPrice = (float) SilverPrice::latest('price_date')->value('price_per_gram');
-        Item::with(['transactions', 'customer'])->whereIn('status', ['active', 'overdue'])->each(function (Item $item) use ($price, $silverPrice, $threshold, $notifications, $dueSoonDays, $noticeDays) {
+        $onlyTicket = $this->option('ticket');
+        $simulating = SimulatedClock::date() !== null;
+        Item::with(['transactions', 'customer'])->whereIn('status', ['active', 'overdue'])
+            ->when($onlyTicket, fn ($query) => $query->whereHas('transactions', fn ($q) => $q->where('ticket_number', $onlyTicket)->where('status', 'active')))
+            ->each(function (Item $item) use ($price, $silverPrice, $threshold, $notifications, $dueSoonDays, $noticeDays, $simulating) {
             $transaction = $item->transactions()->where('status', 'active')->latest('transactions_id')->first();
 
             // Watches, cellphones, and bulky items are not valued from the gold
@@ -45,13 +56,15 @@ class RunDailyPawnLifecycle extends Command
             $isSilver = $item->metal_type === Item::METAL_SILVER;
             $itemPrice = $isSilver ? $silverPrice : $price;
             // With no silver price recorded yet a silver item keeps its value.
-            if ($item->usesGoldPriceValuation() && $itemPrice > 0) {
+            // During demo time travel the gold price is today's real one, so
+            // values are left alone rather than logged on a future date.
+            if ($item->usesGoldPriceValuation() && $itemPrice > 0 && ! $simulating) {
                 // Only the gold portion follows the gold price. A gemstone value
                 // is a one-time estimate from intake and is left untouched, but
                 // it still counts toward the item's total value.
                 $computed = (float) $item->weight_grams * $item->karatPurityPercent() * $itemPrice;
                 $total = $item->valueWithGold($computed);
-                ItemValueLog::updateOrCreate(['item_id' => $item->items_id, 'log_date' => today()], ['computed_value' => $total, 'gold_price_used' => $itemPrice]);
+                ItemValueLog::updateOrCreate(['item_id' => $item->items_id, 'log_date' => GoldPriceService::priceDate()], ['computed_value' => $total, 'gold_price_used' => $itemPrice]);
                 if ($transaction) {
                     // Read before the update, so the customer can be told how
                     // far the value moved rather than only where it landed.
@@ -122,7 +135,7 @@ class RunDailyPawnLifecycle extends Command
 
         // Frequency heuristic over the same day's data. It only reads
         // transactions, so it runs last and never blocks the lifecycle above.
-        $this->call(CheckUnusualActivity::class);
+        if (! $onlyTicket) $this->call(CheckUnusualActivity::class);
 
         $this->info('Daily pawnshop lifecycle completed.');
         return self::SUCCESS;

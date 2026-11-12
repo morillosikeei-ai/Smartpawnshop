@@ -83,6 +83,12 @@ class NotificationService
     /** Staff accepted the customer's redemption request. */
     public const TYPE_CUSTOMER_REDEEM_CONFIRMED = 'redeem_confirmed';
 
+    /** The item staff set aside for pickup was not collected in time. */
+    public const TYPE_CUSTOMER_PICKUP_EXPIRED = 'pickup_expired';
+
+    /** Staff copy: return the item that was set aside to the vault. */
+    public const TYPE_STAFF_PICKUP_EXPIRED = 'staff_pickup_expired';
+
     /** The redemption payment is done and the item is released. */
     public const TYPE_CUSTOMER_REDEMPTION_COMPLETE = 'redemption_complete';
 
@@ -329,7 +335,8 @@ class NotificationService
         $this->sendToCustomer(
             $item->customer,
             self::TYPE_CUSTOMER_VALUE_CHANGED,
-            'The value of your '.$this->itemName($item).' has changed to '.$this->peso($newValue),
+            // The appraised value is for the shop only, so the amount is left out.
+            'The value of your '.$this->itemName($item).' has changed with the gold price.',
             $item->items_id,
             self::REPEAT_AFTER_DAYS
         );
@@ -367,8 +374,9 @@ class NotificationService
         $this->sendToCustomer(
             $transaction->customer,
             self::TYPE_CUSTOMER_REDEEM_CONFIRMED,
-            'Staff has confirmed your redemption request for '.$this->itemName($transaction->item)
-                .'. Please visit the shop within '.$this->redemptionVisitDays().' days.',
+            'Your '.$this->itemName($transaction->item).' (Ticket #'.$transaction->ticket_number.') is ready for pickup. '
+                .'Bring '.$this->peso($transaction->totalPayable()).' (interest counted to today), your valid ID and your pickup code, '
+                .'by '.$transaction->pickupReadyUntil()?->setTimezone('Asia/Manila')->format('D, M j, g:i A').'.',
             $transaction->item_id,
             self::REPEAT_AFTER_DAYS
         );
@@ -550,6 +558,27 @@ class NotificationService
     }
 
     /** How many days a confirmed redemption request is held. */
+    /** A ready-for-pickup item was not collected in time. Customer and staff copies. */
+    public function pickupExpired(Transaction $transaction): void
+    {
+        $item = $transaction->item;
+        $this->sendToCustomer(
+            $transaction->customer,
+            self::TYPE_CUSTOMER_PICKUP_EXPIRED,
+            'Your '.$this->itemName($item).' was set aside for pickup, but it was not collected in time, so it went back to safekeeping. '
+                .'Press "I\'m ready to pick up/pay" again when you are ready.',
+            $transaction->item_id,
+            1
+        );
+        $this->sendToStaff(
+            self::TYPE_STAFF_PICKUP_EXPIRED,
+            $this->itemName($item).' ('.$this->customerName($transaction->customer).', Ticket #'.$transaction->ticket_number
+                .') was not picked up in time. Return it to the vault.',
+            $transaction->item_id,
+            1
+        );
+    }
+
     public function redemptionVisitDays(): int
     {
         return (int) $this->setting(self::REDEMPTION_VISIT_DAYS_KEY, self::DEFAULT_REDEMPTION_VISIT_DAYS);
