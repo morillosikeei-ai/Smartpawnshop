@@ -667,7 +667,7 @@ const Landing: React.FC = () => {
                         </div>
                         <div className="hero-text-col">
                             <div className="hero-kicker"><span>FAIR VALUE</span><span>TRUSTED SERVICE</span></div>
-                            <h1 className="hero-title">Smart Pawn — <span className="highlight">Fair Value, Every Day.</span></h1>
+                            <h1 className="hero-title">Smart Pawn <span className="highlight">Fair Value Every Day.</span></h1>
                             <p className="hero-description">Pag-Asa Pawnshop makes pawning simple, transparent, and dependable. Get a fair assessment for your valuables or find quality expired/unclaimed items in one trusted place.</p>
                             <div className="hero-buttons"><IonButton className="hero-btn primary-btn" onClick={openLogin}><IonIcon icon={logInOutline} slot="start" />Get Started</IonButton><IonButton fill="outline" className="hero-btn outline-btn" href="#estimate"><IonIcon icon={calculatorOutline} slot="start" />Get an Estimate</IonButton><a className="hero-text-link" href="#services">Explore our services <IonIcon icon={arrowForwardOutline} /></a></div>
                         </div>

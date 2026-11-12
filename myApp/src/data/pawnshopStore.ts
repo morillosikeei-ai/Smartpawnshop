@@ -42,9 +42,16 @@ export const DEFAULT_SILVER_FINENESS = '925';
 
 /** Karat or fineness as the screens show it: "18K" for gold, "925" for silver. */
 export const purityLabel = (item?: { metal_type?: string | null; karat?: string | null; fineness?: string | null } | null) =>
-  item?.metal_type === 'silver'
+  item?.metal_type === 'none'
+    ? 'Stone only'
+    : item?.metal_type === 'silver'
     ? item.fineness || item.karat || null
     : item?.karat ? item.karat.toUpperCase() : null;
+
+/** A stored gemstone type in words, e.g. "natural diamond". Older rows without a type were diamonds. */
+export const gemstoneName = (type?: string | null) =>
+  ({ natural_diamond: 'natural diamond', pearl: 'pearl', diamond: 'diamond' } as Record<string, string>)[type || 'diamond']
+  ?? (type && type !== 'other' ? type : 'gemstone');
 
 export const purityForSilver = (fineness: string) =>
   SILVER_PURITIES.find(option => option.value === fineness)?.purity ?? 1;

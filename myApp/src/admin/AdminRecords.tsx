@@ -10,7 +10,7 @@ import {
   type ApiTransaction,
 } from '../services/api';
 import { moneyExact, shortDate, statusLabel } from '../data/pawnshopStore';
-import { activityCsv, customersCsv, dateTime, forfeitDate, isOverdue, isPayment, itemName, overdueCsv, paymentsCsv } from './recordsExport';
+import { activityCsv, amountPaid, customersCsv, dateTime, forfeitDate, isOverdue, isPayment, itemName, overdueCsv, paymentsCsv } from './recordsExport';
 import { Spinner } from '../components/Skeleton';
 import TypeSelect from '../components/TypeSelect';
 import ReportsTable from './ReportsTable';
@@ -273,16 +273,16 @@ const PaymentsTab: React.FC = () => {
     { label: 'Customer', width: 'minmax(0, 1fr)', wide: true, render: row => row.customer?.name || '-' },
     { label: 'Principal', width: 'minmax(0, .9fr)', numeric: true, wide: true, render: row => moneyExact(Number(row.loan_amount)) },
     { label: 'Interest', width: 'minmax(0, .8fr)', numeric: true, wide: true, render: row => moneyExact(Number(row.interest_due)) },
-    { label: 'Total paid', width: 'minmax(0, .9fr)', numeric: true, render: row => <strong>{moneyExact(Number(row.total_payable))}</strong> },
+    { label: 'Total paid', width: 'minmax(0, .9fr)', numeric: true, render: row => <strong>{moneyExact(amountPaid(row))}</strong> },
   ];
 
   return (
     <>
       <Summary items={[
         { label: 'Payments recorded', value: String(rows.length) },
-        { label: 'Total collected', value: moneyExact(sum(rows, row => Number(row.total_payable))), tone: 'green' },
+        { label: 'Total collected', value: moneyExact(sum(rows, amountPaid)), tone: 'green' },
         { label: 'Interest earned', value: moneyExact(sum(rows, row => Number(row.interest_due))), tone: 'gold' },
-        { label: 'Collected this month', value: moneyExact(sum(monthRows, row => Number(row.total_payable))), tone: 'blue' },
+        { label: 'Collected this month', value: moneyExact(sum(monthRows, amountPaid)), tone: 'blue' },
       ]} />
       <DataTable
         rows={rows}

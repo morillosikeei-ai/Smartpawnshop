@@ -1,0 +1,32 @@
+/* Demo time travel notice (SimulatedDateBanner.tsx): above everything, never in the way. */
+.simulated-date-banner {
+  position: fixed;
+  z-index: 100000;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 16px;
+  border: 1px solid #f5c842;
+  border-radius: 999px;
+  background: #061028;
+  color: #f8fafc;
+  font-size: 13px;
+  box-shadow: 0 10px 26px rgba(6, 16, 40, .35);
+  pointer-events: none;
+}
+.simulated-date-banner strong {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f5c842;
+  color: #061028;
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+@media (max-width: 520px) {
+  .simulated-date-banner { flex-direction: column; gap: 4px; border-radius: 14px; text-align: center; }
+}

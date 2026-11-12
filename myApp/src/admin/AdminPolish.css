@@ -545,3 +545,17 @@
   .admin-menu-toggle { display: flex; align-items: center; justify-content: center; }
   .admin-page .admin-topbar { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
 }
+
+/* System Settings, in sections (SystemSettingsForm in AdminPortal.tsx). */
+.admin-page .settings-group + .settings-group { margin-top: 22px; }
+.admin-page .settings-group h4 { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e6ebf3; color: #0f172a; font-size: var(--fs-13); font-weight: 800; letter-spacing: .02em; }
+.admin-page .settings-grid label { display: grid; gap: 6px; align-content: start; }
+.admin-page .settings-grid label.is-changed input { border-color: var(--ap-gold); background: #fffdf6; }
+.admin-page .settings-grid label.has-error input { border-color: #e3a79f; background: #fff7f6; }
+.admin-page .settings-hint { color: #64748b; font-size: var(--fs-11); font-weight: 500; line-height: 1.4; }
+.admin-page .settings-error { color: #b42318; font-size: var(--fs-11); font-weight: 700; line-height: 1.4; }
+html[data-theme="dark"] .admin-page .settings-group h4 { border-bottom-color: #2a3650; color: #e6ebf5; }
+html[data-theme="dark"] .admin-page .settings-grid label.is-changed input { background: rgba(212, 167, 44, .1); }
+html[data-theme="dark"] .admin-page .settings-grid label.has-error input { background: rgba(180, 35, 24, .15); }
+html[data-theme="dark"] .admin-page .settings-hint { color: #a3afc2; }
+html[data-theme="dark"] .admin-page .settings-error { color: #f0928a; }

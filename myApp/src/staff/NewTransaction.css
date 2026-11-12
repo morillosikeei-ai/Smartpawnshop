@@ -290,6 +290,13 @@ ion-modal .tx-customer-modal-box .file-input {
   background: #f4f7fb;
 }
 .staff-page .tx-material .tx-material-picker button { padding: 4px 12px; }
+/* Gemstone kind (Natural diamond / Pearl / Other) and its value hints. */
+.staff-page .tx-gemstone-kind .tx-material-picker,
+.staff-page .tx-material-3 .tx-material-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.staff-page .tx-field-hint { display: block; margin-top: 4px; color: #52627b; font-size: var(--fs-11); font-weight: 600; }
+.staff-page .tx-link-button { padding: 0; border: 0; background: none; color: #1d4ed8; font: inherit; text-decoration: underline; cursor: pointer; }
+html[data-theme="dark"] .staff-page .tx-field-hint { color: #a3afc2; }
+html[data-theme="dark"] .staff-page .tx-link-button { color: #93b4ff; }
 .staff-page .tx-weight-unit { flex: none; padding-left: 8px; color: #52627b; font-size: var(--fs-12); font-weight: 700; }
 
 /* ---------- Unsaved customer changes ----------
@@ -315,3 +322,18 @@ ion-modal .tx-customer-modal-box .file-input {
 html[data-theme="dark"] .staff-page .tx-customer-unsaved { border-color: #8a6a1f; background: rgba(245, 200, 66, .1); }
 html[data-theme="dark"] .staff-page .tx-customer-unsaved strong { color: #f5c842; }
 html[data-theme="dark"] .staff-page .tx-customer-unsaved span { color: #d9c28a; }
+
+/* Customer search results sit in the Customer card itself, under the search
+   box, instead of floating over it: floating, the card cut them off and the
+   sticky action bar covered the rest. A long list scrolls inside the card. */
+.staff-page .tx-search .lookup-dropdown {
+  position: static;
+  margin-top: 8px;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: none;
+}
+.staff-page .tx-search .lookup-count { padding: 2px 4px; color: var(--tx-muted, #64748b); font-size: var(--fs-11); font-weight: 700; }
+/* The box grows with the results, so the icon stays centred on the input, not the box. */
+.staff-page .tx-search .tx-search-icon { top: 21px; z-index: 5; }

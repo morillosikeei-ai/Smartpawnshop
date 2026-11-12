@@ -1,4 +1,4 @@
-import { matchNameToIdText, normalizeText, parseIdText } from './idOcr';
+import { matchBirthdateToIdText, matchIdNumberToIdText, matchNameToIdText, normalizeText, parseIdText } from './idOcr';
 
 const PHILSYS = `REPUBLIKA NG PILIPINAS
 Philippine Identification Card
@@ -55,6 +55,7 @@ CEBU CITY, CEBU`;
       fullName: 'Juan Miguel Santos Dela Cruz',
       idNumber: '1234-5678-9012-3456',
       address: '123 Rizal St, Brgy San Isidro, Cebu City, Cebu',
+      birthdate: '1990-01-01',
     });
   });
 
@@ -88,4 +89,37 @@ P1234567A7PHL9001013M3001015<<<<<<<<<<<<<<04`;
   test('returns nothing it cannot find', () => {
     expect(parseIdText('blurry %% text')).toEqual({});
   });
+});
+
+test('a wrong first name does not match, even with the right surname', () => {
+  const mary = PHILSYS.replace('JUAN MIGUEL', 'MARY');
+  expect(matchNameToIdText('Merry Dela Cruz', mary)).toBe('mismatch');
+  expect(matchNameToIdText('Mery Dela Cruz', mary)).toBe('mismatch');
+  expect(matchNameToIdText('Mary Dela Cruz', mary)).toBe('match');
+});
+
+test('every word of the name must be on the ID', () => {
+  expect(matchNameToIdText('Juan Pedro Dela Cruz', PHILSYS)).toBe('mismatch');
+  expect(matchNameToIdText('Juan Miguel Dela Cruz', PHILSYS)).toBe('match');
+});
+
+test('the date of birth is found in the layouts IDs print it in', () => {
+  expect(matchBirthdateToIdText('1990-01-01', PHILSYS)).toBe('match');
+  expect(matchBirthdateToIdText('1990-01-02', PHILSYS)).toBe('mismatch');
+  const license = 'REPUBLIC OF THE PHILIPPINES LAND TRANSPORTATION OFFICE DELA CRUZ, JUAN Date of Birth 1990/01/15';
+  expect(matchBirthdateToIdText('1990-01-15', license)).toBe('match');
+  const passport = 'REPUBLIKA NG PILIPINAS PASSPORT DELA CRUZ JUAN Date of birth 15 JAN 1990';
+  expect(matchBirthdateToIdText('1990-01-15', passport)).toBe('match');
+});
+
+test('the ID number must be on the ID, ignoring dashes and OCR lookalikes', () => {
+  const card = `${PHILSYS}\nPCN 1234-5678-9012-3456`;
+  expect(matchIdNumberToIdText('1234 5678 9012 3456', card)).toBe('match');
+  expect(matchIdNumberToIdText('1234-5678-9012-3457', card)).toBe('mismatch');
+  expect(matchIdNumberToIdText('1234-5678-9012-3456', card.replace('1234-5678', 'I234-5678'))).toBe('match');
+});
+
+test('reads the date of birth for autofill', () => {
+  expect(parseIdText(PHILSYS).birthdate).toBe('1990-01-01');
+  expect(parseIdText('LAND TRANSPORTATION OFFICE DELA CRUZ, JUAN Date of Birth 1990/01/15 Expiration 2030/01/15').birthdate).toBe('1990-01-15');
 });

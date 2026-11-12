@@ -4,7 +4,7 @@ import { IonButton, IonContent, IonIcon, IonInput, IonItem, IonLabel, IonPage } 
 import { alertCircleOutline, cameraOutline, cashOutline, cubeOutline, checkmarkCircleOutline, chevronDownOutline, chevronUpOutline, closeOutline, eyeOutline, homeOutline, logOutOutline, menuOutline, notificationsOutline, personCircleOutline, receiptOutline, timeOutline, walletOutline } from 'ionicons/icons';
 import { cloudUploadOutline, keyOutline, pricetagOutline, starOutline, star as starFilled, refreshOutline, removeOutline, trashOutline, trendingDownOutline, trendingUpOutline } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
-import { daysUntil, FORFEITED_LABEL, longDate, money, moneyExact, purityLabel, statusClass, statusLabel, timeAgo } from '../data/pawnshopStore';
+import { daysUntil, FORFEITED_LABEL, longDate, money, moneyExact, purityLabel, gemstoneName, statusClass, statusLabel, timeAgo } from '../data/pawnshopStore';
 import {
     generatePickupCode,
     getDashboard,
@@ -36,7 +36,7 @@ import MotionToggle from '../components/MotionToggle';
 import FaqChatbot from '../components/FaqChatbot';
 import PullToRefresh from '../components/PullToRefresh';
 import TrendSuggestionCard from '../components/TrendSuggestionCard';
-import ValueSparkline, { ValuePoint } from '../components/ValueSparkline';
+import type { ValuePoint } from '../components/ValueSparkline';
 import LoanTermBar from '../components/LoanTermBar';
 import LoanOverviewChart, { type LoanRecord } from '../components/LoanOverviewChart';
 import RightsNotice from '../components/RightsNotice';
@@ -101,6 +101,8 @@ type Item = {
     transactionId: number | null;
     /** Whether the customer has already asked to redeem this item. */
     readyToRedeem: boolean;
+    /** Until when staff hold the item at the counter, once they set it aside; '' before. */
+    pickupReadyUntil: string;
     /**
      * Whether this item's value follows the gold price. Only jewelry does, so
      * only jewelry carries the redemption timing suggestion.
@@ -132,7 +134,7 @@ const itemTypeLabel = (item: { category?: string | null; custom_item_type?: stri
  */
 const specsFor = (item: ApiItemDetail) =>
     item.group === 'jewelry'
-        ? [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with diamond' : null].filter(Boolean).join(' · ')
+        ? [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? `with ${gemstoneName(item.gemstone_type)}` : null].filter(Boolean).join(' · ')
         : item.brand_model || itemTypeLabel(item);
 
 /** The loan that matters for this item: the open one, else the most recent. */
@@ -176,6 +178,9 @@ const toItem = (item: ApiItemDetail): Item => {
         status: statusLabel(item.status) as Status,
         transactionId: loan && loan.status === 'active' ? loan.transactions_id : null,
         readyToRedeem: Boolean(loan?.ready_to_redeem_at),
+        pickupReadyUntil: loan?.pickup_ready_until
+            ? new Date(loan.pickup_ready_until).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+            : '',
         // Read from the stored group rather than the display label, so the
         // check does not follow how the group happens to be formatted.
         goldLinked: item.group === 'jewelry',
@@ -660,10 +665,6 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
         }
     };
 
-    // Equity is what the item is worth above the loan; loan-to-value is the
-    // loan as a share of that worth. Both read from figures already on record.
-    const equity = item.valueAmount - item.loanAmount;
-    const ltv = item.valueAmount > 0 ? (item.loanAmount / item.valueAmount) * 100 : 0;
     const loanOpen = item.status === 'Active' || item.status === 'Overdue';
     const statusDate = loanOpen
         ? `As of ${longDate(new Date().toISOString())}`
@@ -720,9 +721,9 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
             <div className="item-modal-body">
                 <section className="item-modal-section">
                     <h4>Pawn Summary</h4>
-                    {/* The three headline figures. Dates moved to the timeline below. */}
+                    {/* The headline figures. Dates moved to the timeline below. The
+                        appraised value is staff-only, so it is not shown here. */}
                     <div className="detail-grid loan-summary-grid">
-                        <div><span>Appraised value</span><strong>{item.value}</strong></div>
                         <div className="is-loan"><span>Pawn amount</span><strong>{item.loan}</strong></div>
                         <div><span>Interest (Renta)</span><strong>{item.interest}</strong></div>
                     </div>
@@ -733,8 +734,10 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
                     settled at the counter. */}
                 {item.transactionId && <div className="item-modal-actions">
                     <div className="redeem-request">
-                        {item.readyToRedeem
-                            ? <p className="redeem-request-sent">Your redemption request is with our staff. They will confirm it shortly.</p>
+                        {item.readyToRedeem && item.pickupReadyUntil
+                            ? <p className="redeem-request-sent is-ready"><strong>Your item is ready for pickup.</strong> Bring {moneyExact(item.totalPayable)}, your valid ID and your pickup code by {item.pickupReadyUntil}.</p>
+                            : item.readyToRedeem
+                            ? <p className="redeem-request-sent">Your request is with our staff. We will tell you as soon as your item is ready for pickup.</p>
                             : <button className="redeem-request-button" onClick={askToRedeem} disabled={requesting} aria-busy={requesting}>{requesting && <Spinner />}{requesting ? 'Sending' : "I'm ready to pick up/pay"}</button>}
                         {requestError && <p className="redeem-request-error">{requestError}</p>}
                     </div>
@@ -803,41 +806,16 @@ const ItemDetail: React.FC<{ item: Item; onClose: () => void; onAskToRedeem: (it
                                 </section>}
                             </div>
                         ) },
-                        { id: 'value', label: 'Value', icon: trendingUpOutline, content: (
+                        /*
+                          The appraised value is staff-only, so the value history, the value vs
+                          pawn bar and equity are not shown. Only the gold trend suggestion is
+                          left, and it applies to an active jewelry item alone.
+                        */
+                        ...(item.goldLinked && item.status === 'Active' ? [{ id: 'value', label: 'Gold Trend', icon: trendingUpOutline, content: (
                             <div className="item-modal-stack">
-                                {/* Up to 30 days of recorded value, right above the value vs loan bar.
-                                    A single recorded day shows only that value. */}
-                                {item.valueHistory.length > 0 && <ValueSparkline points={item.valueHistory} formatValue={money} />}
-                                {item.loanAmount > 0 && <section className="item-modal-section">
-                                    <h4>Current Value vs Pawn Amount</h4>
-                                    <div className="equity-metrics">
-                                        <div><span>Current value</span><strong>{item.value}</strong></div>
-                                        <div className="is-loan"><span>Pawn amount</span><strong>{item.loan}</strong></div>
-                                        <div className={equity < 0 ? 'is-negative' : 'is-equity'}><span>Equity</span><strong>{equity < 0 ? '−' : ''}{money(Math.abs(equity))}</strong></div>
-                                        <div><span>Pawn-to-value</span><strong>{Math.round(ltv)}%</strong></div>
-                                    </div>
-                                    {/* The whole track is the current value; the gold fill is the loan,
-                                        the rest is equity. A loan above the value fills it in red. */}
-                                    <div
-                                        className={`equity-bar ${ltv > 100 ? 'is-over' : ''}`}
-                                        role="img"
-                                        aria-label={`Pawn amount is ${Math.round(ltv)}% of the current value. Equity ${equity < 0 ? 'minus ' : ''}${money(Math.abs(equity))}.`}
-                                    >
-                                        <i style={{ width: `${Math.min(100, ltv)}%` }} />
-                                    </div>
-                                    <div className="equity-legend" aria-hidden="true">
-                                        <span><b className="is-loan" />Pawn {Math.round(ltv)}%</span>
-                                        <span><b className="is-equity" />Equity {Math.max(0, 100 - Math.round(ltv))}%</span>
-                                    </div>
-                                </section>}
-                                {/*
-                                  Watches, cellphones, and bulky items are not valued against the gold
-                                  price, and a closed loan has nothing left to time, so the suggestion
-                                  is shown only on an active jewelry item.
-                                */}
-                                {item.goldLinked && item.status === 'Active' && <TrendSuggestionCard />}
+                                <TrendSuggestionCard />
                             </div>
-                        ) },
+                        ) }] : []),
                     ]}
                 />
             </div>

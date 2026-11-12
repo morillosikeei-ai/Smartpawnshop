@@ -22,6 +22,7 @@ import {
   notificationsOutline,
   personCircleOutline,
   refreshOutline,
+  timeOutline,
   warningOutline,
   walletOutline,
   alertCircleOutline,
@@ -44,11 +45,12 @@ import {
   cloudUploadOutline,
 } from 'ionicons/icons';
 import { useNavigate } from 'react-router-dom';
-import { calculateAppraisal, DEFAULT_SILVER_FINENESS, FORFEITED_LABEL, money, moneyExact, purityForKarat, purityForSilver, riskLabel, shortDate, SILVER_PURITIES, statusLabel, timeAgo, purityLabel } from '../data/pawnshopStore';
+import { calculateAppraisal, DEFAULT_SILVER_FINENESS, FORFEITED_LABEL, money, moneyExact, purityForKarat, purityForSilver, riskLabel, shortDate, SILVER_PURITIES, statusLabel, timeAgo, purityLabel, gemstoneName } from '../data/pawnshopStore';
 import { SkeletonList, Spinner } from '../components/Skeleton';
 import Pager, { usePagedRows } from '../components/Pager';
 import { useModal } from '../components/ModalProvider';
 import GoldPriceChart from '../components/GoldPriceChart';
+import PurityPriceTable from '../components/PurityPriceTable';
 import LoanDetailModal from './LoanDetailModal';
 import {
   confirmRedemptionRequest,
@@ -125,7 +127,7 @@ import { cleanDecimal, readDecimal } from '../utils/decimalInput';
 import './StaffDashboard.css';
 import './GoldPanel.css';
 import './IdPhoto.css';
-import { IdAutofillCard, IdNameBadge, IdPhotoQualityWarning, useIdPhotoCheck } from './useIdPhotoCheck';
+import { IdAutofillCard, IdFieldBadge, IdNameBadge, IdPhotoQualityWarning, idMismatches, useIdPhotoCheck } from './useIdPhotoCheck';
 import type { IdFields } from '../services/idOcr';
 import './StaffNav.css';
 import '../theme/portal-ui.css';
@@ -141,10 +143,13 @@ type AttachedPhoto = { id: string; name: string; file: File; quality: PhotoQuali
  * Jewelry materials, Gold first as the default. Shared by the Pawn Item step
  * and the dashboard's Market Reference toggle.
  */
+/** Jewelry material on the New Pawn form. 'none' is a pure diamond or pearl with no metal. */
+type FormMetal = MetalType | 'none';
 const METALS: Array<{ value: MetalType; label: string }> = [
   { value: 'gold', label: 'Gold' },
   { value: 'silver', label: 'Silver' },
 ];
+const PAWN_MATERIALS: Array<{ value: FormMetal; label: string }> = [...METALS, { value: 'none', label: 'Stone only' }];
 
 /** Most photos one item keeps. Matches Item::MAX_PHOTOS in the API. */
 const MAX_ITEM_PHOTOS = 4;
@@ -209,6 +214,13 @@ const NOTIFICATION_PREVIEW = 5;
  * The tone names map onto the .staff-notification-icon classes, so a new type
  * falls back to the neutral bell rather than to no icon at all.
  */
+/** "Fri, Nov 13, 6:00 PM": until when an item set aside for pickup is held. */
+const pickupDeadline = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+/** Notifications about an item with no open loan, worked in Lifecycle Operations. */
+const LIFECYCLE_NOTIFICATIONS: ApiNotification['type'][] = ['staff_item_reserved', 'staff_forfeited', 'staff_listed_for_sale'];
+
 const NOTIFICATION_ICONS: Record<string, { icon: string; tone: 'info' | 'warn' | 'danger' | 'success' | 'neutral' }> = {
   staff_redeem_request: { icon: cashOutline, tone: 'success' },
   staff_appointment_request: { icon: calendarOutline, tone: 'info' },
@@ -225,6 +237,8 @@ const NOTIFICATION_ICONS: Record<string, { icon: string; tone: 'info' | 'warn' |
   risk_notice: { icon: warningOutline, tone: 'warn' },
   due_soon: { icon: calendarOutline, tone: 'warn' },
   redeem_confirmed: { icon: checkmarkCircle, tone: 'success' },
+  pickup_expired: { icon: timeOutline, tone: 'warn' },
+  staff_pickup_expired: { icon: timeOutline, tone: 'warn' },
   redemption_complete: { icon: checkmarkCircle, tone: 'success' },
   forfeited: { icon: cubeOutline, tone: 'neutral' },
   overdue: { icon: alertCircleOutline, tone: 'warn' },
@@ -313,9 +327,11 @@ const StaffPortal: React.FC = () => {
   /**
    * Open what a notification points at.
    *
-   * A redemption request opens the Redemption tab; the risk, overdue, and
-   * forfeiture messages open Active Loans/Items. Both land on the Loans page
-   * with the item singled out, so the row is the first thing on screen.
+   * A redemption request opens the Redemption tab; the risk and overdue
+   * messages open Active Loans/Items. A reservation, an item set for auction,
+   * or one listed for sale opens Lifecycle Operations on that item's group,
+   * where its actions (Cancel hold, Auction result, Mark Sold) are. Every one
+   * lands on the Loans page with the item singled out.
    */
   const openNotification = (notice: ApiNotification) => {
     markRead(notice.notifications_id);
@@ -326,11 +342,13 @@ const StaffPortal: React.FC = () => {
     // submitted GCash payment on the renewals tab; anything else is worked
     // against the open loan itself.
     setLoanTab(
-      notice.type === 'staff_redeem_request' || notice.type === 'staff_appointment_request'
+      notice.type === 'staff_redeem_request' || notice.type === 'staff_appointment_request' || notice.type === 'staff_pickup_expired'
         ? 'payments'
         : notice.type === 'staff_renewal_payment'
           ? 'renewals'
-          : 'active'
+          : LIFECYCLE_NOTIFICATIONS.includes(notice.type)
+            ? 'lifecycle'
+            : 'active'
     );
     setLoanRiskFilter('All');
     go('loans');
@@ -712,6 +730,7 @@ const Dashboard: React.FC<{
 
             <div className="gold-chart-wrap">
               <GoldPriceChart points={goldWindow} loading={!loaded} showTable={false} />
+              <PurityPriceTable references compact />
               {loaded && goldPeak > 0 && (
                 // The peak and floor the old scale column printed beside the
                 // bars, kept as one quiet caption instead of two floating
@@ -868,25 +887,22 @@ const ITEM_CATEGORIES: Record<string, { value: string; label: string }[]> = {
 };
 
 /**
- * Suggestions for the other free-text dropdowns. Each field lists these but
- * also accepts a custom value typed in by the staff.
- *
- * Condition values are the keys the API stored before custom text was allowed.
+ * Staff pick one of these two conditions; custom text is not allowed.
+ * The value is the key sent to the API, the label is what the form shows.
  */
 const CONDITION_OPTIONS: ComboOption[] = [
   { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'damaged', label: 'Damaged' },
+  { value: 'scrap', label: 'Scrap' },
 ];
 
-// Matches Item::KARAT_PURITY in the API.
-const GOLD_KARAT_OPTIONS = ['10k', '14k', '18k', '21k', '22k', '24k'].map((karat) => ({ value: karat, label: karat }));
+// Matches Item::KARATS_ACCEPTED in the API. 10k is no longer taken.
+const GOLD_KARAT_OPTIONS = ['14k', '18k', '21k', '22k', '24k'].map((karat) => ({ value: karat, label: karat }));
 
 // Free text typed by staff goes into the printed ticket's HTML, so it is escaped.
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] as string));
 
 /** The customer fields staff can correct and save. The email is the sign-in and is not among them. */
-const CUSTOMER_DETAIL_FIELDS = ['fullName', 'contactNumber', 'address', 'validIdType', 'validIdNumber', 'validIdPhoto'] as const;
+const CUSTOMER_DETAIL_FIELDS = ['fullName', 'contactNumber', 'address', 'validIdType', 'validIdNumber', 'birthdate', 'validIdPhoto'] as const;
 type CustomerDetails = Record<(typeof CUSTOMER_DETAIL_FIELDS)[number], string>;
 
 /** A customer record from the API as the form's saved details. */
@@ -896,16 +912,41 @@ const customerDetails = (customer: ApiCustomer): CustomerDetails => ({
   address: customer.address || '',
   validIdType: customer.valid_id_type || 'National ID',
   validIdNumber: customer.valid_id_number || '',
+  birthdate: (customer.birthdate || '').slice(0, 10),
   validIdPhoto: customer.valid_id_photo || '',
 });
 
+/** The latest date of birth allowed: only a customer 18 or older may pawn. */
+const latestBirthdate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 18);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Required ID details, as error messages keyed by field: the ID type, the
+ * complete name (first and last name at least), the date of birth (18 or
+ * older) and the ID number.
+ */
+const idDetailErrors = (fields: { fullName: string; validIdType: string; validIdNumber: string; birthdate: string }) => {
+  const errors: Record<string, string> = {};
+  if (!fields.fullName.trim()) errors.fullName = 'Full name is required';
+  else if (fields.fullName.trim().split(/\s+/).length < 2) errors.fullName = 'Type the complete name as printed on the ID (first and last name)';
+  if (!fields.validIdType.trim()) errors.validIdType = 'Valid ID type is required';
+  if (!fields.validIdNumber.trim()) errors.validIdNumber = 'Valid ID number is required';
+  if (!fields.birthdate) errors.birthdate = 'Birthday is required';
+  else if (fields.birthdate > latestBirthdate()) errors.birthdate = 'The customer must be at least 18 years old to pawn';
+  return errors;
+};
+
 /** ID fields read by OCR, renamed to the customer form's own keys. */
 const idFieldsToCustomer = (fields: IdFields) => {
-  const patch: Partial<Record<'fullName' | 'validIdType' | 'validIdNumber' | 'address', string>> = {};
+  const patch: Partial<Record<'fullName' | 'validIdType' | 'validIdNumber' | 'address' | 'birthdate', string>> = {};
   if (fields.fullName) patch.fullName = fields.fullName;
   if (fields.idType) patch.validIdType = fields.idType;
   if (fields.idNumber) patch.validIdNumber = fields.idNumber;
   if (fields.address) patch.address = fields.address;
+  if (fields.birthdate) patch.birthdate = fields.birthdate;
   return patch;
 };
 
@@ -962,6 +1003,7 @@ const NewTransaction: React.FC<{
   go: (view: View) => void;
   onTransactionCreated: (message: string) => void;
 }> = ({ go, onTransactionCreated }) => {
+  const modal = useModal();
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -975,6 +1017,8 @@ const NewTransaction: React.FC<{
     addressParts: EMPTY_ADDRESS,
     validIdType: 'National ID',
     validIdNumber: '',
+    // Date of birth as printed on the ID, YYYY-MM-DD.
+    birthdate: '',
     email: '',
     // Data URL of the picked ID, so it survives into the saved customer.
     validIdPhoto: '',
@@ -991,6 +1035,7 @@ const NewTransaction: React.FC<{
     address: '',
     validIdType: 'National ID',
     validIdNumber: '',
+    birthdate: '',
     email: '',
     validIdPhoto: '',
     customersId: undefined as number | undefined,
@@ -1005,7 +1050,7 @@ const NewTransaction: React.FC<{
     // Jewelry only. Gold is valued by karat from gold_prices; silver by
     // fineness (800, 925, 950, 999) from silver_prices. Each has its own field
     // so a silver fineness is never sent as a karat.
-    metalType: 'gold' as MetalType,
+    metalType: 'gold' as FormMetal,
     karat: '18k',
     fineness: DEFAULT_SILVER_FINENESS,
     weight: '',
@@ -1018,11 +1063,13 @@ const NewTransaction: React.FC<{
   // The value the staff actually lends against. Empty means "use the computed
   // or typed appraisal", so it follows that value until the staff changes it.
   const [adjustedValue, setAdjustedValue] = useState('');
-  // Jewelry only. A diamond adds the staff's own estimate on top of
-  // the AI-assisted gold value; the details are a note for reference only.
-  // The shop takes diamonds only, so a ticked box is always sent as one. The
-  // gemstone_* names are the database columns and stay as they are.
+  // Jewelry only. A gemstone adds its value on top of the AI-assisted metal
+  // value. A natural diamond (carats) or pearl (grams) is suggested from the
+  // admin's reference price; the staff may type a different value, and an
+  // empty value means "use the suggestion". Details are a note only.
   const [hasGemstone, setHasGemstone] = useState(false);
+  const [gemstoneType, setGemstoneType] = useState<GemstoneKind>('natural_diamond');
+  const [gemstoneWeight, setGemstoneWeight] = useState('');
   const [gemstoneValue, setGemstoneValue] = useState('');
   const [gemstoneDetails, setGemstoneDetails] = useState('');
   // Watch and cellphone only: the structured details (IMEI, movement, papers...)
@@ -1066,6 +1113,8 @@ const NewTransaction: React.FC<{
   // success screen, which still reads the form state so the ticket can be
   // reprinted without another API call.
   const [createdTicket, setCreatedTicket] = useState('');
+  // The due date the API saved for that ticket, for reprinting it.
+  const [createdDueDate, setCreatedDueDate] = useState<string | undefined>(undefined);
   // The customer the created ticket belongs to, so a reprint can ask the API
   // for the same portal access QR code.
   const [createdCustomerId, setCreatedCustomerId] = useState<number | null>(null);
@@ -1142,30 +1191,37 @@ const NewTransaction: React.FC<{
     return () => { cancelled = true; };
   }, []);
 
-  // Customer search handler
+  // Customer search handler. Each keystroke starts a search; only the
+  // newest one may show its results, so a slow earlier reply cannot replace
+  // the list for what is typed now.
+  const latestSearch = useRef(0);
   const handleCustomerSearch = async (searchTerm: string) => {
     setCustomerSearch(searchTerm);
+    const searchId = ++latestSearch.current;
     if (searchTerm.trim().length < 2) {
       setShowCustomerResults(false);
       setSearchResults([]);
+      setLoadingSearch(false);
       return;
     }
 
     setLoadingSearch(true);
     try {
       const results = await searchCustomers(searchTerm);
+      if (searchId !== latestSearch.current) return;
       setSearchResults(Array.isArray(results) ? results : [results]);
       setShowCustomerResults(true);
     } catch (error) {
+      if (searchId !== latestSearch.current) return;
       console.warn('Could not search customers', error);
       setSearchResults([]);
     } finally {
-      setLoadingSearch(false);
+      if (searchId === latestSearch.current) setLoadingSearch(false);
     }
   };
 
   const karatPurityMap: Record<string, number> = {
-    '10k': purityForKarat('10k'), '14k': purityForKarat('14k'), '18k': purityForKarat('18k'), '21k': purityForKarat('21k'), '22k': purityForKarat('22k'), '24k': purityForKarat('24k'),
+    '14k': purityForKarat('14k'), '18k': purityForKarat('18k'), '21k': purityForKarat('21k'), '22k': purityForKarat('22k'), '24k': purityForKarat('24k'),
   };
 
   // Only jewelry is valued from the gold price. A watch, cellphone, or bulky
@@ -1199,20 +1255,33 @@ const NewTransaction: React.FC<{
   // Silver jewelry follows the same live recompute, from the silver price and
   // the silver fineness instead of the gold price and karat.
   const isSilver = isJewelry && itemForm.metalType === 'silver';
+  // Pure natural diamond or pearl, no metal: the stone is the whole value.
+  const isStoneOnly = isJewelry && itemForm.metalType === 'none';
   const metalName = isSilver ? 'Silver' : 'Gold';
   const metalPrice = isSilver ? currentSilverPrice ?? 0 : currentGoldPrice;
   const metalPurity = isSilver ? purityForSilver(itemForm.fineness) : karatPurityMap[itemForm.karat] || 0;
   const purityText = isSilver ? SILVER_PURITIES.find(option => option.value === itemForm.fineness)?.label ?? itemForm.fineness : itemForm.karat;
-  const computedValue = isJewelry && weightValue > 0
+  const computedValue = isJewelry && !isStoneOnly && weightValue > 0
     ? isSilver ? weightValue * metalPurity * metalPrice : calculateAppraisal(weightValue, itemForm.karat, currentGoldPrice)
     : 0;
   const manualValue = Number(itemForm.manualAppraisedValue || 0);
   // The gemstone portion counts only for jewelry with the box ticked.
-  const gemstoneOn = isJewelry && hasGemstone;
-  const gemstoneAmount = gemstoneOn ? Number(gemstoneValue || 0) : 0;
+  const gemstoneOn = isJewelry && (hasGemstone || isStoneOnly);
+  const gemstoneKind = GEMSTONE_KINDS.find(kind => kind.value === gemstoneType) ?? GEMSTONE_KINDS[0];
+  const gemstoneReferencePrice = gemstoneKind.settingKey ? Number(systemSettings?.[gemstoneKind.settingKey] ?? 0) : 0;
+  const gemstoneWeightValue = Number(gemstoneWeight || 0);
+  // Weight x reference price, rounded to the centavo like the API does.
+  const gemstoneSuggested = gemstoneReferencePrice > 0 && gemstoneWeightValue > 0
+    ? Math.round(gemstoneWeightValue * gemstoneReferencePrice * 100) / 100
+    : 0;
+  const gemstoneValueTyped = gemstoneValue !== '';
+  const gemstoneAmount = gemstoneOn ? (gemstoneValueTyped ? Number(gemstoneValue) : gemstoneSuggested) : 0;
+  const gemstoneWeightText = gemstoneKind.unit && gemstoneWeightValue > 0 ? `${gemstoneWeightValue} ${gemstoneKind.unit}` : '';
   // The one value the loan is worked out from, whichever path produced it:
   // gold (plus any gemstone) for jewelry, the typed value otherwise.
-  const itemValue = isJewelry ? computedValue + gemstoneAmount : manualValue;
+  // Rounded to the centavo, so the editable Final Appraised Value never
+  // shows float noise such as 32421.374999999996.
+  const itemValue = Math.round((isJewelry ? computedValue + gemstoneAmount : manualValue) * 100) / 100;
   // The shop's suggested LTV. Only a starting point; the staff may change it.
   const defaultLtvPercent = Number(systemSettings?.default_loan_to_value ?? 0);
   const dueDate = new Date();
@@ -1235,8 +1304,10 @@ const NewTransaction: React.FC<{
   const valueAdjusted = Math.abs(effectiveAdjustedValue - itemValue) >= 0.01;
   const pesoText = (value: number) => `₱${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   // Review and printed ticket: metal + gemstone = total, for jewelry with a stone.
-  const gemstoneBreakdown = `${metalName} Value: ${pesoText(computedValue)} + Diamond Value: ${pesoText(gemstoneAmount)} = Total Appraised Value: ${pesoText(itemValue)}`;
-  const gemstoneSummary = gemstoneDetails.trim();
+  const gemstoneBreakdown = isStoneOnly
+    ? `${gemstoneKind.label} only, no metal: ${pesoText(itemValue)}`
+    : `${metalName} Value: ${pesoText(computedValue)} + ${gemstoneKind.label} Value: ${pesoText(gemstoneAmount)} = Total Appraised Value: ${pesoText(itemValue)}`;
+  const gemstoneSummary = [gemstoneWeightText, gemstoneDetails.trim()].filter(Boolean).join(' · ');
   const roundMoney = (value: number) => Math.round(value * 100) / 100;
   const ltvPercent = loanEditedLast === 'amount'
     ? (effectiveAdjustedValue > 0 ? roundMoney((Number(loanAmountInput || 0) / effectiveAdjustedValue) * 100) : 0)
@@ -1270,7 +1341,11 @@ const NewTransaction: React.FC<{
    * unchanged; this is only a backup way in for a customer whose email never
    * arrived.
    */
-  const printPawnTicket = async (ticketNumber: string, customerId: number | null) => {
+  const printPawnTicket = async (ticketNumber: string, customerId: number | null, savedDueDate?: string) => {
+    // The saved due date, never this device's clock, goes on the ticket.
+    const ticketDueDate = savedDueDate
+      ? new Date(`${savedDueDate.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : dueDateLabel;
     if (typeof window === 'undefined') return;
 
     // The window is opened before anything is awaited, because a popup opened
@@ -1312,7 +1387,6 @@ const NewTransaction: React.FC<{
             .label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #52627b; }
             .value { display: block; margin-top: 6px; font-size: 18px; font-weight: 700; }
             .meta .wide { grid-column: 1 / -1; }
-            .value.breakdown { font-size: 15px; }
             .access { display: flex; align-items: center; gap: 18px; margin-top: 22px; padding-top: 16px; border-top: 1px solid #dfe7f0; }
             .qr { width: 120px; height: 120px; flex: none; border: 1px solid #061028; border-radius: 8px; display: grid; place-items: center; overflow: hidden; font-size: 11px; font-weight: 700; color: #52627b; text-align: center; padding: 6px; box-sizing: border-box; }
             .qr img { display: block; width: 106px; height: 106px; }
@@ -1340,11 +1414,9 @@ const NewTransaction: React.FC<{
               <div><span class="label">Status</span><span class="value">Active</span></div>
               <div><span class="label">Item</span><span class="value">${itemForm.itemDescription || itemTypeText}</span></div>
               <div><span class="label">Pawn Amount</span><span class="value">₱${effectiveLoanAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
-              <div><span class="label">${gemstoneOn && valueAdjusted ? 'Final Appraised Value (staff adjusted)' : 'Appraised Value'}</span><span class="value">${pesoText(effectiveAdjustedValue)}</span></div>
-              <div><span class="label">Due Date</span><span class="value">${dueDateLabel}</span></div>
-              ${gemstoneOn ? `
-              <div class="wide"><span class="label">Value Breakdown</span><span class="value breakdown">${gemstoneBreakdown}</span></div>
-              ${gemstoneSummary ? `<div class="wide"><span class="label">Diamond</span><span class="value">${escapeHtml(gemstoneSummary)}</span></div>` : ''}` : ''}
+              <!-- The appraised value is for the shop only, so the customer's ticket leaves it out. -->
+              <div class="wide"><span class="label">Due Date</span><span class="value">${ticketDueDate}</span></div>
+              ${gemstoneOn && gemstoneSummary ? `<div class="wide"><span class="label">${escapeHtml(gemstoneKind.label)}</span><span class="value">${escapeHtml(gemstoneSummary)}</span></div>` : ''}
             </div>
 
             <div class="access">
@@ -1383,16 +1455,20 @@ const NewTransaction: React.FC<{
       newErrors.email = 'A working email address is required. Activation and password reset links are sent to it.';
     }
     if (!settingsReady) newErrors.submit = 'Shop settings have not loaded yet. Reload before creating a pawn transaction.';
-    if (isJewelry && metalPrice <= 0) newErrors.weight = `No ${metalName.toLowerCase()} price recorded yet, so a jewelry value cannot be computed.`;
+    if (isJewelry && !isStoneOnly && metalPrice <= 0) newErrors.weight = `No ${metalName.toLowerCase()} price recorded yet, so a jewelry value cannot be computed.`;
     // Any text is a valid item type, picked from the list or typed in, but the
     // field cannot be left empty.
     if (!itemTypeText) newErrors.category = 'Item type is required';
     if (!itemForm.condition.trim()) newErrors.condition = 'Condition is required';
     if (isJewelry) {
-      if (!itemForm.weight || Number(itemForm.weight) <= 0) newErrors.weight = 'Item weight is required';
+      if (isStoneOnly) { /* no metal weight */ }
+      else if (!itemForm.weight || Number(itemForm.weight) <= 0) newErrors.weight = 'Item weight is required';
       else if (Number(itemForm.weight) > MAX_WEIGHT_GRAMS) newErrors.weight = `Weight cannot exceed ${MAX_WEIGHT_GRAMS.toLocaleString('en-PH')} g (10 kg)`;
       else if (computedValue <= 0) newErrors.weight = 'Could not compute value';
-      if (hasGemstone && !(Number(gemstoneValue) > 0)) newErrors.gemstoneValue = 'Enter the diamond value, or untick Has diamond';
+      if (gemstoneOn) {
+        if (gemstoneKind.unit && !gemstoneValueTyped && !(gemstoneWeightValue > 0)) newErrors.gemstoneWeight = `Enter the ${gemstoneKind.label.toLowerCase()} weight in ${gemstoneKind.unitName}`;
+        else if (!(gemstoneAmount > 0)) newErrors.gemstoneValue = `Enter the ${gemstoneKind.label.toLowerCase()} value, ${isStoneOnly ? '' : ', or untick Has gemstone or pearl'}`;
+      }
     } else {
       // A watch's Brand/Model is built from its Brand field, which reports its own error.
       if (!itemForm.brandModel.trim() && deviceKind !== 'watch') newErrors.brandModel = 'Brand/model is required';
@@ -1471,22 +1547,22 @@ const NewTransaction: React.FC<{
           item_details: deviceDetailsPayload(deviceKind, deviceDetails),
           metal_type: isJewelry ? itemForm.metalType : null,
           // Gold sends its karat; silver sends its fineness and no karat.
-          karat: isJewelry && !isSilver ? itemForm.karat.toLowerCase() : null,
+          karat: isJewelry && !isSilver && !isStoneOnly ? itemForm.karat.toLowerCase() : null,
           fineness: isSilver ? itemForm.fineness : null,
-          weight_grams: isJewelry ? Number(itemForm.weight) : null,
+          weight_grams: isJewelry && !isStoneOnly ? Number(itemForm.weight) : null,
           appraised_value: isJewelry ? null : manualValue,
           // A suggested condition is sent as its key; a custom one as typed.
           condition: resolveComboValue(CONDITION_OPTIONS, itemForm.condition),
           loan_amount: effectiveLoanAmount,
           loan_to_value_percent: ltvPercent,
-          due_date: dueDate.toISOString().split('T')[0],
-          // The API uses the admin's setting; this is only what the form shows.
-          grace_period_days: Number(gracePeriodDays || 90),
+          // The API sets the due date and grace period from its own clock and
+          // the admin's settings; the form only previews them.
           adjusted_value: adjustedValue ? Number(adjustedValue) : null,
           // The API adds gemstone_value to the gold value it computes itself.
-          has_gemstone: isJewelry ? hasGemstone : null,
-          gemstone_value: gemstoneOn ? Number(gemstoneValue) : null,
-          gemstone_type: gemstoneOn ? 'diamond' : null,
+          has_gemstone: isJewelry ? gemstoneOn : null,
+          gemstone_value: gemstoneOn ? gemstoneAmount : null,
+          gemstone_type: gemstoneOn ? gemstoneType : null,
+          gemstone_weight: gemstoneOn && gemstoneKind.unit && gemstoneWeightValue > 0 ? gemstoneWeightValue : null,
           gemstone_details: gemstoneOn ? gemstoneDetails.trim() || null : null,
           // The attached photos, downscaled, in the order they were picked.
           // The customer portal shows the first one as the item's thumbnail.
@@ -1495,14 +1571,15 @@ const NewTransaction: React.FC<{
         const createdTransaction = await createTransaction(transactionPayload);
         const ticketNumber = createdTransaction.ticket_number;
 
-        // Generate pawn ticket
-        void printPawnTicket(ticketNumber, apiCustomerId ?? null);
+        // Generate pawn ticket, with the due date the API saved.
+        void printPawnTicket(ticketNumber, apiCustomerId ?? null, createdTransaction.due_date);
 
         setSuccessMessage('Pawn transaction created successfully!');
         onTransactionCreated(`Pawn transaction ${ticketNumber} created successfully.`);
         // The success screen replaces the wizard and keeps the ticket number on
         // screen, so the staff can print, open the loan, or start the next one.
         setCreatedTicket(ticketNumber);
+        setCreatedDueDate(createdTransaction.due_date);
         setCreatedCustomerId(apiCustomerId ?? null);
       } catch (transactionError) {
         newErrors.submit = transactionError instanceof Error ? transactionError.message : 'Failed to create pawn transaction';
@@ -1596,12 +1673,14 @@ const NewTransaction: React.FC<{
   /** Clear every field and return to step one, for the next walk-in customer. */
   const startNewTransaction = () => {
     customerIdCheck.reset();
-    setCustomerForm({ fullName: '', contactNumber: '', address: '', validIdType: 'National ID', validIdNumber: '', email: '', validIdPhoto: '', customersId: undefined });
+    setCustomerForm({ fullName: '', contactNumber: '', address: '', validIdType: 'National ID', validIdNumber: '', birthdate: '', email: '', validIdPhoto: '', customersId: undefined });
     setSavedCustomer(null);
     setItemForm({ group: 'jewelry', category: 'Ring', itemDescription: '', brandModel: '', metalType: 'gold', karat: '18k', fineness: DEFAULT_SILVER_FINENESS, weight: '', manualAppraisedValue: '', condition: 'Good', remarks: '' });
     setDeviceDetails({});
     setAdjustedValue('');
     setHasGemstone(false);
+    setGemstoneType('natural_diamond');
+    setGemstoneWeight('');
     setGemstoneValue('');
     setGemstoneDetails('');
     setLtvInput('');
@@ -1626,6 +1705,7 @@ const NewTransaction: React.FC<{
       address: customer.address || '',
       validIdType: customer.valid_id_type || 'National ID',
       validIdNumber: customer.valid_id_number || '',
+      birthdate: (customer.birthdate || '').slice(0, 10),
       email: getCustomerEmail(customer),
       validIdPhoto: customer.valid_id_photo || '',
       customersId: customer.customers_id,
@@ -1638,10 +1718,9 @@ const NewTransaction: React.FC<{
   };
 
   const saveNewCustomer = async () => {
-    const { fullName, contactNumber, addressParts, validIdType, validIdNumber, email, validIdPhoto } = newCustomerDraft;
-    const formErrors: Record<string, string> = {};
+    const { fullName, contactNumber, addressParts, validIdType, validIdNumber, birthdate, email, validIdPhoto } = newCustomerDraft;
+    const formErrors: Record<string, string> = idDetailErrors(newCustomerDraft);
 
-    if (!fullName.trim()) formErrors.fullName = 'Full name is required';
     if (!email.trim()) formErrors.email = 'Email is required';
     if (!addressParts.provinceCode) formErrors.addressProvince = 'Pick the province';
     else if (!addressParts.cityCode) formErrors.addressCity = 'Pick the city or municipality';
@@ -1650,6 +1729,18 @@ const NewTransaction: React.FC<{
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
       return;
+    }
+
+    // Typed details the ID photo does not show: staff must check the card by
+    // hand before saving anyway, since OCR can misread a real ID.
+    const mismatched = idMismatches(modalIdCheck.state, { fullName, birthdate, idNumber: validIdNumber });
+    if (mismatched.length > 0) {
+      const confirmed = await modal.warning({
+        title: 'These do not match the ID',
+        message: <>The ID photo does not show the typed <strong>{mismatched.join(', ')}</strong>. Check the card itself, and save only if it matches what you typed.</>,
+        confirmLabel: 'I checked the card, save',
+      });
+      if (!confirmed) return;
     }
 
     setLoading(true);
@@ -1666,6 +1757,7 @@ const NewTransaction: React.FC<{
         valid_id_type: validIdType,
         valid_id_number: validIdNumber.trim(),
         valid_id_photo: validIdPhoto || null,
+        birthdate,
       });
 
       setCustomerForm({
@@ -1674,6 +1766,7 @@ const NewTransaction: React.FC<{
         address: createdCustomer.address || '',
         validIdType: createdCustomer.valid_id_type || 'National ID',
         validIdNumber: createdCustomer.valid_id_number || '',
+        birthdate: (createdCustomer.birthdate || '').slice(0, 10),
         email: getCustomerEmail(createdCustomer),
         // Carry the photo just uploaded, so the main form shows it already filled.
         validIdPhoto: createdCustomer.valid_id_photo || validIdPhoto || '',
@@ -1693,6 +1786,7 @@ const NewTransaction: React.FC<{
         addressParts: EMPTY_ADDRESS,
         validIdType: 'National ID',
         validIdNumber: '',
+        birthdate: '',
         email: '',
         validIdPhoto: '',
       });
@@ -1729,7 +1823,7 @@ const NewTransaction: React.FC<{
       // Karat and fineness are separate fields, so a metal switch only changes
       // which one the Karat/Purity select edits.
       if (field === 'metalType') {
-        return { ...current, metalType: value as MetalType };
+        return { ...current, metalType: value as FormMetal };
       }
       return { ...current, [field]: value };
     });
@@ -1759,10 +1853,8 @@ const NewTransaction: React.FC<{
   const saveCustomerChanges = async () => {
     if (!customerForm.customersId) return;
     const formErrors: Record<string, string> = {};
-    if (!customerForm.fullName.trim()) formErrors.fullName = 'Full name is required';
+    Object.assign(formErrors, idDetailErrors(customerForm));
     if (!customerForm.contactNumber.trim()) formErrors.contactNumber = 'Contact number is required';
-    if (!customerForm.validIdType.trim()) formErrors.validIdType = 'Valid ID type is required';
-    if (!customerForm.validIdNumber.trim()) formErrors.validIdNumber = 'Valid ID number is required';
     if (Object.keys(formErrors).length > 0) { setErrors(formErrors); return; }
 
     setSavingCustomer(true);
@@ -1774,6 +1866,7 @@ const NewTransaction: React.FC<{
         valid_id_type: customerForm.validIdType.trim(),
         valid_id_number: customerForm.validIdNumber.trim(),
         valid_id_photo: customerForm.validIdPhoto || null,
+        birthdate: customerForm.birthdate,
       });
       const details = customerDetails(updated);
       setCustomerForm(current => ({ ...current, ...details }));
@@ -1803,7 +1896,7 @@ const NewTransaction: React.FC<{
     Boolean(itemTypeText) &&
     Boolean(itemForm.condition.trim()) &&
     (isJewelry
-      ? metalPrice > 0 && weightValue > 0 && (!hasGemstone || Number(gemstoneValue) > 0)
+      ? (isStoneOnly ? gemstoneAmount > 0 : metalPrice > 0 && weightValue > 0 && (!gemstoneOn || gemstoneAmount > 0))
       : Boolean(itemForm.brandModel.trim()) && manualValue > 0 && Object.keys(deviceErrors).length === 0);
   const loanStepValid = settingsReady && ltvPercent > 0 && effectiveLoanAmount > 0 && !loanExceedsValue;
 
@@ -1858,7 +1951,7 @@ const NewTransaction: React.FC<{
           )}
 
           <div className="tx-success-actions">
-            <button type="button" className="primary-button" onClick={() => void printPawnTicket(createdTicket, createdCustomerId)}>
+            <button type="button" className="primary-button" onClick={() => void printPawnTicket(createdTicket, createdCustomerId, createdDueDate)}>
               <IonIcon icon={documentTextOutline} />Print Pawn Ticket
             </button>
             <button type="button" className="secondary-button" onClick={() => go('loans')}>
@@ -1939,7 +2032,8 @@ const NewTransaction: React.FC<{
               {loadingSearch && <div className="lookup-dropdown"><span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: '#94a3b8' }}><Spinner />Searching</span></div>}
 
               {showCustomerResults && searchResults.length > 0 && (
-                <div className="lookup-dropdown" role="listbox">
+                <div className="lookup-dropdown" role="listbox" aria-label="Matching customers">
+                  <small className="lookup-count">{searchResults.length} {searchResults.length === 1 ? 'customer' : 'customers'} found</small>
                   {searchResults.map((customer) => (
                     <button
                       key={customer.customers_id}
@@ -2008,14 +2102,30 @@ const NewTransaction: React.FC<{
                   placeholder="Pick or type, e.g. UMID"
                 />
 
-                <IonItem lines="none" className="tx-field">
-                  <IonLabel position="stacked">Valid ID Number</IonLabel>
-                  <IonInput
-                    value={customerForm.validIdNumber}
-                    onIonInput={(event) => updateCustomerForm('validIdNumber', event.detail.value || '')}
-                    placeholder="Valid ID Number"
-                  />
-                </IonItem>
+                <div className="id-name-field">
+                  <IonItem lines="none" className="tx-field">
+                    <IonLabel position="stacked">Valid ID Number</IonLabel>
+                    <IonInput
+                      value={customerForm.validIdNumber}
+                      onIonInput={(event) => updateCustomerForm('validIdNumber', event.detail.value || '')}
+                      placeholder="Valid ID Number"
+                    />
+                  </IonItem>
+                  <IdFieldBadge check={customerIdCheck.state} kind="idNumber" value={customerForm.validIdNumber} />
+                </div>
+
+                <div className="id-name-field">
+                  <IonItem lines="none" className="tx-field">
+                    <IonLabel position="stacked">Birthday (as on the ID)</IonLabel>
+                    <IonInput
+                      type="date"
+                      max={latestBirthdate()}
+                      value={customerForm.birthdate}
+                      onIonInput={(event) => updateCustomerForm('birthdate', event.detail.value || '')}
+                    />
+                  </IonItem>
+                  <IdFieldBadge check={customerIdCheck.state} kind="birthdate" value={customerForm.birthdate} />
+                </div>
 
                 <div className="file-input tx-field">
                   <span>Valid ID Photo</span>
@@ -2075,7 +2185,7 @@ const NewTransaction: React.FC<{
                 <IdAutofillCard
                   className="span-2"
                   check={customerIdCheck.state}
-                  current={{ fullName: customerForm.fullName, idType: customerForm.validIdType, idNumber: customerForm.validIdNumber, address: customerForm.address }}
+                  current={{ fullName: customerForm.fullName, idType: customerForm.validIdType, idNumber: customerForm.validIdNumber, address: customerForm.address, birthdate: customerForm.birthdate }}
                   onUse={(fields) => Object.entries(idFieldsToCustomer(fields)).forEach(([field, value]) => updateCustomerForm(field as keyof typeof customerForm, value))}
                 />
 
@@ -2160,15 +2270,24 @@ const NewTransaction: React.FC<{
                 error={errors.category}
               />
 
-              <Combobox
-                label="Condition"
-                customHint="Custom condition:"
-                value={itemForm.condition}
-                options={CONDITION_OPTIONS}
-                onChange={(text) => updateItemForm('condition', text)}
-                placeholder="Pick or type, e.g. Minor scratches"
-                error={errors.condition}
-              />
+              <div className="tx-combobox tx-material">
+                <span className="tx-combobox-label" id="tx-condition-label">Condition</span>
+                <div className="tx-combobox-control tx-material-picker" role="radiogroup" aria-labelledby="tx-condition-label">
+                  {CONDITION_OPTIONS.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={itemForm.condition === option.label}
+                      className={itemForm.condition === option.label ? 'active' : ''}
+                      onClick={() => updateItemForm('condition', option.label)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {errors.condition && <small className="tx-field-error">{errors.condition}</small>}
+              </div>
 
               {/* Jewelry fields share the Item Type box (.tx-combobox), so all
                   six line up two by two at one height. Non-jewelry keeps the
@@ -2192,10 +2311,10 @@ const NewTransaction: React.FC<{
 
               {isJewelry ? (
                 <>
-                  <div className="tx-combobox tx-material">
+                  <div className="tx-combobox tx-material tx-material-3">
                     <span className="tx-combobox-label" id="tx-material-label">Material</span>
                     <div className="tx-combobox-control tx-material-picker" role="radiogroup" aria-labelledby="tx-material-label">
-                      {METALS.map(metal => (
+                      {PAWN_MATERIALS.map(metal => (
                         <button
                           key={metal.value}
                           type="button"
@@ -2213,6 +2332,7 @@ const NewTransaction: React.FC<{
                     )}
                   </div>
 
+                  {!isStoneOnly && (<>
                   {/* Keyed on the metal so the field starts over with that metal's options.
                       Strict: the value formula needs one of these purities. */}
                   <TypeSelect
@@ -2249,7 +2369,13 @@ const NewTransaction: React.FC<{
                     : weightNote && <small className="tx-field-warn" role="status">{weightNote}</small>}
                   </div>
 
-                  {/* Optional. Unticked, the gold computation is the whole value. */}
+                  </>)}
+
+                  {/* Optional. Unticked, the gold computation is the whole value.
+                      Stone only always has its stone, so no box. */}
+                  {isStoneOnly ? (
+                    <p className="tx-field-hint span-2">Pure natural diamond or pearl, no gold or silver. The value is the stone alone.</p>
+                  ) : (
                   <div className="tx-gemstone span-2">
                     <IonCheckbox
                       checked={hasGemstone}
@@ -2260,23 +2386,73 @@ const NewTransaction: React.FC<{
                         setAdjustedValue('');
                       }}
                     >
-                      Has diamond?
+                      Has gemstone or pearl?
                     </IonCheckbox>
                   </div>
+                  )}
 
-                  {hasGemstone && (
+                  {gemstoneOn && (
                     <>
-                      <IonItem lines="none" className="tx-field">
-                        <IonLabel position="stacked">{metalName} Value (AI-assisted)</IonLabel>
-                        <IonInput readonly value={money(computedValue)} />
-                      </IonItem>
+                      <div className="tx-combobox tx-material tx-gemstone-kind span-2">
+                        <span className="tx-combobox-label" id="tx-gemstone-label">Gemstone</span>
+                        <div className="tx-combobox-control tx-material-picker" role="radiogroup" aria-labelledby="tx-gemstone-label">
+                          {GEMSTONE_KINDS.map(kind => (
+                            <button
+                              key={kind.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={gemstoneType === kind.value}
+                              className={gemstoneType === kind.value ? 'active' : ''}
+                              onClick={() => {
+                                setGemstoneType(kind.value);
+                                setGemstoneWeight('');
+                                setGemstoneValue('');
+                                setAdjustedValue('');
+                                setErrors((current) => { const updated = { ...current }; delete updated.gemstoneWeight; delete updated.gemstoneValue; return updated; });
+                              }}
+                            >
+                              {kind.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {gemstoneKind.unit && (
+                        <IonItem lines="none" className="tx-field">
+                          <IonLabel position="stacked">{gemstoneKind.label} Weight ({gemstoneKind.unitName})</IonLabel>
+                          <IonInput
+                            type="text"
+                            inputmode="decimal"
+                            value={gemstoneWeight}
+                            onIonInput={(event) => {
+                              setGemstoneWeight(readDecimal(event));
+                              setGemstoneValue('');
+                              setAdjustedValue('');
+                              setErrors((current) => { const updated = { ...current }; delete updated.gemstoneWeight; delete updated.gemstoneValue; return updated; });
+                            }}
+                            placeholder={gemstoneKind.unit === 'ct' ? 'e.g. 0.50' : 'e.g. 10.0'}
+                          />
+                          {errors.gemstoneWeight
+                            ? <small className="tx-field-error">{errors.gemstoneWeight}</small>
+                            : gemstoneReferencePrice > 0
+                              ? <small className="tx-field-hint">{gemstoneWeightValue > 0 ? `${gemstoneWeightValue} ${gemstoneKind.unit} x ` : ''}{pesoText(gemstoneReferencePrice)} per {gemstoneKind.unit === 'ct' ? 'carat' : 'gram'} (reference price)</small>
+                              : <small className="tx-field-warn">No reference price set by the admin. Type the value below.</small>}
+                        </IonItem>
+                      )}
+
+                      {!isStoneOnly && (
+                        <IonItem lines="none" className="tx-field">
+                          <IonLabel position="stacked">{metalName} Value (AI-assisted)</IonLabel>
+                          <IonInput readonly value={money(computedValue)} />
+                        </IonItem>
+                      )}
 
                       <IonItem lines="none" className="tx-field">
-                        <IonLabel position="stacked">Diamond Value</IonLabel>
+                        <IonLabel position="stacked">{gemstoneKind.label} Value</IonLabel>
                         <IonInput
                           type="text"
                           inputmode="decimal"
-                          value={gemstoneValue}
+                          value={gemstoneValueTyped ? gemstoneValue : gemstoneSuggested > 0 ? String(gemstoneSuggested) : ''}
                           onIonInput={(event) => {
                             setGemstoneValue(readDecimal(event));
                             setAdjustedValue('');
@@ -2286,18 +2462,22 @@ const NewTransaction: React.FC<{
                               return updated;
                             });
                           }}
-                          placeholder="Staff estimate, ₱0.00"
+                          placeholder={gemstoneKind.unit ? 'Computed from the weight, ₱0.00' : 'Staff estimate, ₱0.00'}
                         />
-                        {errors.gemstoneValue && <small className="tx-field-error">{errors.gemstoneValue}</small>}
+                        {errors.gemstoneValue
+                          ? <small className="tx-field-error">{errors.gemstoneValue}</small>
+                          : gemstoneValueTyped && gemstoneSuggested > 0 && Math.abs(Number(gemstoneValue) - gemstoneSuggested) >= 0.01
+                            ? <small className="tx-field-hint">Staff value. Suggested {money(gemstoneSuggested)}. <button type="button" className="tx-link-button" onClick={() => { setGemstoneValue(''); setAdjustedValue(''); }}>Use suggested</button></small>
+                            : null}
                       </IonItem>
 
                       <IonItem lines="none" className="tx-field span-2">
-                        <IonLabel position="stacked">Diamond Details (optional)</IonLabel>
+                        <IonLabel position="stacked">{gemstoneKind.label} Details (optional)</IonLabel>
                         <IonInput
                           value={gemstoneDetails}
                           maxlength={255}
                           onIonInput={(event) => setGemstoneDetails(event.detail.value || '')}
-                          placeholder="e.g. 0.5 carat, round cut"
+                          placeholder={gemstoneType === 'pearl' ? 'e.g. South Sea, 9 mm, white' : gemstoneType === 'natural_diamond' ? 'e.g. round cut, VS1, G color' : 'e.g. ruby, oval cut'}
                         />
                       </IonItem>
                     </>
@@ -2351,16 +2531,23 @@ const NewTransaction: React.FC<{
 
             <div className={`tx-value-hero ${itemValue > 0 ? 'filled' : ''}`}>
               <div className="tx-value-main">
-                <small>{isJewelry ? 'COMPUTED VALUE' : 'APPRAISED VALUE'}</small>
-                <strong>{money(isJewelry ? computedValue : itemValue)}</strong>
+                <small>{isStoneOnly ? `${gemstoneKind.label.toUpperCase()} VALUE` : gemstoneOn ? 'TOTAL COMPUTED VALUE' : isJewelry ? 'COMPUTED VALUE' : 'APPRAISED VALUE'}</small>
+                <strong>{money(itemValue)}</strong>
                 {isJewelry ? (
                   <>
+                    {isStoneOnly ? (
+                      <span className="tx-value-formula">
+                        {gemstoneKind.label} only, no metal
+                        {gemstoneWeightText && gemstoneReferencePrice > 0 && !gemstoneValueTyped && <> · {gemstoneWeightText} <i>x</i> {pesoText(gemstoneReferencePrice)}</>}
+                      </span>
+                    ) : (
                     <span className="tx-value-formula">
                       {itemForm.weight || '0'} g <i>x</i> {purityText} purity {(metalPurity * 100).toFixed(1)}% <i>x</i> {money(metalPrice)}/g
                     </span>
-                    {gemstoneOn && (
+                    )}
+                    {gemstoneOn && !isStoneOnly && (
                       <span className="tx-value-formula">
-                        {metalName} {money(computedValue)} <i>+</i> diamond {money(gemstoneAmount)} <i>=</i> {money(itemValue)}
+                        {metalName} {money(computedValue)} <i>+</i> {gemstoneKind.label.toLowerCase()} {money(gemstoneAmount)} <i>=</i> {money(itemValue)}
                       </span>
                     )}
                   </>
@@ -2587,7 +2774,9 @@ const NewTransaction: React.FC<{
                   <div><span>Group</span><strong>{groupLabel(itemForm.group)}</strong></div>
                   <div><span>Type</span><strong>{itemTypeText}</strong></div>
                   <div><span>Description</span><strong>{itemForm.itemDescription || 'Not provided'}</strong></div>
-                  {isJewelry ? (
+                  {isStoneOnly ? (
+                    <div><span>Material</span><strong>Stone only, no metal</strong></div>
+                  ) : isJewelry ? (
                     <div><span>Karat / Weight</span><strong>{isSilver ? `${purityText} · ` : `${itemForm.karat} · `}{itemForm.weight || '0'} g</strong></div>
                   ) : (
                     <div><span>Brand/Model</span><strong>{itemForm.brandModel || 'Not provided'}</strong></div>
@@ -2602,11 +2791,11 @@ const NewTransaction: React.FC<{
               <div className="tx-summary-card full-span">
                 <div className="tx-summary-title">Value &amp; Pawn Amount</div>
                 <div className="tx-summary-list tx-summary-two-col">
-                  {isJewelry && <div><span>{metalName} Price</span><strong>₱{metalPrice.toLocaleString()}/gram</strong></div>}
+                  {isJewelry && !isStoneOnly && <div><span>{metalName} Price</span><strong>₱{metalPrice.toLocaleString()}/gram</strong></div>}
                   {gemstoneOn ? (
                     <>
                       <div className="tx-summary-breakdown"><span>Value Breakdown</span><strong>{gemstoneBreakdown}</strong></div>
-                      {gemstoneSummary && <div><span>Diamond</span><strong>{gemstoneSummary}</strong></div>}
+                      {gemstoneSummary && <div><span>{gemstoneKind.label}</span><strong>{gemstoneSummary}</strong></div>}
                       {valueAdjusted && <div><span>Final Appraised Value (staff adjusted)</span><strong>{pesoText(effectiveAdjustedValue)}</strong></div>}
                     </>
                   ) : (
@@ -2680,14 +2869,30 @@ const NewTransaction: React.FC<{
               placeholder="Pick or type, e.g. UMID"
             />
 
-            <IonItem lines="none" className="tx-field">
-              <IonLabel position="stacked">Valid ID Number</IonLabel>
-              <IonInput
-                value={newCustomerDraft.validIdNumber}
-                onIonInput={(event) => setNewCustomerDraft((current) => ({ ...current, validIdNumber: event.detail.value || '' }))}
-                placeholder="Valid ID Number"
-              />
-            </IonItem>
+            <div className="id-name-field">
+              <IonItem lines="none" className="tx-field">
+                <IonLabel position="stacked">Valid ID Number</IonLabel>
+                <IonInput
+                  value={newCustomerDraft.validIdNumber}
+                  onIonInput={(event) => setNewCustomerDraft((current) => ({ ...current, validIdNumber: event.detail.value || '' }))}
+                  placeholder="Valid ID Number"
+                />
+              </IonItem>
+              <IdFieldBadge check={modalIdCheck.state} kind="idNumber" value={newCustomerDraft.validIdNumber} />
+            </div>
+
+            <div className="id-name-field">
+              <IonItem lines="none" className="tx-field">
+                <IonLabel position="stacked">Birthday (as on the ID)</IonLabel>
+                <IonInput
+                  type="date"
+                  max={latestBirthdate()}
+                  value={newCustomerDraft.birthdate}
+                  onIonInput={(event) => setNewCustomerDraft((current) => ({ ...current, birthdate: event.detail.value || '' }))}
+                />
+              </IonItem>
+              <IdFieldBadge check={modalIdCheck.state} kind="birthdate" value={newCustomerDraft.birthdate} />
+            </div>
 
             <IonItem lines="none" className="tx-field">
               <IonLabel position="stacked">Email</IonLabel>
@@ -2739,6 +2944,7 @@ const NewTransaction: React.FC<{
                 fullName: newCustomerDraft.fullName,
                 idType: newCustomerDraft.validIdType,
                 idNumber: newCustomerDraft.validIdNumber,
+                birthdate: newCustomerDraft.birthdate,
                 address: usedIdAddress && usedIdAddress.text === modalIdCheck.state.text ? usedIdAddress.address : formatCompleteAddress(newCustomerDraft.addressParts),
               }}
               onUse={({ address, ...fields }) => {
@@ -2868,8 +3074,10 @@ type LoanRow = {
   readyToRedeem: boolean;
   /** When they asked, so the counter is worked first come first served. */
   readyToRedeemAt: string | null;
-  /** Set once staff has accepted that request. */
+  /** Set once staff has marked the item ready for pickup. */
   redemptionConfirmed: boolean;
+  /** Until when that item is held at the counter. */
+  pickupReadyUntil: string | null;
   /** The staff member holding this pawn, when one is, and since when. */
   lockedByName: string | null;
   lockedById: number | null;
@@ -2894,10 +3102,22 @@ const savedItemTypeLabel = (item?: { category?: string | null; custom_item_type?
  * What identifies the item at a glance: karat and weight for jewelry, brand or
  * model for a watch, cellphone, or bulky item.
  */
+/**
+ * The gemstones the New Pawn form values. A natural diamond (per carat) and
+ * a pearl (per gram) use the admin's reference price in System Settings; any
+ * other stone is valued by the staff. Keys match Item::GEMSTONE_REFERENCE_PRICES.
+ */
+const GEMSTONE_KINDS = [
+  { value: 'natural_diamond', label: 'Natural diamond', unit: 'ct', unitName: 'carats', settingKey: 'natural_diamond_1ct_price' },
+  { value: 'pearl', label: 'Pearl', unit: 'g', unitName: 'grams', settingKey: 'pearl_price_per_gram' },
+  { value: 'other', label: 'Other gemstone', unit: '', unitName: '', settingKey: '' },
+] as const;
+type GemstoneKind = (typeof GEMSTONE_KINDS)[number]['value'];
+
 const specsFor = (item?: ApiItemDetail | null) => {
   if (!item) return '-';
   if (item.group === 'jewelry') {
-    return [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? 'with diamond' : null]
+    return [purityLabel(item), item.weight_grams ? `${item.weight_grams} g` : null, item.has_gemstone ? `with ${gemstoneName(item.gemstone_type)}` : null]
       .filter(Boolean)
       .join(' / ') || '-';
   }
@@ -3173,6 +3393,7 @@ const useLoanData = () => {
       readyToRedeem: Boolean(transaction.ready_to_redeem_at),
       readyToRedeemAt: transaction.ready_to_redeem_at,
       redemptionConfirmed: Boolean(transaction.redemption_confirmed_at),
+      pickupReadyUntil: transaction.pickup_ready_until ?? null,
       // A claim older than the timeout is read as no claim, the same way the
       // API reads it, so a closed browser never holds a row on screen either.
       lockedByName: isLockLive(transaction.locked_at) ? transaction.lock_holder?.name ?? 'another staff member' : null,
@@ -3189,7 +3410,7 @@ const useLoanData = () => {
  * and mark a listed item sold. Every action calls the API and reloads, so the
  * panel always shows what the shop's records actually say.
  */
-const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; loaded: boolean; onChanged: () => void }> = ({ items, loans, loaded, onChanged }) => {
+const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; loaded: boolean; onChanged: () => void; focusItemId?: number | null }> = ({ items, loans, loaded, onChanged, focusItemId = null }) => {
   const modal = useModal();
   const [selectedLoan, setSelectedLoan] = useState<LoanRow | null>(null);
   // The item set for auction whose auction result is being recorded.
@@ -3209,6 +3430,20 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
   }, [items]);
 
   const holdFor = (itemId: number) => holds.find(hold => hold.item_id === itemId && isHolding(hold)) || null;
+
+  // Opened from a notification: show the item's group and bring its row,
+  // with its actions, into view.
+  useEffect(() => {
+    if (focusItemId === null) return;
+    const item = items.find(entry => entry.items_id === focusItemId);
+    if (!item) return;
+    const group: WorkflowGroupKey = item.status === 'overdue' ? 'active' : (item.status as WorkflowGroupKey);
+    setGroupFilter(group);
+    const timer = window.setTimeout(() => {
+      document.getElementById(`workflow-item-${focusItemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [focusItemId, items]);
 
   const cancelHold = async (hold: ApiReservation, itemName: string) => {
     const confirmed = await modal.warning({
@@ -3415,7 +3650,7 @@ const WorkflowOperations: React.FC<{ items: ApiItemDetail[]; loans: LoanRow[]; l
                     const hold = item.status === 'for_sale' ? holdFor(item.items_id) : null;
 
                     return (
-                      <tr key={item.items_id}>
+                      <tr key={item.items_id} id={`workflow-item-${item.items_id}`} className={focusItemId === item.items_id ? 'focused' : undefined}>
                         <td><strong>{item.description}</strong><small>{loan?.ticketNumber || latestTransaction(item)?.ticket_number || savedItemTypeLabel(item)}</small></td>
                         <td>{savedItemTypeLabel(item)}</td>
                         <td>{item.customer?.name || 'Unknown customer'}</td>
@@ -4054,6 +4289,8 @@ const LoansPage: React.FC<{
     }
   }, []);
 
+  // Staff took the item out of the vault: the customer is told the amount to
+  // bring and until when it is held, then it goes back if not collected.
   const handleConfirmRequest = async (row: LoanRow) => {
     setConfirmingRequest(row.transactionId);
     setPaymentError('');
@@ -4156,7 +4393,8 @@ const LoansPage: React.FC<{
 
       {error && <p className="risk-empty">{error}</p>}
 
-      {focusItemId !== null && (
+      {/* Lifecycle Operations highlights the item's own row instead. */}
+      {focusItemId !== null && loanTab !== 'lifecycle' && (
         <div className="loan-focus-banner" role="status">
           <div className="loan-focus-text">
             <small>{focusType ? NOTIFICATION_TITLES[focusType] : 'Selected pawn'}</small>
@@ -4180,7 +4418,7 @@ const LoansPage: React.FC<{
                 disabled={confirmingRequest === focusedLoan.transactionId}
                 aria-busy={confirmingRequest === focusedLoan.transactionId}
               >
-                {confirmingRequest === focusedLoan.transactionId ? 'Confirming' : 'Confirm request'}
+                {confirmingRequest === focusedLoan.transactionId ? 'Saving' : 'Item ready for pickup'}
               </button>
             )}
             {focusedLoan && focusedIsOpen && <button className="loan-focus-primary" onClick={() => openPayment(focusedLoan)}>Process payment</button>}
@@ -4333,7 +4571,13 @@ const LoansPage: React.FC<{
                 <span>{row.customer}</span>
                 <span>
                   {row.item}
-                  {row.readyToRedeem && <em className={`redeem-request-badge ${row.redemptionConfirmed ? 'confirmed' : 'pending'}`}>{row.redemptionConfirmed ? 'Confirmed' : 'Ready to pick up/pay'}</em>}
+                  {row.readyToRedeem && (
+                    <em className={`redeem-request-badge ${row.redemptionConfirmed ? 'confirmed' : 'pending'}`}>
+                      {row.redemptionConfirmed
+                        ? `Ready for pickup${row.pickupReadyUntil ? ` until ${pickupDeadline(row.pickupReadyUntil)}` : ''}`
+                        : 'Wants to pick up/pay'}
+                    </em>
+                  )}
                   {/* A walk-in waiting at the counter, told apart from a pawn
                       that is only due soon. */}
                   {row.readyToRedeemAt && <em className="redeem-waiting-badge">Requested {timeAgo(row.readyToRedeemAt)}</em>}
@@ -4351,7 +4595,7 @@ const LoansPage: React.FC<{
                       disabled={confirmingRequest === row.transactionId}
                       aria-busy={confirmingRequest === row.transactionId}
                     >
-                      {confirmingRequest === row.transactionId ? 'Confirming' : 'Confirm request'}
+                      {confirmingRequest === row.transactionId ? 'Saving' : 'Item ready for pickup'}
                     </button>
                   )}
                   {/* A pawn somebody else is holding cannot be opened; their
@@ -4383,7 +4627,7 @@ const LoansPage: React.FC<{
       {loanTab === 'renewals' && <PendingRenewals onChanged={reload} />}
 
       {loanTab === 'lifecycle' && (
-        <WorkflowOperations items={items} loans={loans} loaded={loaded} onChanged={reload} />
+        <WorkflowOperations items={items} loans={loans} loaded={loaded} onChanged={reload} focusItemId={focusItemId} />
       )}
 
       {loanTab === 'customers' && (

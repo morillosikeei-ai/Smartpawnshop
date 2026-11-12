@@ -1489,7 +1489,7 @@
 .portal-page .item-modal .trend-suggestion { margin: 14px 0 0; }
 
 /* Loan Summary: three headline figures, loan amount in gold. */
-.portal-page .item-modal .loan-summary-grid { gap: 10px; }
+.portal-page .item-modal .loan-summary-grid { gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .portal-page .item-modal .loan-summary-grid > div { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #e6ebf3; border-radius: 10px; background: #fbfcfe; }
 .portal-page .item-modal .loan-summary-grid span { font-size: var(--fs-10) !important; }
 .portal-page .item-modal .loan-summary-grid strong { font-size: var(--fs-16) !important; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -1645,3 +1645,8 @@ html[data-theme="dark"] .portal-page .feedback-public-note { color: #94a3b8; }
   .portal-page .portal-brand { padding-bottom: 16px !important; }
   .portal-page .portal-brand img { width: 150px !important; height: 72px !important; }
 }
+
+/* Staff set the item aside: green, with what to bring and until when. */
+.portal-page .redeem-request-sent.is-ready { border-left-color: #15803d; background: #ecfdf3; color: #14532d; line-height: 1.5; }
+.portal-page .redeem-request-sent.is-ready strong { display: block; }
+html[data-theme="dark"] .portal-page .redeem-request-sent.is-ready { border-left-color: #4ade80; background: rgba(21, 128, 61, .18); color: #bbf7d0; }

@@ -1278,3 +1278,8 @@ ion-modal .payment-col > * { margin-top: 0; margin-bottom: 0; }
 .workflow-actions button.workflow-extend { background: transparent; border: 1px solid currentColor; color: #1d4ed8; }
 .workflow-actions button:disabled { opacity: .5; cursor: not-allowed; }
 html[data-theme="dark"] .workflow-actions button.workflow-extend { color: #8fb0ff; }
+
+/* A Lifecycle Operations row opened from a notification. */
+.staff-page .workflow-table tr.focused td { background: #fffaf0; }
+.staff-page .workflow-table tr.focused td:first-child { box-shadow: inset 3px 0 var(--staff-gold, #d4a72c); }
+html[data-theme="dark"] .staff-page .workflow-table tr.focused td { background: rgba(212, 167, 44, .12); }

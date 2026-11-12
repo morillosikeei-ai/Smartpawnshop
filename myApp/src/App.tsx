@@ -1,3 +1,4 @@
+import SimulatedDateBanner from './components/SimulatedDateBanner';
 import React from 'react';
 import { Navigate, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
@@ -68,6 +69,7 @@ const App: React.FC = () => (
   <IonApp>
     {/* Every dialog in the application is opened through this provider. */}
     <ModalProvider>
+    <SimulatedDateBanner />
     <IonReactRouter>
       <IonRouterOutlet>
         {/* Make Landing the default page */}

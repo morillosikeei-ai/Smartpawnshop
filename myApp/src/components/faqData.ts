@@ -41,7 +41,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'status',
     keywords: ['status', 'value', 'balor', 'presyo', 'check my item', 'my item', 'appraisal', 'magkano', 'pila'],
     answer:
-      'Log in sa Customer Portal, then adto sa "My Items" para makita ang status ug updated value sa imong butang. Log in to the Customer Portal and open My Items to see each item\'s status, appraised value, pawn amount, and due date. Values update daily with the gold price.',
+      'Log in sa Customer Portal, then adto sa "My Items" para makita ang status, pawn amount, ug due date sa imong butang. Log in to the Customer Portal and open My Items to see each item\'s status, pawn amount, and due date.',
     action: 'items',
   },
   {
@@ -96,3 +96,25 @@ export function answerFor(message: string): string {
 export function actionFor(message: string): FaqEntry['action'] | null {
   return matchFor(message)?.action || null;
 }
+
+/**
+ * Suggested questions, one per FAQ topic. Four show at a time; a question the
+ * customer has tapped makes way for the next one not yet asked, and once all
+ * have been asked the full set comes back.
+ */
+export const QUICK_QUESTIONS = [
+  'How to redeem?',
+  'Interest (Renta)?',
+  'Requirements?',
+  'Contact info',
+  'What if I miss the due date?',
+  'Check my item status',
+  'How to pawn an item?',
+];
+const QUICK_SHOWN = 4;
+
+/** The suggestions to show, given the ones already asked. */
+export const nextQuickQuestions = (asked: string[]) => {
+  const left = QUICK_QUESTIONS.filter((question) => !asked.includes(question));
+  return (left.length > 0 ? left : QUICK_QUESTIONS).slice(0, QUICK_SHOWN);
+};

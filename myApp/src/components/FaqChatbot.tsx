@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import { arrowForwardOutline, chatbubbleEllipsesOutline, closeOutline, sendOutline } from 'ionicons/icons';
-import { actionFor, answerFor, FaqEntry } from './faqData';
+import { actionFor, answerFor, nextQuickQuestions, QUICK_QUESTIONS, FaqEntry } from './faqData';
 import { askChatAssistant, ChatTurn } from '../services/api';
 import './FaqChatbot.css';
 
@@ -44,7 +44,6 @@ const greetingFor = (name: string) =>
     ? `Kumusta, ${name}! Ako si Pag-Asa Assistant. Pangutana lang about redemption, interest (renta), requirements, or your item status. Ask me anything about pawning.`
     : GENERIC_GREETING;
 
-const QUICK_QUESTIONS = ['How to redeem?', 'Interest (Renta)?', 'Unsay requirements?', 'Contact info'];
 
 /**
  * The name kept in the browser after login, used when the widget is rendered
@@ -108,6 +107,9 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, typing, open]);
 
+  // Suggested questions already tapped in this conversation.
+  const [asked, setAsked] = useState<string[]>([]);
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -127,6 +129,8 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
     const customerMessage: ChatMessage = { id: nextId.current++, from: 'customer', text, at: Date.now() };
 
     if (quick) {
+      // Every question asked once starts the set over.
+      setAsked((current) => (current.length + 1 >= QUICK_QUESTIONS.length ? [] : [...current, text]));
       setMessages((current) => [
         ...current,
         customerMessage,
@@ -208,7 +212,7 @@ const FaqChatbot: React.FC<FaqChatbotProps> = ({ customerName, onGoToItems, open
           </div>
 
           <div className="faq-quick">
-            {QUICK_QUESTIONS.map((question) => (
+            {nextQuickQuestions(asked).map((question) => (
               <button key={question} onClick={() => send(question, true)} disabled={typing}>{question}</button>
             ))}
           </div>

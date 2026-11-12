@@ -75,7 +75,7 @@ const buildEvents = (items: ApiItemDetail[]): HistoryEvent[] =>
         const events = [event('pawned', transaction.created_at, Number(transaction.loan_amount))];
         if (transaction.ready_to_redeem_at) events.push(event('requested', transaction.ready_to_redeem_at));
         if (transaction.redemption_confirmed_at) events.push(event('confirmed', transaction.redemption_confirmed_at));
-        if (transaction.status === 'redeemed' && transaction.redeemed_at) events.push(event('paid', transaction.redeemed_at, Number(transaction.total_payable)));
+        if (transaction.status === 'redeemed' && transaction.redeemed_at) events.push(event('paid', transaction.redeemed_at, Number(transaction.amount_paid ?? transaction.total_payable)));
         if (transaction.status === 'forfeited') events.push(event('expired', forfeitDate(transaction)));
 
         /*

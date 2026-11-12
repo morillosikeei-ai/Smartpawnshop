@@ -56,17 +56,27 @@ function editDistance(a: string, b: string, limit: number): number {
   return previous[b.length];
 }
 
-/** Misread characters allowed for a name word of this length. */
+/**
+ * Characters OCR confuses with letters, read as the letter. Folding both the
+ * name and the text this way lets "M1GUEL" match "MIGUEL" while a real letter
+ * difference ("MERRY" against "MARY") still counts as a different name.
+ */
+const OCR_LOOKALIKES: Record<string, string> = { '0': 'O', '1': 'I', '|': 'I', '5': 'S', '8': 'B', '2': 'Z', '6': 'G', '4': 'A' };
+const foldLookalikes = (text: string) => text.replace(/[0-9|]/g, char => OCR_LOOKALIKES[char] ?? char);
+
+/**
+ * One stray or dropped character allowed in a long name word (7+ letters),
+ * where OCR noise is likelier than a different name. Shorter words must match
+ * exactly, since one letter there is a different name: MARY and MERY.
+ */
 function allowedErrors(length: number): number {
-  if (length <= 3) return 0;
-  if (length <= 7) return 1;
-  return 2;
+  return length >= 7 ? 1 : 0;
 }
 
 /**
- * Whether one name word appears in the OCR text, allowing a few misread
- * characters. Also looks inside the text with spaces removed, since OCR often
- * runs neighbouring words together ("DELACRUZ").
+ * Whether one name word appears in the OCR text. Also looks inside the text
+ * with spaces removed, since OCR often runs neighbouring words together
+ * ("DELACRUZ").
  */
 function wordFound(word: string, tokens: string[], compact: string): boolean {
   const limit = allowedErrors(word.length);
@@ -88,26 +98,66 @@ function wordFound(word: string, tokens: string[], compact: string): boolean {
  *
  * - `unreadable`: the OCR found too little text to judge, usually a blurry,
  *   dark, or cropped photo.
- * - `match`: enough of the name's words were found. One or two word names need
- *   every word; longer names need at least 2 words and 60% of them, so a
- *   middle name printed as an initial, or one misread word, still matches.
- * - `mismatch`: otherwise.
- *
- * Single letters (middle initials) are ignored because OCR noise is full of them.
+ * - `match`: every word of the typed name is on the ID, in any order. A
+ *   middle initial typed as one letter is skipped.
+ * - `mismatch`: any word is missing, so "Merry Dela Cruz" does not pass for
+ *   "Mary Dela Cruz" just because the surname is right.
  */
 export function matchNameToIdText(fullName: string, ocrText: string): IdNameMatch {
-  const text = normalizeText(ocrText);
+  const text = foldLookalikes(normalizeText(ocrText));
   if (text.replace(/ /g, '').length < MIN_READABLE_CHARS) return 'unreadable';
 
-  const words = Array.from(new Set(normalizeText(fullName).split(' ').filter(word => word.length >= 2)));
+  const words = Array.from(new Set(foldLookalikes(normalizeText(fullName)).split(' ').filter(word => word.length >= 2)));
   if (words.length === 0) return 'mismatch';
 
   const tokens = text.split(' ');
   const compact = text.replace(/ /g, '');
-  const found = words.filter(word => wordFound(word, tokens, compact)).length;
+  return words.every(word => wordFound(word, tokens, compact)) ? 'match' : 'mismatch';
+}
 
-  if (words.length <= 2) return found === words.length ? 'match' : 'mismatch';
-  return found >= 2 && found / words.length >= 0.6 ? 'match' : 'mismatch';
+const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+
+/**
+ * The ways Philippine IDs print a date, normalized like the OCR text:
+ * "JANUARY 15 1990" (PhilSys), "1990 01 15" (license, UMID), "15 JAN 1990"
+ * (passport), and day/month numbers either way round.
+ */
+function dateSpellings(isoDate: string): string[] {
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return [];
+  const [, year, month, day] = match;
+  const name = MONTHS[Number(month) - 1];
+  const short = name.slice(0, 3);
+  const days = Array.from(new Set([day, String(Number(day))]));
+  const out: string[] = [];
+  for (const d of days) {
+    out.push(`${year} ${month} ${d}`, `${month} ${d} ${year}`, `${d} ${month} ${year}`);
+    for (const m of [name, short]) out.push(`${m} ${d} ${year}`, `${d} ${m} ${year}`);
+  }
+  return out;
+}
+
+/**
+ * Whether the typed date of birth is printed on the ID, in any of the usual
+ * layouts. `unreadable` when the OCR found too little text to judge.
+ */
+export function matchBirthdateToIdText(isoDate: string, ocrText: string): IdNameMatch {
+  const text = normalizeText(ocrText);
+  if (text.replace(/ /g, '').length < MIN_READABLE_CHARS) return 'unreadable';
+  const compact = text.replace(/ /g, '');
+  return dateSpellings(isoDate).some(spelling => compact.includes(spelling.replace(/ /g, ''))) ? 'match' : 'mismatch';
+}
+
+/**
+ * Whether the typed ID number is printed on the ID. Spaces and dashes are
+ * ignored, and letters OCR confuses with digits count as those digits.
+ */
+export function matchIdNumberToIdText(idNumber: string, ocrText: string): IdNameMatch {
+  const text = normalizeText(ocrText);
+  if (text.replace(/ /g, '').length < MIN_READABLE_CHARS) return 'unreadable';
+  const number = foldLookalikes(normalizeText(idNumber).replace(/ /g, ''));
+  if (number.length < 4) return 'mismatch';
+  return foldLookalikes(text.replace(/ /g, '')).includes(number) ? 'match' : 'mismatch';
 }
 
 /** Fields read off an ID photo, each missing when it could not be found. */
@@ -116,6 +166,8 @@ export type IdFields = {
   idType?: string;
   idNumber?: string;
   address?: string;
+  /** Date of birth as YYYY-MM-DD. */
+  birthdate?: string;
 };
 
 /**
@@ -188,6 +240,43 @@ function passportName(lines: string[]): string | undefined {
   return last && first ? `${first} ${last}` : undefined;
 }
 
+/** A date in one of the ID layouts, as YYYY-MM-DD, or undefined. */
+function readDate(text: string): string | undefined {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const valid = (y: number, m: number, d: number) => y > 1900 && y < 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31;
+  let found = text.match(/\b(\d{4})[/ .-](\d{1,2})[/ .-](\d{1,2})\b/);
+  if (found && valid(+found[1], +found[2], +found[3])) return `${found[1]}-${pad(+found[2])}-${pad(+found[3])}`;
+  found = text.match(/\b([A-Z]{3,9})\.? (\d{1,2}),? (\d{4})\b/);
+  if (found) {
+    const month = MONTHS.findIndex(name => name.startsWith(found![1].slice(0, 3))) + 1;
+    if (month && valid(+found[3], month, +found[2])) return `${found[3]}-${pad(month)}-${pad(+found[2])}`;
+  }
+  found = text.match(/\b(\d{1,2}) ([A-Z]{3,9})\.? (\d{4})\b/);
+  if (found) {
+    const month = MONTHS.findIndex(name => name.startsWith(found![2].slice(0, 3))) + 1;
+    if (month && valid(+found[3], month, +found[1])) return `${found[3]}-${pad(month)}-${pad(+found[1])}`;
+  }
+  found = text.match(/\b(\d{1,2})[/ .-](\d{1,2})[/ .-](\d{4})\b/);
+  if (found && valid(+found[3], +found[1], +found[2])) return `${found[3]}-${pad(+found[1])}-${pad(+found[2])}`;
+  return undefined;
+}
+
+/** The date of birth on the card: after a birth label first, else the first date. */
+function readBirthdate(lines: string[]): string | undefined {
+  const label = lines.findIndex(line => /BIRTH|KAPANGANAKAN|\bDOB\b/.test(line));
+  if (label >= 0) {
+    for (const line of lines.slice(label, label + 3)) {
+      const date = readDate(line);
+      if (date) return date;
+    }
+  }
+  for (const line of lines) {
+    const date = readDate(line);
+    if (date) return date;
+  }
+  return undefined;
+}
+
 /**
  * Read the customer's details off the OCR text of an ID.
  *
@@ -227,6 +316,11 @@ export function parseIdText(ocrText: string): IdFields {
     const found = upper.match(pattern);
     if (found) { fields.idNumber = found[0].replace(/ /g, '-'); break; }
   }
+
+  // Date of birth: the first date after a birth label, or failing that the
+  // first full date on the card, as YYYY-MM-DD.
+  const birthdate = readBirthdate(lines);
+  if (birthdate) fields.birthdate = birthdate;
 
   // Address: the rest of the Address / Tirahan line, plus up to two lines after it.
   const addressAt = lines.findIndex(line => /\b(ADDRESS|TIRAHAN)\b/.test(line));

@@ -1,3 +1,5 @@
+// First, so a demo's simulated date applies before anything reads the clock.
+import './services/simulatedClock';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';

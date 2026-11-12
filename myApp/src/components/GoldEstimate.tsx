@@ -23,7 +23,7 @@ const MATERIALS: Array<{ value: MetalType; label: string }> = [
 
 /** Purity options per metal. value is what the API expects in karat. */
 const PURITIES: Record<MetalType, Array<{ value: string; label: string }>> = {
-  gold: ['10k', '14k', '18k', '21k', '24k'].map(karat => ({ value: karat, label: karat.toUpperCase() })),
+  gold: ['14k', '18k', '21k', '24k'].map(karat => ({ value: karat, label: karat.toUpperCase() })),
   silver: [
     { value: '925', label: '925 Sterling Silver' },
     { value: '999', label: '999 Fine Silver' },

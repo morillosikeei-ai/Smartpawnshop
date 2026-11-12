@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { extractIdText, matchNameToIdText, normalizeText, parseIdText, type IdFields } from '../services/idOcr';
+import { extractIdText, matchBirthdateToIdText, matchIdNumberToIdText, matchNameToIdText, normalizeText, parseIdText, type IdFields } from '../services/idOcr';
 import { checkPhotoQuality, type PhotoQuality } from '../services/photoQuality';
 import { Spinner } from '../components/Skeleton';
 import './IdPhotoCheck.css';
@@ -76,6 +76,41 @@ export const IdNameBadge: React.FC<{ check: IdPhotoCheck; fullName: string }> = 
   );
 };
 
+type IdCheckedField = 'idNumber' | 'birthdate';
+
+const FIELD_CHECKS: Record<IdCheckedField, { match: (value: string, text: string) => string; ok: string; missing: string }> = {
+  idNumber: { match: matchIdNumberToIdText, ok: 'ID number matches ID', missing: 'ID number not found on ID' },
+  birthdate: { match: matchBirthdateToIdText, ok: 'Birthday matches ID', missing: 'Birthday not found on ID' },
+};
+
+/**
+ * Badge for under the ID number or birthday field, like the name badge:
+ * whether the typed value is printed on the ID photo read in this session.
+ */
+export const IdFieldBadge: React.FC<{ check: IdPhotoCheck; kind: IdCheckedField; value: string }> = ({ check, kind, value }) => {
+  if (check.reading || check.text === null || !value.trim()) return null;
+  const { match, ok, missing } = FIELD_CHECKS[kind];
+  const result = match(value, check.text);
+  if (result === 'match') return <span className="id-name-badge match" role="status">✅ {ok}</span>;
+  if (result === 'unreadable') return null;
+  return <span className="id-name-badge warn" role="status">⚠️ {missing} — please double-check</span>;
+};
+
+/**
+ * The typed details the ID photo clearly does not show, as words for a
+ * message ("name", "birthday", "ID number"). Empty when there is no readable
+ * photo: an unreadable photo is a quality problem, flagged on its own.
+ */
+export function idMismatches(check: IdPhotoCheck, typed: { fullName: string; birthdate: string; idNumber: string }): string[] {
+  if (check.reading || check.text === null) return [];
+  const text = check.text;
+  const out: string[] = [];
+  if (typed.fullName.trim() && matchNameToIdText(typed.fullName, text) === 'mismatch') out.push('name');
+  if (typed.birthdate && matchBirthdateToIdText(typed.birthdate, text) === 'mismatch') out.push('birthday');
+  if (typed.idNumber.trim() && matchIdNumberToIdText(typed.idNumber, text) === 'mismatch') out.push('ID number');
+  return out;
+}
+
 /** Blur and brightness warning under the ID photo input. Staff can retake or keep it. */
 export const IdPhotoQualityWarning: React.FC<{ check: IdPhotoCheck; onRetake: () => void; onKeep: () => void }> = ({ check, onRetake, onKeep }) => {
   const quality = check.quality;
@@ -100,6 +135,7 @@ const AUTOFILL_FIELDS: Array<{ key: keyof IdFields; label: string }> = [
   { key: 'fullName', label: 'Full Name' },
   { key: 'idType', label: 'Valid ID Type' },
   { key: 'idNumber', label: 'Valid ID Number' },
+  { key: 'birthdate', label: 'Birthday' },
   { key: 'address', label: 'Address' },
 ];
 

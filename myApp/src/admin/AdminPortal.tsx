@@ -21,6 +21,7 @@ import {
   pulseOutline,
   searchOutline,
   shieldCheckmarkOutline,
+  banOutline,
   removeOutline,
   trendingDownOutline,
   trendingUpOutline,
@@ -33,6 +34,7 @@ import { money, moneyExact, shortDate, timeAgo } from '../data/pawnshopStore';
 import { createUser, updateUser, getAuditLogs, getCustomers, deleteShopClosure, getDashboard, getFeedbackList, getShopSchedule, saveShopClosure, getModelMetrics, getReportSummary, getRiskAlerts, getSystemSettings, getTransactions, getUsers, saveSystemSetting, NOTIFICATION_TITLES, type ApiFeedbackList, type ApiNotification, type ApiShopClosure, type ApiReportSummary, type ApiRiskAlert, type ApiSystemSetting, type ApiTransaction, type ApiUser } from '../services/api';
 import RevenueTrendChart, { type RevenuePoint } from '../components/RevenueTrendChart';
 import GoldPriceChart, { type GoldPricePoint } from '../components/GoldPriceChart';
+import PurityPriceTable from '../components/PurityPriceTable';
 import { useNotifications } from '../components/useNotifications';
 import ThemeToggle from '../components/ThemeToggle';
 import MotionToggle from '../components/MotionToggle';
@@ -121,9 +123,9 @@ const DAY_MS = 86400000;
  *
  * The dashboard endpoint sends revenue_trend for the current seven days only,
  * so the comparison baseline is summed on the client from the redeemed
- * transactions that same response already carries. total_payable is computed
- * by the API and frozen at the redemption date, which is exactly what
- * revenue_trend buckets, so both sides of the percentage use the same figure.
+ * transactions that same response already carries. amount_paid is what was
+ * collected at the counter, which is exactly what revenue_trend buckets, so
+ * both sides of the percentage use the same figure.
  */
 const previousWeekRevenue = (transactions: ApiTransaction[]) => {
   const todayStart = startOfDay(new Date()).getTime();
@@ -134,7 +136,7 @@ const previousWeekRevenue = (transactions: ApiTransaction[]) => {
     if (transaction.status !== 'redeemed' || !transaction.redeemed_at) return total;
     const redeemedDay = startOfDay(new Date(transaction.redeemed_at)).getTime();
     if (redeemedDay < windowStart || redeemedDay > windowEnd) return total;
-    return total + Number(transaction.total_payable || 0);
+    return total + Number(transaction.amount_paid ?? transaction.total_payable ?? 0);
   }, 0);
 };
 
@@ -431,7 +433,7 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
   <section className="admin-content">
     <div className="admin-intro admin-dashboard-intro">
       <div>
-        <small>THURSDAY, SEPTEMBER 03, 2026</small>
+        <small>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit', year: 'numeric' }).toUpperCase()}</small>
         <h2>Quick links</h2>
         <p>Review shop performance, risk posture, and recent operational events.</p>
       </div>
@@ -491,6 +493,7 @@ const Dashboard: React.FC<{ go: (view: AdminView) => void; onOpenRecords: (tab: 
           error={loadError ? `${marketName} price history is unavailable right now.` : ''}
         />
         <small className="gold-price-caption">Recent {marketName.toLowerCase()} price movement</small>
+        <PurityPriceTable metal={marketMetal} compact />
         <small className="gold-price-caption">Used as a starting reference for jewelry valuation — final appraisal remains at staff's discretion.</small>
         {/* The accuracy figure is measured on the gold forecast only. */}
         {marketMetal === 'gold' && predictionAccuracy !== null && (
@@ -582,12 +585,21 @@ const Tabs: React.FC<{ tabs: Array<{ id: Tab; label: string }>; active: Tab; onC
   </div>
 );
 
-/** The two account lists the Manage page switches between. */
-type AccountTab = 'staff' | 'customer';
+/**
+ * The account lists the Manage page switches between: active staff, active
+ * customers, and every inactive account of either role in its own tab, so a
+ * deactivated account is easy to find and turn back on.
+ */
+type AccountTab = 'staff' | 'customer' | 'inactive';
 const ACCOUNT_TABS: Array<{ id: AccountTab; label: string; icon: string }> = [
   { id: 'staff', label: 'Staff', icon: shieldCheckmarkOutline },
   { id: 'customer', label: 'Customers', icon: peopleOutline },
+  { id: 'inactive', label: 'Inactive', icon: banOutline },
 ];
+
+/** Whether an account belongs on a tab. */
+const onAccountTab = (user: ApiUser, tab: AccountTab) =>
+  tab === 'inactive' ? user.status !== 'active' : user.status === 'active' && user.role === tab;
 
 const Manage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('users');
@@ -683,13 +695,12 @@ const Manage: React.FC = () => {
     }
   };
 
-  const staffCount = users.filter((user) => user.role === 'staff').length;
-  const customerCount = users.filter((user) => user.role === 'customer').length;
+  const tabCount = (tab: AccountTab) => users.filter((user) => onAccountTab(user, tab)).length;
 
   // One tab shows one role, narrowed further by the search box.
   const term = search.trim().toLowerCase();
   const visibleUsers = users
-    .filter((user) => user.role === accountTab)
+    .filter((user) => onAccountTab(user, accountTab))
     .filter((user) => !term || user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term));
   const userPage = usePagedRows(visibleUsers);
 
@@ -726,7 +737,7 @@ const Manage: React.FC = () => {
                     >
                       <IonIcon icon={entry.icon} />
                       {entry.label}
-                      <b>{entry.id === 'staff' ? staffCount : customerCount}</b>
+                      <b>{tabCount(entry.id)}</b>
                     </button>
                   ))}
                 </div>
@@ -736,7 +747,7 @@ const Manage: React.FC = () => {
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder={accountTab === 'staff' ? 'Search staff by name or email' : 'Search customers by name or email'}
+                    placeholder={accountTab === 'staff' ? 'Search staff by name or email' : accountTab === 'customer' ? 'Search customers by name or email' : 'Search inactive accounts by name or email'}
                     aria-label="Search accounts"
                   />
                 </label>
@@ -770,7 +781,7 @@ const Manage: React.FC = () => {
                   <p className="admin-inline-message acct-empty">
                     {search.trim()
                       ? 'No accounts match that search.'
-                      : accountTab === 'staff' ? 'No staff accounts found.' : 'No customer accounts found.'}
+                      : accountTab === 'staff' ? 'No active staff accounts.' : accountTab === 'customer' ? 'No active customer accounts.' : 'No inactive accounts. Accounts set to Inactive with Update show here.'}
                   </p>
                 )}
               </div>
@@ -1040,40 +1051,57 @@ const ShopScheduleModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
   );
 };
 
-/** Human readable label for a system_settings key. */
-const SETTING_LABEL: Record<string, string> = {
-  current_gold_price: 'Fallback gold price per gram',
-  risk_threshold_percent: 'Risk safety margin (%)',
-  jewelry_watch_phone_rate: 'Monthly Interest (Renta) — jewelry, watch, cellphone (%)',
-  bulky_item_rate: 'Monthly Interest (Renta) — bulky items (%)',
-  default_loan_to_value: 'Default pawn-to-value (%)',
-  loan_term_days: 'Pawn term (days)',
-  grace_period_days: 'Redemption period after the due date (days) — PD 114: 90',
-  auction_notice_days: 'Auction notice, days before the redemption period ends',
-  due_soon_notice_days: 'Due date reminder (days before)',
-  value_change_notice_percent: 'Value change notice (%)',
-  redemption_visit_days: 'Redemption hold (days)',
-  renewal_term_days: 'Online renewal extension (days)',
-  minimum_interest_days: 'Minimum interest charged (days)',
-  gcash_payment_info: 'GCash number/account shown to customers',
-  shop_open_days: 'Open days (1 = Monday … 7 = Sunday)',
-  shop_opens_at: 'Opening time (24h, e.g. 09:00)',
-  shop_closes_at: 'Closing time (24h, e.g. 18:00)',
+/** How one system setting is shown: its label, a hint, and the input to use. */
+type SettingMeta = { label: string; hint?: string; type?: 'number' | 'time' | 'text'; min?: number; max?: number; step?: number };
+
+const SETTING_META: Record<string, SettingMeta> = {
+  loan_term_days: { label: 'Pawn term (days)', hint: 'Days from the pawn date to the due date of a new pawn.', type: 'number', min: 1, max: 365, step: 1 },
+  default_loan_to_value: { label: 'Default pawn-to-value (%)', hint: 'Pawn amount as a share of the appraised value, suggested on new pawns.', type: 'number', min: 1, max: 100, step: 0.1 },
+  jewelry_watch_phone_rate: { label: 'Monthly interest (renta): jewelry, watch, cellphone (%)', type: 'number', min: 0, max: 100, step: 0.1 },
+  bulky_item_rate: { label: 'Monthly interest (renta): bulky items (%)', type: 'number', min: 0, max: 100, step: 0.1 },
+  minimum_interest_days: { label: 'Minimum interest charged (days)', hint: 'Redeemed or renewed sooner still pays this many days. 0 turns it off.', type: 'number', min: 0, max: 999, step: 1 },
+  renewal_term_days: { label: 'Online renewal extension (days)', hint: 'Days a confirmed GCash renewal adds to the due date.', type: 'number', min: 1, max: 365, step: 1 },
+  grace_period_days: { label: 'Redemption period after the due date (days)', hint: 'P.D. 114 requires at least 90 days. Applies to new pawns.', type: 'number', min: 90, max: 365, step: 1 },
+  auction_notice_days: { label: 'Auction notice (days before the period ends)', hint: 'When the written notice of public auction goes out.', type: 'number', min: 1, max: 60, step: 1 },
+  due_soon_notice_days: { label: 'Due date reminder (days before)', type: 'number', min: 0, max: 60, step: 1 },
+  redemption_visit_days: { label: 'Ready-for-pickup hold (days)', hint: 'How long an item set aside for pickup waits before going back to the vault.', type: 'number', min: 0, max: 30, step: 1 },
+  current_gold_price: { label: 'Fallback gold price per gram (₱)', hint: 'Used only when no market price has ever been recorded.', type: 'number', min: 1, step: 0.01 },
+  natural_diamond_1ct_price: { label: 'Natural diamond reference price, 1 carat (₱)', hint: '0 = not set.', type: 'number', min: 0, step: 0.01 },
+  pearl_price_per_gram: { label: 'Pearl reference price, per gram (₱)', hint: '0 = not set.', type: 'number', min: 0, step: 0.01 },
+  risk_threshold_percent: { label: 'Risk safety margin (%)', hint: 'Warn once an item is worth less than this much above its pawn amount.', type: 'number', min: 0, max: 100, step: 0.1 },
+  value_change_notice_percent: { label: 'Value change notice (%)', hint: 'Tell the customer when their item’s value moves this much.', type: 'number', min: 0, max: 100, step: 0.1 },
+  shop_open_days: { label: 'Open days', hint: '1 = Monday … 7 = Sunday, separated by commas, e.g. 1,2,3,4,5,6.', type: 'text' },
+  shop_opens_at: { label: 'Opening time', type: 'time' },
+  shop_closes_at: { label: 'Closing time', type: 'time' },
+  gcash_payment_info: { label: 'GCash number or account shown to customers', hint: 'Shown on the Renew Online panel.', type: 'text' },
+  unusual_activity_threshold: { label: 'Unusual activity: pawns per customer', hint: 'Flag a customer who pawns this many items within the window.', type: 'number', min: 1, max: 100, step: 1 },
+  unusual_activity_window_days: { label: 'Unusual activity: window (days)', type: 'number', min: 1, max: 90, step: 1 },
 };
 
-const settingLabel = (key: string) => SETTING_LABEL[key] || key.split('_').join(' ');
+/** The Settings page, in sections. A setting not listed here shows under Other. */
+const SETTING_GROUPS: Array<{ title: string; keys: string[] }> = [
+  { title: 'Pawn terms and interest', keys: ['loan_term_days', 'default_loan_to_value', 'jewelry_watch_phone_rate', 'bulky_item_rate', 'minimum_interest_days', 'renewal_term_days'] },
+  { title: 'After the due date (P.D. 114)', keys: ['grace_period_days', 'auction_notice_days', 'due_soon_notice_days', 'redemption_visit_days'] },
+  { title: 'Prices and risk', keys: ['current_gold_price', 'natural_diamond_1ct_price', 'pearl_price_per_gram', 'risk_threshold_percent', 'value_change_notice_percent'] },
+  { title: 'Shop hours', keys: ['shop_open_days', 'shop_opens_at', 'shop_closes_at'] },
+  { title: 'Payments and safety', keys: ['gcash_payment_info', 'unusual_activity_threshold', 'unusual_activity_window_days'] },
+];
+
+const settingLabel = (key: string) => SETTING_META[key]?.label || key.split('_').join(' ');
 
 /**
- * Edits the shop's system_settings rows. The list is whatever the API returns,
- * so a new setting appears here without a code change and nothing on the form
- * is a value the shop never configured.
+ * Edits the shop's system_settings rows, in sections. The list is whatever
+ * the API returns, so a new setting appears (under Other) without a code
+ * change. Each changed setting is saved on its own, and a value the API
+ * refuses shows its message under that field while the others still save.
  */
 const SystemSettingsForm: React.FC<{ only?: string[]; title?: string }> = ({ only, title = 'System settings' }) => {
   const [settings, setSettings] = useState<ApiSystemSetting[]>([]);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -1088,47 +1116,90 @@ const SystemSettingsForm: React.FC<{ only?: string[]; title?: string }> = ({ onl
   }, [only]);
 
   const update = (key: string, value: string) => {
-    setSaved(false);
+    setNotice('');
+    setFieldErrors((current) => Object.fromEntries(Object.entries(current).filter(([field]) => field !== key)));
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  // Only the rows the admin actually changed are sent back.
+  // Only the rows the admin changed are sent, one at a time, so each refusal
+  // is matched to its own field.
   const save = async () => {
     setError('');
+    setNotice('');
     setSaving(true);
-    try {
-      const changed = settings.filter((row) => draft[row.setting_key] !== row.setting_value);
-      await Promise.all(changed.map((row) => saveSystemSetting(row.setting_key, draft[row.setting_key])));
-      setSettings((current) => current.map((row) => ({ ...row, setting_value: draft[row.setting_key] ?? row.setting_value })));
-      setSaved(true);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to save settings.');
-    } finally {
-      setSaving(false);
+    const current = Object.fromEntries(settings.map((row) => [row.setting_key, row.setting_value]));
+    let changed = settings.filter((row) => draft[row.setting_key] !== row.setting_value);
+    // Moving the hours later: save closing time first, so the API never sees
+    // an opening time after the old closing time (and the reverse).
+    if ((draft.shop_opens_at ?? '') >= (current.shop_closes_at ?? '')) {
+      changed = [...changed].sort((a) => (a.setting_key === 'shop_closes_at' ? -1 : 0));
     }
+    const errors: Record<string, string> = {};
+    const savedValues: Record<string, string> = {};
+    for (const row of changed) {
+      try {
+        const result = await saveSystemSetting(row.setting_key, draft[row.setting_key]);
+        savedValues[row.setting_key] = result.setting_value;
+      } catch (requestError) {
+        errors[row.setting_key] = requestError instanceof Error ? requestError.message : 'Could not save this setting.';
+      }
+    }
+    // The API tidies some values (e.g. "1, 2" becomes "1,2"); show what was saved.
+    setSettings((rows) => rows.map((row) => (row.setting_key in savedValues ? { ...row, setting_value: savedValues[row.setting_key] } : row)));
+    setDraft((values) => ({ ...values, ...savedValues }));
+    setFieldErrors(errors);
+    const savedCount = Object.keys(savedValues).length;
+    const failedCount = Object.keys(errors).length;
+    setNotice(failedCount
+      ? `${savedCount ? `${savedCount} saved. ` : ''}${failedCount} ${failedCount === 1 ? 'setting needs' : 'settings need'} fixing.`
+      : savedCount ? 'Settings saved.' : 'Nothing to save.');
+    setSaving(false);
   };
 
   const dirty = settings.some((row) => draft[row.setting_key] !== row.setting_value);
 
   if (loading) return <div className="settings-grid" aria-busy="true"><SkeletonText lines={4} /><SkeletonText lines={4} /></div>;
 
+  const keys = new Set(settings.map((row) => row.setting_key));
+  const listed = new Set(SETTING_GROUPS.flatMap((group) => group.keys));
+  const groups = [
+    ...SETTING_GROUPS.map((group) => ({ ...group, keys: group.keys.filter((key) => keys.has(key)) })),
+    { title: 'Other', keys: settings.map((row) => row.setting_key).filter((key) => !listed.has(key)) },
+  ].filter((group) => group.keys.length > 0);
+
   return (
     <>
-      <PanelHead title={title} action="Save settings" busy={saving} onAction={save} />
+      <PanelHead title={title} action={dirty ? 'Save settings' : 'Saved'} busy={saving} onAction={save} />
       {error && <p className="admin-form-error">{error}</p>}
-      {saved && !dirty && <p className="admin-inline-message">Settings saved.</p>}
+      {notice && <p className={Object.keys(fieldErrors).length ? 'admin-form-error' : 'admin-inline-message'} role="status">{notice}</p>}
       {settings.length === 0 && !error && <p className="admin-inline-message">No settings returned by the API.</p>}
-      <div className="settings-grid">
-        {settings.map((row) => (
-          <label key={row.setting_key}>
-            {settingLabel(row.setting_key)}
-            <input
-              value={draft[row.setting_key] ?? ''}
-              onChange={(event) => update(row.setting_key, event.target.value)}
-            />
-          </label>
-        ))}
-      </div>
+      {groups.map((group) => (
+        <section key={group.title} className="settings-group">
+          <h4>{group.title}</h4>
+          <div className="settings-grid">
+            {group.keys.map((key) => {
+              const meta = SETTING_META[key] || {};
+              const changed = draft[key] !== settings.find((row) => row.setting_key === key)?.setting_value;
+              return (
+                <label key={key} className={`${fieldErrors[key] ? 'has-error' : ''} ${changed ? 'is-changed' : ''}`}>
+                  {settingLabel(key)}
+                  <input
+                    type={meta.type === 'number' ? 'number' : meta.type === 'time' ? 'time' : 'text'}
+                    inputMode={meta.type === 'number' ? 'decimal' : undefined}
+                    min={meta.min}
+                    max={meta.max}
+                    step={meta.step}
+                    value={draft[key] ?? ''}
+                    onChange={(event) => update(key, event.target.value)}
+                    aria-invalid={Boolean(fieldErrors[key])}
+                  />
+                  {fieldErrors[key] ? <small className="settings-error">{fieldErrors[key]}</small> : meta.hint && <small className="settings-hint">{meta.hint}</small>}
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </>
   );
 };

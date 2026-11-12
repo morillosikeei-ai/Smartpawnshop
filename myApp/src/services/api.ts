@@ -1,3 +1,5 @@
+import { followSimulatedClock } from './simulatedClock';
+
 /**
  * The address of the API.
  *
@@ -53,8 +55,10 @@ export type ApiTransaction = {
   redeemed_by?: number | null;
   /** When the customer said they are ready to redeem, if they have. */
   ready_to_redeem_at: string | null;
-  /** When staff accepted that request, if they have. */
+  /** When staff marked the item ready for pickup, if they have. */
   redemption_confirmed_at: string | null;
+  /** Until when the item is held at the counter for pickup; null when it is not set aside. */
+  pickup_ready_until?: string | null;
   /** The staff member currently taking this payment, while a claim is held. */
   locked_by?: number | null;
   locked_at?: string | null;
@@ -70,6 +74,8 @@ export type ApiTransaction = {
   last_redemption_date?: string | null;
   /** Payoff figures computed by the API, so no client re-derives interest. */
   days_elapsed: number;
+  /** What was actually paid at the counter for a redeemed pawn; null while it is open. */
+  amount_paid?: number | null;
   /** Days of interest charged: days_elapsed, but never under minimum_interest_days. */
   interest_days: number;
   /** The shop's minimum_interest_days setting, for the balance graph's past days. */
@@ -105,6 +111,8 @@ export type ApiCustomer = {
   name: string;
   email?: string;
   contact_number?: string;
+  /** Date of birth as YYYY-MM-DD, typed from the valid ID. Older records may have none. */
+  birthdate?: string | null;
   /** The complete address. Built from the parts below when they were picked from the PSGC list. */
   address?: string;
   province?: string | null;
@@ -130,8 +138,10 @@ export type ApiItem = { items_id: number; group: ItemGroup; category: string; cu
   has_gemstone?: boolean | null;
   /** Staff estimate for the gemstone, entered once at intake. */
   gemstone_value?: string | number | null;
-  /** Diamond, ruby, sapphire, emerald, pearl, or other. Empty without a stone. */
+  /** natural_diamond, pearl, other (older rows: diamond, ruby...). Empty without a stone. */
   gemstone_type?: string | null;
+  /** Carats for a natural diamond, grams for a pearl. Empty otherwise. */
+  gemstone_weight?: string | number | null;
   /** Reference note such as "0.5 carat, round cut". Not used in any value. */
   gemstone_details?: string | null;
   /** Gold (or staff) value plus any gemstone value, computed by the API. */
@@ -159,6 +169,8 @@ export type NotificationType =
   | 'risk_notice'
   | 'due_soon'
   | 'redeem_confirmed'
+  | 'pickup_expired'
+  | 'staff_pickup_expired'
   | 'redemption_complete'
   | 'forfeited'
   | 'overdue'
@@ -199,7 +211,9 @@ export const NOTIFICATION_TITLES: Record<NotificationType, string> = {
   value_changed: 'Item value changed',
   risk_notice: 'Value close to your pawn amount',
   due_soon: 'Payment due soon',
-  redeem_confirmed: 'Redemption confirmed',
+  redeem_confirmed: 'Ready for pickup',
+  pickup_expired: 'Pickup time ended',
+  staff_pickup_expired: 'Return item to vault',
   redemption_complete: 'Redemption complete',
   forfeited: 'Item set for public auction',
   overdue: 'Pawn is overdue',
@@ -351,7 +365,14 @@ export type ApiRedemptionSuggestion = {
   confidence: number;
   /** The same figure as a word: High, Moderate, or Low. */
   confidence_label: 'High' | 'Moderate' | 'Low';
+  /** Per gram price of each karat and silver fineness, today and forecast. Absent from an older API. */
+  by_purity?: { gold: ApiPurityPrice[]; silver: ApiPurityPrice[] };
+  /** The admin's reference prices for items with no market feed (pearl, natural diamond). */
+  references?: Array<{ key: string; label: string; price: number | null }>;
 };
+
+/** One karat or fineness in the price breakdown. */
+export type ApiPurityPrice = { code: string; label: string; purity: number; current: number; predicted: number };
 export type ApiRiskAlert = {
   risk_alerts_id: number;
   item_id: number;
@@ -446,6 +467,8 @@ async function sendRequest<T>(path: string, options: RequestInit = {}, authentic
     // the URL is wrong, or the browser blocked the response for CORS.
     throw new Error(`Cannot reach the SmartPawn API at ${API_BASE_URL}. Check that the backend is running and that this address is allowed by CORS.`);
   }
+  // Demo time travel: keep the app's clock on the API's simulated date.
+  followSimulatedClock(response.headers.get('X-Simulated-Now'));
   const body = await response.text().then(text => JSON.parse(withMediaBase(text))).catch(() => ({}));
   if (!response.ok) throw new Error(body.message || `The API request failed (HTTP ${response.status}).`);
   return body as T;
@@ -550,7 +573,7 @@ export const getPsgcProvinces = () => psgcList<PsgcPlace[]>('/psgc/provinces');
 export const getPsgcCities = (provinceCode: string) => psgcList<PsgcPlace[]>(`/psgc/provinces/${encodeURIComponent(provinceCode)}/cities`);
 export const getPsgcBarangays = (cityCode: string) => psgcList<string[]>(`/psgc/cities/${encodeURIComponent(cityCode)}/barangays`);
 /** Staff correcting a customer's details. The email is the sign-in and is not sent. */
-export async function updateCustomer(id: number, payload: { name: string; contact_number: string; address: string; valid_id_type: string; valid_id_number: string; valid_id_photo: string | null }) {
+export async function updateCustomer(id: number, payload: { name: string; contact_number: string; address: string; valid_id_type: string; valid_id_number: string; valid_id_photo: string | null; birthdate?: string }) {
   return request<ApiCustomer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 }
 /** A customer's face reference, with the ID photo as fallback. Staff only. */
@@ -926,4 +949,4 @@ export async function getStaffReportBreakdown(metric: StaffReportMetric, period:
 }
 
 export async function getSystemSettings() { return request<ApiSystemSetting[]>('/system-settings'); }
-export async function saveSystemSetting(settingKey: string, settingValue: string) { return request('/system-settings', { method: 'PUT', body: JSON.stringify({ setting_key: settingKey, setting_value: settingValue }) }); }
+export async function saveSystemSetting(settingKey: string, settingValue: string) { return request<ApiSystemSetting>('/system-settings', { method: 'PUT', body: JSON.stringify({ setting_key: settingKey, setting_value: settingValue }) }); }

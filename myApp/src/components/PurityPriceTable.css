@@ -1,0 +1,27 @@
+/* Price per karat / fineness table (PurityPriceTable.tsx). */
+.purity-prices { display: grid; gap: 10px; margin-top: 12px; }
+.purity-prices table { width: 100%; border-collapse: collapse; font-size: var(--fs-13, 13px); font-variant-numeric: tabular-nums; }
+.purity-prices th,
+.purity-prices td { padding: 7px 10px; border-bottom: 1px solid #e6ebf3; text-align: right; }
+.purity-prices th:first-child { text-align: left; }
+.purity-prices thead th { color: #64748b; font-size: var(--fs-11, 11px); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.purity-prices tbody th { color: #061028; font-weight: 700; }
+.purity-prices td { color: #061028; font-weight: 600; }
+.purity-prices td.up { color: #15803d; }
+.purity-prices td.down { color: #b42318; }
+.purity-prices td span { font-size: .75em; }
+.purity-prices .purity-prices-group th { padding-top: 12px; color: #64748b; font-size: var(--fs-11, 11px); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.purity-prices-references em { color: #94a3b8; font-style: normal; font-weight: 500; }
+.purity-prices-note { margin: 0; color: #64748b; font-size: var(--fs-11, 11px); line-height: 1.5; }
+.purity-prices.is-compact th,
+.purity-prices.is-compact td { padding: 5px 6px; font-size: var(--fs-12, 12px); }
+
+html[data-theme="dark"] .purity-prices th,
+html[data-theme="dark"] .purity-prices td { border-bottom-color: #2a3650; }
+html[data-theme="dark"] .purity-prices tbody th,
+html[data-theme="dark"] .purity-prices td { color: #e6ebf5; }
+html[data-theme="dark"] .purity-prices td.up { color: #4ade80; }
+html[data-theme="dark"] .purity-prices td.down { color: #f0928a; }
+html[data-theme="dark"] .purity-prices thead th,
+html[data-theme="dark"] .purity-prices .purity-prices-group th,
+html[data-theme="dark"] .purity-prices-note { color: #a3afc2; }

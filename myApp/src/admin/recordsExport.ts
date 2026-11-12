@@ -68,12 +68,15 @@ export const transactionsCsv = (rows: ApiTransaction[]) => downloadCsv(
   ]),
 );
 
+/** What a redeemed pawn actually brought in, as the API counts revenue. */
+export const amountPaid = (row: ApiTransaction) => Number(row.amount_paid ?? row.total_payable ?? 0);
+
 export const paymentsCsv = (rows: ApiTransaction[]) => downloadCsv(
   'payments',
   ['Date paid', 'Ticket', 'Customer', 'Item', 'Principal', 'Interest', 'Total paid', 'Days held'],
   rows.map(row => [
     shortDate(row.redeemed_at), row.ticket_number, row.customer?.name, itemName(row),
-    Number(row.loan_amount), Number(row.interest_due), Number(row.total_payable), row.days_elapsed,
+    Number(row.loan_amount), Number(row.interest_due), amountPaid(row), row.days_elapsed,
   ]),
 );
 

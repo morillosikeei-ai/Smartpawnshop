@@ -1,3 +1,4 @@
+import PurityPriceTable from '../components/PurityPriceTable';
 import React, { useEffect, useMemo, useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import { informationCircleOutline, sparklesOutline } from 'ionicons/icons';
@@ -249,6 +250,16 @@ const GoldPriceTracking: React.FC = () => {
         ) : (
           <p className="gold-empty-note">{loaded ? 'No forecast available yet.' : 'Loading forecast...'}</p>
         )}
+      </section>
+
+      <section className="mini-panel gold-purity-panel">
+        <div className="section-heading">
+          <div>
+            <small>PRICE PER KARAT</small>
+            <h3>Today and predicted, per gram</h3>
+          </div>
+        </div>
+        <PurityPriceTable references />
       </section>
 
       <section className="mini-panel gold-suggestion-panel">
